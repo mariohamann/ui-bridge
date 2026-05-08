@@ -1,4 +1,8 @@
 import { defineConfig, devices } from '@playwright/test';
+import { fileURLToPath } from 'url';
+import path from 'path';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
   testDir: './tests',
@@ -22,6 +26,7 @@ export default defineConfig({
 
   webServer: {
     command: 'pnpm dev',
+    cwd: path.resolve(__dirname, '../../demos/vue-tailwind'),
     url: 'http://localhost:5173',
     reuseExistingServer: false,
     timeout: 30_000,

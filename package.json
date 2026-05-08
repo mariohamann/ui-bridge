@@ -4,6 +4,6 @@
   "version": "0.0.1",
   "scripts": {
     "build": "pnpm --filter @design-bridge/vite-plugin build",
-    "test": "pnpm build && pnpm --filter design-bridge-demo-vue-tailwind exec playwright test"
+    "test": "pnpm build && pnpm --filter @design-bridge/vite-plugin exec playwright test"
   }
 }
