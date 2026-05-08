@@ -27,7 +27,7 @@ If both servers are already running (e.g. you started `pnpm dev` manually in `de
 pnpm test
 ```
 
-Tests always run headed. Extra args after `--` are forwarded to Playwright, so you can target a single test:
+Extra args after `--` are forwarded to Playwright, so you can target a single test:
 
 ```bash
 pnpm test -- -g "test name here"
