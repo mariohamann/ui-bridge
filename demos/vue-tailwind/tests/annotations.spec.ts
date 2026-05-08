@@ -35,21 +35,20 @@ function inPanel(page: Page, selector: string): Locator {
  */
 async function openAnnotationsTab(page: Page): Promise<void> {
   const tab = inPanel(page, 'button[role="tab"]:has-text("Annotations")');
-  await tab.waitFor({ state: 'visible', timeout: 8_000 });
+  await tab.waitFor({ state: 'visible' });
   await tab.click();
-  // Wait for inspect mode to be active (cursor changes to crosshair)
-  await page.waitForFunction(() => document.body.style.cursor === 'crosshair', { timeout: 3_000 }).catch(() => { });
+  await page.waitForFunction(() => document.body.style.cursor === 'crosshair');
 }
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
 test.describe('Annotations', () => {
-  test.setTimeout(15_000);
 
   test.beforeEach(async ({ page }) => {
     await page.request.delete(`${API_BASE}/annotations`);
     await page.goto('/');
-    await page.waitForSelector('bridge-panel', { timeout: 8_000 });
+    await page.waitForSelector('bridge-panel');
+    await page.waitForSelector('bridge-annotation-popover', { state: 'attached' });
   });
 
   test.afterEach(async ({ page }) => {
@@ -85,14 +84,11 @@ test.describe('Annotations', () => {
     await headline.click();
 
     const popover = page.locator('bridge-annotation-popover');
-    await expect(popover.locator("textarea")).toBeVisible({ timeout: 5_000 });
-
-    const textarea = popover.locator('textarea');
-    await textarea.waitFor({ state: 'visible', timeout: 5_000 });
-    await textarea.fill('This headline needs a stronger CTA.');
+    await expect(popover.locator('textarea')).toBeVisible();
+    await popover.locator('textarea').fill('This headline needs a stronger CTA.');
 
     await popover.locator('button.btn-save, button:has-text("Save")').click();
-    await expect(popover).not.toBeVisible({ timeout: 5_000 });
+    await expect(popover).not.toBeVisible();
 
     await openAnnotationsTab(page);
     await expect(inPanel(page, '.db-ann-row')).toBeVisible();
@@ -104,11 +100,10 @@ test.describe('Annotations', () => {
     await page.locator('h1').first().click();
 
     const popover = page.locator('bridge-annotation-popover');
-    await expect(popover.locator("textarea")).toBeVisible({ timeout: 5_000 });
+    await expect(popover.locator('textarea')).toBeVisible();
     await popover.locator('textarea').fill('Badge test');
     await popover.locator('button.btn-save, button:has-text("Save")').click();
 
-    await expect(page.locator('bridge-annotation-badge .badge')).toBeVisible({ timeout: 5_000 });
     await expect(page.locator('bridge-annotation-badge .badge')).toBeVisible();
   });
 
@@ -119,11 +114,10 @@ test.describe('Annotations', () => {
     await page.locator('h1').first().click();
 
     const popover = page.locator('bridge-annotation-popover');
-    await expect(popover.locator("textarea")).toBeVisible({ timeout: 5_000 });
+    await expect(popover.locator('textarea')).toBeVisible();
     await popover.locator('textarea').fill('Persisted comment');
     await popover.locator('button.btn-save, button:has-text("Save")').click();
-
-    await page.waitForTimeout(400);
+    await expect(popover).not.toBeVisible();
 
     const res = await page.request.get(`${API_BASE}/annotations`);
     expect(res.status()).toBe(200);
@@ -136,16 +130,46 @@ test.describe('Annotations', () => {
     await page.locator('h1').first().click();
 
     const popover = page.locator('bridge-annotation-popover');
-    await expect(popover.locator("textarea")).toBeVisible({ timeout: 5_000 });
+    await expect(popover.locator('textarea')).toBeVisible();
     await popover.locator('textarea').fill('Survives reload');
     await popover.locator('button.btn-save, button:has-text("Save")').click();
-    await page.waitForTimeout(400);
+    await expect(popover).not.toBeVisible();
 
     await page.reload();
-    await page.waitForSelector('bridge-panel', { timeout: 8_000 });
+    await page.waitForSelector('bridge-panel');
     await openAnnotationsTab(page);
 
-    await expect(inPanel(page, '.db-ann-comment')).toHaveText('Survives reload', { timeout: 5_000 });
+    await expect(inPanel(page, '.db-ann-comment')).toHaveText('Survives reload');
+  });
+
+  test('badge reappears on the correct element after reload', async ({ page }) => {
+    await openAnnotationsTab(page);
+    const target = page.locator('h1').first();
+    await target.click();
+
+    const popover = page.locator('bridge-annotation-popover');
+    await expect(popover.locator('textarea')).toBeVisible();
+    await popover.locator('textarea').fill('Pinned to h1');
+    await popover.locator('button.btn-save, button:has-text("Save")').click();
+    await expect(popover).not.toBeVisible();
+
+    await page.reload();
+    await page.waitForSelector('bridge-panel');
+    await page.waitForSelector('bridge-annotation-badge', { state: 'attached' });
+
+    // Badge should reappear after reload without manually opening the tab
+    const badge = page.locator('bridge-annotation-badge .badge').first();
+    await expect(badge).toBeVisible();
+
+    // The badge should be positioned within the viewport (not off-screen)
+    const badgeBox = await badge.boundingBox();
+    expect(badgeBox).not.toBeNull();
+    expect(badgeBox!.x).toBeGreaterThanOrEqual(0);
+    expect(badgeBox!.y).toBeGreaterThanOrEqual(0);
+
+    // The annotation comment should still be correct after reload
+    await openAnnotationsTab(page);
+    await expect(inPanel(page, '.db-ann-comment')).toHaveText('Pinned to h1');
   });
 
   // ── Editing an annotation ───────────────────────────────────────────────────
@@ -155,20 +179,20 @@ test.describe('Annotations', () => {
     await page.locator('h1').first().click();
 
     const popover = page.locator('bridge-annotation-popover');
-    await expect(popover.locator("textarea")).toBeVisible({ timeout: 5_000 });
+    await expect(popover.locator('textarea')).toBeVisible();
     await popover.locator('textarea').fill('Original comment');
     await popover.locator('button.btn-save, button:has-text("Save")').click();
-    await expect(popover).not.toBeVisible({ timeout: 5_000 });
+    await expect(popover).not.toBeVisible();
 
     await openAnnotationsTab(page);
     await inPanel(page, '.db-ann-row').first().click();
 
     const editPopover = page.locator('bridge-annotation-popover');
-    await expect(editPopover.locator("textarea")).toBeVisible({ timeout: 5_000 });
+    await expect(editPopover.locator('textarea')).toBeVisible();
     await editPopover.locator('textarea').clear();
     await editPopover.locator('textarea').fill('Updated comment');
     await editPopover.locator('button.btn-save, button:has-text("Save")').click();
-    await expect(editPopover).not.toBeVisible({ timeout: 5_000 });
+    await expect(editPopover).not.toBeVisible();
 
     await expect(inPanel(page, '.db-ann-comment')).toHaveText('Updated comment');
   });
@@ -180,15 +204,15 @@ test.describe('Annotations', () => {
     await page.locator('h1').first().click();
 
     const popover = page.locator('bridge-annotation-popover');
-    await expect(popover.locator("textarea")).toBeVisible({ timeout: 5_000 });
+    await expect(popover.locator('textarea')).toBeVisible();
     await popover.locator('textarea').fill('To be deleted');
     await popover.locator('button.btn-save, button:has-text("Save")').click();
-    await expect(popover).not.toBeVisible({ timeout: 5_000 });
+    await expect(popover).not.toBeVisible();
 
     await openAnnotationsTab(page);
     await inPanel(page, '.db-icon-btn--del').first().click();
 
-    await expect(inPanel(page, '.db-ann-row')).not.toBeVisible({ timeout: 5_000 });
+    await expect(inPanel(page, '.db-ann-row')).not.toBeVisible();
     await expect(inPanel(page, '.db-empty')).toBeVisible();
   });
 
@@ -197,18 +221,18 @@ test.describe('Annotations', () => {
     await page.locator('h1').first().click();
 
     const popover = page.locator('bridge-annotation-popover');
-    await expect(popover.locator("textarea")).toBeVisible({ timeout: 5_000 });
+    await expect(popover.locator('textarea')).toBeVisible();
     await popover.locator('textarea').fill('Popover delete test');
     await popover.locator('button.btn-save, button:has-text("Save")').click();
-    await expect(popover).not.toBeVisible({ timeout: 5_000 });
+    await expect(popover).not.toBeVisible();
 
     await openAnnotationsTab(page);
     await inPanel(page, '.db-ann-row').first().click();
 
     const editPopover = page.locator('bridge-annotation-popover');
-    await expect(editPopover.locator("textarea")).toBeVisible({ timeout: 5_000 });
+    await expect(editPopover.locator('textarea')).toBeVisible();
     await editPopover.locator('button.btn-delete, button:has-text("Delete")').click();
-    await expect(editPopover).not.toBeVisible({ timeout: 5_000 });
+    await expect(editPopover).not.toBeVisible();
 
     await expect(inPanel(page, '.db-empty')).toBeVisible();
   });
@@ -218,10 +242,10 @@ test.describe('Annotations', () => {
       await openAnnotationsTab(page);
       await page.locator(selector).first().click();
       const popover = page.locator('bridge-annotation-popover');
-      await expect(popover.locator("textarea")).toBeVisible({ timeout: 5_000 });
+      await expect(popover.locator('textarea')).toBeVisible();
       await popover.locator('textarea').fill(`Comment on ${selector}`);
       await popover.locator('button.btn-save, button:has-text("Save")').click();
-      await expect(popover).not.toBeVisible({ timeout: 5_000 });
+      await expect(popover).not.toBeVisible();
     }
 
     await openAnnotationsTab(page);
@@ -229,7 +253,7 @@ test.describe('Annotations', () => {
 
     await inPanel(page, 'button:has-text("Clear all"), .db-btn--danger').click();
 
-    await expect(inPanel(page, '.db-empty')).toBeVisible({ timeout: 5_000 });
+    await expect(inPanel(page, '.db-empty')).toBeVisible();
     await expect(inPanel(page, '.db-ann-row')).toHaveCount(0);
   });
 
@@ -237,15 +261,14 @@ test.describe('Annotations', () => {
     await openAnnotationsTab(page);
     await page.locator('h1').first().click();
     const popover = page.locator('bridge-annotation-popover');
-    await expect(popover.locator("textarea")).toBeVisible({ timeout: 5_000 });
+    await expect(popover.locator('textarea')).toBeVisible();
     await popover.locator('textarea').fill('API clear test');
     await popover.locator('button.btn-save, button:has-text("Save")').click();
-    await expect(popover).not.toBeVisible({ timeout: 5_000 });
-    await page.waitForTimeout(300);
+    await expect(popover).not.toBeVisible();
 
     await openAnnotationsTab(page);
     await inPanel(page, 'button:has-text("Clear all"), .db-btn--danger').click();
-    await page.waitForTimeout(300);
+    await expect(inPanel(page, '.db-empty')).toBeVisible();
 
     const res = await page.request.get(`${API_BASE}/annotations`);
     const body = await res.json() as { annotations: unknown[]; };
@@ -259,15 +282,15 @@ test.describe('Annotations', () => {
 
     await page.locator('h1').first().click();
     const popover = page.locator('bridge-annotation-popover');
-    await expect(popover.locator("textarea")).toBeVisible({ timeout: 5_000 });
+    await expect(popover.locator('textarea')).toBeVisible();
 
     // Clicking a second element while the popover is open adds another chip
     await page.locator('p').first().click();
-    await expect(popover.locator('.chip')).toHaveCount(2, { timeout: 5_000 });
+    await expect(popover.locator('.chip')).toHaveCount(2);
 
     await popover.locator('textarea').fill('Multi-element annotation');
     await popover.locator('button.btn-save, button:has-text("Save")').click();
-    await expect(popover).not.toBeVisible({ timeout: 5_000 });
+    await expect(popover).not.toBeVisible();
 
     await openAnnotationsTab(page);
     await expect(inPanel(page, '.db-ann-extra')).toBeVisible();

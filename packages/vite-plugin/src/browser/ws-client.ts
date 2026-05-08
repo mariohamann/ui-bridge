@@ -9,6 +9,7 @@ type MessageHandler = (msg: ServerMessage) => void;
 let ws: WebSocket | null = null;
 let reconnectDelay = RECONNECT_BASE_MS;
 const handlers = new Set<MessageHandler>();
+const buffered: ServerMessage[] = [];
 
 function connect(): void {
   // __DB_WS_URL__ is injected by the Vite plugin (or set manually for non-Vite stacks).
@@ -29,7 +30,11 @@ function connect(): void {
     } catch {
       return;
     }
-    for (const handler of handlers) handler(msg);
+    if (handlers.size === 0) {
+      buffered.push(msg);
+    } else {
+      for (const handler of handlers) handler(msg);
+    }
   });
 
   ws.addEventListener('close', () => {
@@ -53,6 +58,8 @@ export function sendMessage(msg: BrowserMessage): void {
 
 export function onMessage(handler: MessageHandler): () => void {
   handlers.add(handler);
+  for (const msg of buffered) handler(msg);
+  buffered.length = 0;
   return () => handlers.delete(handler);
 }
 

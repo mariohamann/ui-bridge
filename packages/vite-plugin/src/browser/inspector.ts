@@ -153,7 +153,7 @@ function renderBadges(): void {
 // ─── Cross-tab BroadcastChannel ──────────────────────────────────────────────
 
 channel.addEventListener('message', (e) => {
-  const { type, payload } = e.data as { type: string; payload: Annotation[] };
+  const { type, payload } = e.data as { type: string; payload: Annotation[]; };
   if (type === 'annotations:sync') syncAnnotations(payload);
 });
 
@@ -215,4 +215,7 @@ export function initInspector(): void {
 
   window.addEventListener('scroll', renderBadges, { passive: true });
   window.addEventListener('resize', renderBadges, { passive: true });
+
+  // Render any annotations that were synced before initInspector() ran
+  renderBadges();
 }
