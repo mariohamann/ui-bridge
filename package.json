@@ -3,6 +3,7 @@
   "private": true,
   "version": "0.0.1",
   "scripts": {
+    "dev": "node dev.mjs",
     "build": "pnpm --filter @design-bridge/vite-plugin build",
     "test": "pnpm build && pnpm --filter @design-bridge/vite-plugin exec playwright test"
   }
