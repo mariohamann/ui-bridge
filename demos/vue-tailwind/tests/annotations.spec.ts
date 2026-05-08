@@ -1,0 +1,276 @@
+/**
+ * Annotation end-to-end tests for Design Bridge.
+ *
+ * The panel is a `<bridge-panel>` custom element injected by the Vite plugin.
+ * Its internals live in a Shadow DOM — Playwright pierces open shadow roots
+ * automatically when you call `.locator()` on another locator.
+ *
+ * Annotation flow:
+ *  1. Click the "Annotations" tab in the panel.
+ *     → This automatically activates inspect mode (no separate button).
+ *  2. Click a target element in the page — the popover appears.
+ *  3. Type a comment and save — a badge appears and the row shows in the list.
+ *  4. The WS message reaches the server; GET /design-bridge/api/annotations returns it.
+ */
+
+import { test, expect, type Page, type Locator } from '@playwright/test';
+
+const API_BASE = 'http://localhost:7378/api';
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+/** Returns the shadow root of `<bridge-panel>` as a locator base. */
+function panel(page: Page): Locator {
+  return page.locator('bridge-panel');
+}
+
+/** Pierces into the shadow DOM. Playwright auto-pierces open shadow roots. */
+function inPanel(page: Page, selector: string): Locator {
+  return panel(page).locator(selector);
+}
+
+/**
+ * Opens the Annotations tab. This also activates inspect mode automatically
+ * because `_setTab('annotations')` calls `setInspectMode(true)`.
+ */
+async function openAnnotationsTab(page: Page): Promise<void> {
+  const tab = inPanel(page, 'button[role="tab"]:has-text("Annotations")');
+  await tab.waitFor({ state: 'visible', timeout: 8_000 });
+  await tab.click();
+  // Wait for inspect mode to be active (cursor changes to crosshair)
+  await page.waitForFunction(() => document.body.style.cursor === 'crosshair', { timeout: 3_000 }).catch(() => { });
+}
+
+// ─── Tests ────────────────────────────────────────────────────────────────────
+
+test.describe('Annotations', () => {
+  test.setTimeout(15_000);
+
+  test.beforeEach(async ({ page }) => {
+    await page.request.delete(`${API_BASE}/annotations`);
+    await page.goto('/');
+    await page.waitForSelector('bridge-panel', { timeout: 8_000 });
+  });
+
+  test.afterEach(async ({ page }) => {
+    await page.request.delete(`${API_BASE}/annotations`);
+  });
+
+  // ── Panel basics ────────────────────────────────────────────────────────────
+
+  test('bridge-panel is injected into the page', async ({ page }) => {
+    await expect(panel(page)).toBeAttached();
+  });
+
+  test('Annotations tab is visible inside the panel', async ({ page }) => {
+    const tab = inPanel(page, 'button[role="tab"]:has-text("Annotations")');
+    await expect(tab).toBeVisible();
+  });
+
+  // ── Empty state ─────────────────────────────────────────────────────────────
+
+  test('shows empty state when no annotations exist', async ({ page }) => {
+    await openAnnotationsTab(page);
+    await expect(inPanel(page, '.db-empty')).toBeVisible();
+  });
+
+  // ── Creating an annotation ──────────────────────────────────────────────────
+
+  test('creates an annotation by clicking a page element in inspect mode', async ({ page }) => {
+    await openAnnotationsTab(page);
+
+    // Clicking the Annotations tab enables inspect mode; clicking any page element opens the popover
+    const headline = page.locator('h1').first();
+    await expect(headline).toBeVisible();
+    await headline.click();
+
+    const popover = page.locator('bridge-annotation-popover');
+    await expect(popover.locator("textarea")).toBeVisible({ timeout: 5_000 });
+
+    const textarea = popover.locator('textarea');
+    await textarea.waitFor({ state: 'visible', timeout: 5_000 });
+    await textarea.fill('This headline needs a stronger CTA.');
+
+    await popover.locator('button.btn-save, button:has-text("Save")').click();
+    await expect(popover).not.toBeVisible({ timeout: 5_000 });
+
+    await openAnnotationsTab(page);
+    await expect(inPanel(page, '.db-ann-row')).toBeVisible();
+    await expect(inPanel(page, '.db-ann-comment')).toHaveText('This headline needs a stronger CTA.');
+  });
+
+  test('annotation badge appears on the annotated element', async ({ page }) => {
+    await openAnnotationsTab(page);
+    await page.locator('h1').first().click();
+
+    const popover = page.locator('bridge-annotation-popover');
+    await expect(popover.locator("textarea")).toBeVisible({ timeout: 5_000 });
+    await popover.locator('textarea').fill('Badge test');
+    await popover.locator('button.btn-save, button:has-text("Save")').click();
+
+    await expect(page.locator('bridge-annotation-badge .badge')).toBeVisible({ timeout: 5_000 });
+    await expect(page.locator('bridge-annotation-badge .badge')).toBeVisible();
+  });
+
+  // ── Persistence ─────────────────────────────────────────────────────────────
+
+  test('annotation is persisted to the server API', async ({ page }) => {
+    await openAnnotationsTab(page);
+    await page.locator('h1').first().click();
+
+    const popover = page.locator('bridge-annotation-popover');
+    await expect(popover.locator("textarea")).toBeVisible({ timeout: 5_000 });
+    await popover.locator('textarea').fill('Persisted comment');
+    await popover.locator('button.btn-save, button:has-text("Save")').click();
+
+    await page.waitForTimeout(400);
+
+    const res = await page.request.get(`${API_BASE}/annotations`);
+    expect(res.status()).toBe(200);
+    const body = await res.json() as { annotations: { comment: string; }[]; };
+    expect(body.annotations.some(a => a.comment === 'Persisted comment')).toBe(true);
+  });
+
+  test('page reload restores annotations from server', async ({ page }) => {
+    await openAnnotationsTab(page);
+    await page.locator('h1').first().click();
+
+    const popover = page.locator('bridge-annotation-popover');
+    await expect(popover.locator("textarea")).toBeVisible({ timeout: 5_000 });
+    await popover.locator('textarea').fill('Survives reload');
+    await popover.locator('button.btn-save, button:has-text("Save")').click();
+    await page.waitForTimeout(400);
+
+    await page.reload();
+    await page.waitForSelector('bridge-panel', { timeout: 8_000 });
+    await openAnnotationsTab(page);
+
+    await expect(inPanel(page, '.db-ann-comment')).toHaveText('Survives reload', { timeout: 5_000 });
+  });
+
+  // ── Editing an annotation ───────────────────────────────────────────────────
+
+  test('editing an annotation updates its comment', async ({ page }) => {
+    await openAnnotationsTab(page);
+    await page.locator('h1').first().click();
+
+    const popover = page.locator('bridge-annotation-popover');
+    await expect(popover.locator("textarea")).toBeVisible({ timeout: 5_000 });
+    await popover.locator('textarea').fill('Original comment');
+    await popover.locator('button.btn-save, button:has-text("Save")').click();
+    await expect(popover).not.toBeVisible({ timeout: 5_000 });
+
+    await openAnnotationsTab(page);
+    await inPanel(page, '.db-ann-row').first().click();
+
+    const editPopover = page.locator('bridge-annotation-popover');
+    await expect(editPopover.locator("textarea")).toBeVisible({ timeout: 5_000 });
+    await editPopover.locator('textarea').clear();
+    await editPopover.locator('textarea').fill('Updated comment');
+    await editPopover.locator('button.btn-save, button:has-text("Save")').click();
+    await expect(editPopover).not.toBeVisible({ timeout: 5_000 });
+
+    await expect(inPanel(page, '.db-ann-comment')).toHaveText('Updated comment');
+  });
+
+  // ── Deleting annotations ────────────────────────────────────────────────────
+
+  test('deletes a single annotation via the delete button in the list', async ({ page }) => {
+    await openAnnotationsTab(page);
+    await page.locator('h1').first().click();
+
+    const popover = page.locator('bridge-annotation-popover');
+    await expect(popover.locator("textarea")).toBeVisible({ timeout: 5_000 });
+    await popover.locator('textarea').fill('To be deleted');
+    await popover.locator('button.btn-save, button:has-text("Save")').click();
+    await expect(popover).not.toBeVisible({ timeout: 5_000 });
+
+    await openAnnotationsTab(page);
+    await inPanel(page, '.db-icon-btn--del').first().click();
+
+    await expect(inPanel(page, '.db-ann-row')).not.toBeVisible({ timeout: 5_000 });
+    await expect(inPanel(page, '.db-empty')).toBeVisible();
+  });
+
+  test('deletes a single annotation via the delete button in the popover', async ({ page }) => {
+    await openAnnotationsTab(page);
+    await page.locator('h1').first().click();
+
+    const popover = page.locator('bridge-annotation-popover');
+    await expect(popover.locator("textarea")).toBeVisible({ timeout: 5_000 });
+    await popover.locator('textarea').fill('Popover delete test');
+    await popover.locator('button.btn-save, button:has-text("Save")').click();
+    await expect(popover).not.toBeVisible({ timeout: 5_000 });
+
+    await openAnnotationsTab(page);
+    await inPanel(page, '.db-ann-row').first().click();
+
+    const editPopover = page.locator('bridge-annotation-popover');
+    await expect(editPopover.locator("textarea")).toBeVisible({ timeout: 5_000 });
+    await editPopover.locator('button.btn-delete, button:has-text("Delete")').click();
+    await expect(editPopover).not.toBeVisible({ timeout: 5_000 });
+
+    await expect(inPanel(page, '.db-empty')).toBeVisible();
+  });
+
+  test('"Clear all" removes every annotation', async ({ page }) => {
+    for (const selector of ['h1', 'p']) {
+      await openAnnotationsTab(page);
+      await page.locator(selector).first().click();
+      const popover = page.locator('bridge-annotation-popover');
+      await expect(popover.locator("textarea")).toBeVisible({ timeout: 5_000 });
+      await popover.locator('textarea').fill(`Comment on ${selector}`);
+      await popover.locator('button.btn-save, button:has-text("Save")').click();
+      await expect(popover).not.toBeVisible({ timeout: 5_000 });
+    }
+
+    await openAnnotationsTab(page);
+    await expect(inPanel(page, '.db-ann-row')).toHaveCount(2);
+
+    await inPanel(page, 'button:has-text("Clear all"), .db-btn--danger').click();
+
+    await expect(inPanel(page, '.db-empty')).toBeVisible({ timeout: 5_000 });
+    await expect(inPanel(page, '.db-ann-row')).toHaveCount(0);
+  });
+
+  test('clear all is reflected in the server API', async ({ page }) => {
+    await openAnnotationsTab(page);
+    await page.locator('h1').first().click();
+    const popover = page.locator('bridge-annotation-popover');
+    await expect(popover.locator("textarea")).toBeVisible({ timeout: 5_000 });
+    await popover.locator('textarea').fill('API clear test');
+    await popover.locator('button.btn-save, button:has-text("Save")').click();
+    await expect(popover).not.toBeVisible({ timeout: 5_000 });
+    await page.waitForTimeout(300);
+
+    await openAnnotationsTab(page);
+    await inPanel(page, 'button:has-text("Clear all"), .db-btn--danger').click();
+    await page.waitForTimeout(300);
+
+    const res = await page.request.get(`${API_BASE}/annotations`);
+    const body = await res.json() as { annotations: unknown[]; };
+    expect(body.annotations).toHaveLength(0);
+  });
+
+  // ── Multi-element annotation ────────────────────────────────────────────────
+
+  test('can annotate multiple elements in one annotation via the popover chips', async ({ page }) => {
+    await openAnnotationsTab(page);
+
+    await page.locator('h1').first().click();
+    const popover = page.locator('bridge-annotation-popover');
+    await expect(popover.locator("textarea")).toBeVisible({ timeout: 5_000 });
+
+    // Clicking a second element while the popover is open adds another chip
+    await page.locator('p').first().click();
+    await expect(popover.locator('.chip')).toHaveCount(2, { timeout: 5_000 });
+
+    await popover.locator('textarea').fill('Multi-element annotation');
+    await popover.locator('button.btn-save, button:has-text("Save")').click();
+    await expect(popover).not.toBeVisible({ timeout: 5_000 });
+
+    await openAnnotationsTab(page);
+    await expect(inPanel(page, '.db-ann-extra')).toBeVisible();
+    await expect(inPanel(page, '.db-ann-extra')).toHaveText('+1');
+  });
+});
