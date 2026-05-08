@@ -1,0 +1,15 @@
+:host {
+  --db-bg: #1e1e2e;
+  --db-surface: #313244;
+  --db-border: #45475a;
+  --db-border-subtle: #313244;
+  --db-text: #cdd6f4;
+  --db-muted: #6c7086;
+  --db-green: #a6e3a1;
+  --db-blue: #89b4fa;
+  --db-red: #f38ba8;
+  --db-yellow: #f59e0b;
+  --db-subtext: #a6adc8;
+  --db-font-mono: ui-monospace, monospace;
+  --db-radius: 4px;
+}

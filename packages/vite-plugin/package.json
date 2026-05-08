@@ -1,0 +1,35 @@
+{
+  "name": "@design-bridge/vite-plugin",
+  "version": "0.0.1",
+  "type": "module",
+  "main": "./dist/node/index.js",
+  "types": "./dist/node/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/node/index.js",
+      "types": "./dist/node/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "node build.mjs",
+    "dev": "node build.mjs --watch"
+  },
+  "dependencies": {
+    "@design-bridge/server": "workspace:*",
+    "@floating-ui/dom": "^1.7.6",
+    "@medv/finder": "^4.0.2",
+    "fast-glob": "^3.3.2",
+    "lit": "^3.3.0",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.6.0",
+    "@types/ws": "^8.5.14",
+    "esbuild": "^0.25.0",
+    "typescript": "~6.0.2",
+    "vite": "^8.0.4"
+  },
+  "peerDependencies": {
+    "vite": "^5.0.0 || ^6.0.0 || ^7.0.0 || ^8.0.0"
+  }
+}
