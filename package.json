@@ -5,6 +5,6 @@
   "scripts": {
     "dev": "node dev.mjs",
     "build": "pnpm --filter @design-bridge/vite-plugin build",
-    "test": "pnpm build && pnpm --filter @design-bridge/vite-plugin exec playwright test"
+    "test": "pnpm --filter @design-bridge/vite-plugin test"
   }
 }

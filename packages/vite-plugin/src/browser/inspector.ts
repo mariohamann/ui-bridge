@@ -4,14 +4,20 @@
  * Responsibilities:
  * - Manage annotation state (Map + listeners)
  * - Sync annotations over WebSocket + BroadcastChannel
- * - Manage inspect mode (hover highlight + Alt+click → popover)
+ * - Handle element selection via code-inspector's Alt+Shift+click UX
  * - Render annotation badges in host DOM via <bridge-annotation-badge>
+ *
+ * Selection model (single mechanism):
+ *   Hold Alt+Shift and click any element → code-inspector shows its highlight
+ *   overlay and fires `code-inspector:trackCode` with source info. We pick up
+ *   the hovered element for the CSS selector and the event detail for the
+ *   source location, then open the annotation popover with both.
  *
  * DOM rendering (popover, Tweakpane) has moved to the Lit components.
  */
 
 import { sendMessage, onMessage } from './ws-client.js';
-import { finder } from '@medv/finder';
+import { finder, idName } from '@medv/finder';
 import type { Annotation } from '../shared/protocol.js';
 import type { BridgeAnnotationPopover } from '../client/panel/bridge-annotation-popover.js';
 import type { BridgeAnnotationBadge } from '../client/panel/bridge-annotation-badge.js';
@@ -19,7 +25,15 @@ import type { BridgeAnnotationBadge } from '../client/panel/bridge-annotation-ba
 // ─── Selector helpers ────────────────────────────────────────────────────────
 
 function buildSelectorInternal(el: Element): string {
-  try { return finder(el); } catch { return el.tagName.toLowerCase(); }
+  try {
+    return finder(el, {
+      // Always use IDs when present
+      idName: (name) => idName(name) || name.length > 0,
+      // Longer, more stable selectors
+      seedMinLength: 5,
+      optimizedMinLength: 4,
+    });
+  } catch { return el.tagName.toLowerCase(); }
 }
 
 // ─── State ───────────────────────────────────────────────────────────────────
@@ -72,66 +86,58 @@ export function clearAnnotations(): void {
   notifyChange();
 }
 
-// ─── Inspect mode ────────────────────────────────────────────────────────────
+// ─── code-inspector integration ──────────────────────────────────────────────
+//
+// code-inspector-plugin is the single selection mechanism:
+//   Hold Alt+Shift → code-inspector shows its highlight overlay on the hovered
+//   element. Click → it fires `code-inspector:trackCode` on window with
+//   detail: { path, line, column, name }.
+//
+// We track the last element under the cursor while the modifier keys are held
+// so we can generate a CSS selector. Source info comes from the event detail.
 
-let inspectMode = false;
-let hovered: Element | null = null;
-
-export function isInspectMode(): boolean { return inspectMode; }
-
-export function setInspectMode(active: boolean): void {
-  inspectMode = active;
-  document.body.style.cursor = active ? 'crosshair' : '';
-  if (!active && hovered) {
-    hovered.classList.remove('db-inspect-highlight');
-    hovered = null;
-  }
-}
-
-// ─── Hover highlight ─────────────────────────────────────────────────────────
+let lastInspectedEl: Element | null = null;
 
 function isOwnUI(el: Element): boolean {
   return !!el.closest('bridge-panel, bridge-annotation-popover, bridge-annotation-badge');
 }
 
-function onMouseOver(e: MouseEvent): void {
-  if (!inspectMode) return;
-  const el = e.target as Element;
-  if (isOwnUI(el)) return;
-  if (hovered) hovered.classList.remove('db-inspect-highlight');
-  hovered = el;
-  hovered.classList.add('db-inspect-highlight');
+function onPointerMoveForInspect(e: MouseEvent): void {
+  if (!e.altKey || !e.shiftKey) {
+    lastInspectedEl = null;
+    return;
+  }
+  // Walk composedPath to find first real content element (skip our own UI and
+  // the code-inspector overlay which sits in front of everything).
+  for (const node of e.composedPath()) {
+    if (!(node instanceof Element)) continue;
+    if (node.tagName === 'CODE-INSPECTOR-COMPONENT') continue;
+    if (isOwnUI(node)) break;
+    lastInspectedEl = node;
+    return;
+  }
 }
 
-function onMouseOut(e: MouseEvent): void {
-  if (!inspectMode) return;
-  const el = e.target as Element;
-  el.classList.remove('db-inspect-highlight');
-  if (hovered === el) hovered = null;
-}
-
-// ─── Click handler ────────────────────────────────────────────────────────────
-
-function onInspectClick(e: MouseEvent): void {
-  if (!inspectMode) return;
-  if ((e.target as Element).closest('bridge-panel, bridge-annotation-popover, bridge-annotation-badge')) return;
-
-  e.preventDefault();
-  e.stopPropagation();
-
-  const el = e.target as Element;
-  el.classList.remove('db-inspect-highlight');
+function onTrackCode(e: Event): void {
+  const detail = (e as CustomEvent<{ path: string; line: number; column: number }>).detail;
+  if (!detail?.path) return;
 
   const popover = document.querySelector('bridge-annotation-popover') as BridgeAnnotationPopover | null;
   if (!popover) return;
 
-  const sel = buildSelectorInternal(el);
-  const existing = [...annotations.values()].find((a) => a.selectors.includes(sel));
-  if (existing) {
-    popover.showForAnnotation(existing);
-  } else {
-    popover.showForElement(el);
+  const el = lastInspectedEl;
+  if (el && !isOwnUI(el)) {
+    // Open with selector first — showForSource then adds source to the open popover
+    const sel = buildSelectorInternal(el);
+    const existing = [...annotations.values()].find((a) => a.selectors.includes(sel));
+    if (existing) {
+      popover.showForAnnotation(existing);
+    } else {
+      popover.showForElement(el);
+    }
   }
+
+  popover.showForSource({ file: detail.path, line: detail.line, column: detail.column });
 }
 
 // ─── Badges ──────────────────────────────────────────────────────────────────
@@ -168,40 +174,23 @@ onMessage((msg) => {
   }
 });
 
-// ─── Inject inspect highlight style ─────────────────────────────────────────
-
-function injectInspectStyle(): void {
-  if (document.getElementById('db-inspect-style')) return;
-  const s = document.createElement('style');
-  s.id = 'db-inspect-style';
-  s.textContent = '.db-inspect-highlight{outline:2px solid #f59e0b!important;outline-offset:2px!important;cursor:crosshair!important;}';
-  document.head.appendChild(s);
-}
-
 // ─── Boot ─────────────────────────────────────────────────────────────────────
 
 export function initInspector(): void {
-  injectInspectStyle();
-
   badgeContainer = document.createElement('div');
   badgeContainer.id = 'db-badges';
   badgeContainer.style.cssText = 'position:fixed;top:0;left:0;pointer-events:none;z-index:2147483645;width:0;height:0;';
   document.body.appendChild(badgeContainer);
 
-  document.addEventListener('mouseover', onMouseOver, { capture: true });
-  document.addEventListener('mouseout', onMouseOut, { capture: true });
-  document.addEventListener('click', onInspectClick, { capture: true });
+  // Track hovered element for selector generation (fires before code-inspector's click handler)
+  document.addEventListener('pointermove', onPointerMoveForInspect as EventListener, { capture: true });
+  // code-inspector fires this after every Alt+Shift+click
+  window.addEventListener('code-inspector:trackCode', onTrackCode);
 
   document.addEventListener('keydown', (e) => {
-    if (e.altKey && e.key === 'i') {
-      e.preventDefault();
-      setInspectMode(!inspectMode);
-      return;
-    }
     if (e.key === 'Escape') {
       const popover = document.querySelector('bridge-annotation-popover') as BridgeAnnotationPopover | null;
-      if (popover && !popover.hidden) { popover.hidden = true; return; }
-      if (inspectMode) setInspectMode(false);
+      if (popover && !popover.hidden) { popover.hidden = true; }
     }
   });
 

@@ -1,7 +1,7 @@
 import { LitElement, html, css, type TemplateResult } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { computePosition, flip, shift, offset, size } from '@floating-ui/dom';
-import { finder } from '@medv/finder';
+import { finder, idName } from '@medv/finder';
 import type { Annotation, AnnotationSource } from '../../../shared/protocol.js';
 
 // Fired when user saves (create or update)
@@ -14,7 +14,13 @@ function uid(): string {
 }
 
 function buildSelector(el: Element): string {
-  try { return finder(el); } catch { return el.tagName.toLowerCase(); }
+  try {
+    return finder(el, {
+      idName: (name) => idName(name) || name.length > 0,
+      seedMinLength: 5,
+      optimizedMinLength: 4,
+    });
+  } catch { return el.tagName.toLowerCase(); }
 }
 
 function shortLabel(el: Element): string {
@@ -83,7 +89,7 @@ export class BridgeAnnotationPopover extends LitElement {
       padding: 2px 6px;
       font-size: 11px;
       color: var(--db-amber);
-      max-width: 200px;
+      max-width: 320px;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
@@ -172,7 +178,7 @@ export class BridgeAnnotationPopover extends LitElement {
   /** Open in create mode targeting a DOM element. */
   showForElement(el: Element): void {
     const sel = buildSelector(el);
-    if (this.hidden === false && !this._isEdit && !this._source) {
+    if (this.hidden === false && !this._isEdit) {
       if (!this._selectors.includes(sel)) {
         this._selectors = [...this._selectors, sel];
         this._labels = [...this._labels, shortLabel(el)];
@@ -191,8 +197,8 @@ export class BridgeAnnotationPopover extends LitElement {
 
   /** Open in create mode for a source location from code-inspector (no DOM element needed). */
   showForSource(source: AnnotationSource): void {
-    if (!this.hidden && !this._source) {
-      // A selector-based popover is open — just add the source to it
+    if (!this.hidden && !this._isEdit) {
+      // Popover is open in create mode — update/add the source in-place
       this._source = source;
       return;
     }
@@ -332,7 +338,7 @@ export class BridgeAnnotationPopover extends LitElement {
           <div class="chips">
             ${this._selectors.map((sel, i) => html`
               <span class="chip" title=${sel}>
-                ${this._labels[i]}
+                ${sel}
                 <button @click=${() => this._removeChip(i)}>×</button>
               </span>
             `)}

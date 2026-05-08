@@ -8,7 +8,7 @@
  */
 
 import { spawn } from 'node:child_process';
-import { watch } from 'node:fs';
+import { watch, rmSync } from 'node:fs';
 import { existsSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -32,12 +32,15 @@ function kill(proc) {
     proc.kill('SIGTERM');
     // Force-kill after 3 s if it hasn't exited
     setTimeout(() => {
-      try { proc.kill('SIGKILL'); } catch {}
+      try { proc.kill('SIGKILL'); } catch { }
     }, 3000);
   });
 }
 
 // ── 1. Start esbuild watcher ─────────────────────────────────────────────────
+
+// Delete dist so the "wait for first build" check below always waits for a fresh bundle.
+rmSync(resolve(PLUGIN_DIR, 'dist'), { recursive: true, force: true });
 
 const builder = spawnInherited('node', ['build.mjs', '--watch'], PLUGIN_DIR);
 
@@ -51,7 +54,6 @@ builder.on('error', (err) => {
 console.log('[dev] waiting for initial plugin build…');
 
 await new Promise((resolve) => {
-  if (existsSync(DIST_NODE)) return resolve();
   const iv = setInterval(() => {
     if (existsSync(DIST_NODE)) {
       clearInterval(iv);

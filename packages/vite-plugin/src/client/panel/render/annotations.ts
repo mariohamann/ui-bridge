@@ -53,7 +53,7 @@ export function renderAnnotations(
   return html`
     <div class="db-annotate">
       ${annotations.length === 0
-      ? html`<div class="db-empty">No annotations yet — switch to the Annotations tab and click any element</div>`
+      ? html`<div class="db-empty">No annotations yet — hold Alt+Shift and click any element</div>`
       : html`
           <div class="db-ann-list">
             ${annotations.map((ann, i) => renderAnnotationRow(ann, i, handlers))}

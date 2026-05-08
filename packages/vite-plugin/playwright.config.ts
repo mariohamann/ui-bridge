@@ -9,7 +9,7 @@ export default defineConfig({
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  reporter: 'html',
+  reporter: 'list',
   timeout: 5_000,
 
   use: {
@@ -25,10 +25,10 @@ export default defineConfig({
   ],
 
   webServer: {
-    command: 'pnpm dev',
+    command: `cd ${__dirname} && node build.mjs && cd ${path.resolve(__dirname, '../../demos/vue-tailwind')} && pnpm dev`,
     cwd: path.resolve(__dirname, '../../demos/vue-tailwind'),
     url: 'http://localhost:5173',
-    reuseExistingServer: false,
+    reuseExistingServer: !process.env.CI,
     timeout: 30_000,
   },
 });

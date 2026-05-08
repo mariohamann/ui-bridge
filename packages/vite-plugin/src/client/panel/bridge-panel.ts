@@ -1,7 +1,6 @@
 import { LitElement, html, css, type TemplateResult } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import { onMessage, sendMessage } from '../../browser/ws-client.js';
-import { isInspectMode, setInspectMode } from '../../browser/inspector.js';
 import type { TweakKnob, Annotation } from '../../shared/protocol.js';
 import { renderKnobs } from './render/knobs.js';
 import { renderActions } from './render/actions.js';
@@ -328,7 +327,6 @@ export class BridgePanel extends LitElement {
 
   @state() private _knobs: TweakKnob[] = [];
   @state() private _annotations: Annotation[] = [];
-  @state() private _inspectActive = false;
   @state() private _activeTab: 'tweaks' | 'annotations' = 'tweaks';
   @state() private _collapsed = false;
 
@@ -360,7 +358,6 @@ export class BridgePanel extends LitElement {
     this._annotations = getAnnotations();
     this._unsubAnnotations = onAnnotationsChange(() => {
       this._annotations = getAnnotations();
-      this._inspectActive = isInspectMode();
     });
 
     // WS messages
@@ -371,22 +368,12 @@ export class BridgePanel extends LitElement {
       if (msg.type === 'annotations:sync') {
         this._annotations = msg.payload;
       }
-      if (msg.type === 'inspect:pick') {
-        // code-inspector picked an element — open annotation popover with source info
-        const popover = document.querySelector('bridge-annotation-popover') as BridgeAnnotationPopover | null;
-        popover?.showForSource(msg.payload);
-        this._activeTab = 'annotations';
-        savePanelState({ activeTab: 'annotations' });
-      }
     });
 
     // Listen for popover save/delete events (composed, bubbles through shadow)
     document.addEventListener('annotation-save', this._onAnnotationSave as EventListener);
     document.addEventListener('annotation-delete', this._onAnnotationDelete as EventListener);
     document.addEventListener('annotation-open', this._onAnnotationOpen as EventListener);
-
-    // Keyboard shortcut sync for inspect mode
-    document.addEventListener('keydown', this._syncInspect);
 
     // Save size changes to localStorage (debounced)
     this._resizeObserver = new ResizeObserver(() => {
@@ -408,15 +395,7 @@ export class BridgePanel extends LitElement {
     document.removeEventListener('annotation-save', this._onAnnotationSave as EventListener);
     document.removeEventListener('annotation-delete', this._onAnnotationDelete as EventListener);
     document.removeEventListener('annotation-open', this._onAnnotationOpen as EventListener);
-    document.removeEventListener('keydown', this._syncInspect);
   }
-
-  private _syncInspect = (): void => {
-    const current = isInspectMode();
-    if (this._inspectActive !== current) {
-      this._inspectActive = current;
-    }
-  };
 
   // ── Knob handlers ──────────────────────────────────────────────────────────
 
@@ -437,11 +416,6 @@ export class BridgePanel extends LitElement {
   };
 
   // ── Annotation handlers ────────────────────────────────────────────────────
-
-  private _onInspectToggle = (active: boolean): void => {
-    setInspectMode(active);
-    this._inspectActive = active;
-  };
 
   private _onAnnotationSave = (e: CustomEvent<Annotation>): void => {
     upsertAnnotation(e.detail);
@@ -563,8 +537,6 @@ export class BridgePanel extends LitElement {
 
   private _setTab(tab: 'tweaks' | 'annotations'): void {
     this._activeTab = tab;
-    setInspectMode(tab === 'annotations');
-    this._inspectActive = tab === 'annotations';
     savePanelState({ activeTab: tab });
   }
 

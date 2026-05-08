@@ -6,11 +6,10 @@
  * automatically when you call `.locator()` on another locator.
  *
  * Annotation flow:
- *  1. Click the "Annotations" tab in the panel.
- *     → This automatically activates inspect mode (no separate button).
- *  2. Click a target element in the page — the popover appears.
- *  3. Type a comment and save — a badge appears and the row shows in the list.
- *  4. The WS message reaches the server; GET /design-bridge/api/annotations returns it.
+ *  1. Hold Alt+Shift and click any element (code-inspector's selection UX).
+ *     → The annotation popover opens with a CSS selector chip AND a source chip.
+ *  2. Type a comment and save — a badge appears and the row shows in the list.
+ *  3. The WS message reaches the server; GET /design-bridge/api/annotations returns it.
  */
 
 import { test, expect, type Page, type Locator } from '@playwright/test';
@@ -30,14 +29,13 @@ function inPanel(page: Page, selector: string): Locator {
 }
 
 /**
- * Opens the Annotations tab. This also activates inspect mode automatically
- * because `_setTab('annotations')` calls `setInspectMode(true)`.
+ * Opens the Annotations tab to view the annotation list.
+ * Note: no longer activates any inspect mode — selection is via Alt+Shift+click.
  */
 async function openAnnotationsTab(page: Page): Promise<void> {
   const tab = inPanel(page, 'button[role="tab"]:has-text("Annotations")');
   await tab.waitFor({ state: 'visible' });
   await tab.click();
-  await page.waitForFunction(() => document.body.style.cursor === 'crosshair');
 }
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
@@ -75,13 +73,8 @@ test.describe('Annotations', () => {
 
   // ── Creating an annotation ──────────────────────────────────────────────────
 
-  test('creates an annotation by clicking a page element in inspect mode', async ({ page }) => {
-    await openAnnotationsTab(page);
-
-    // Clicking the Annotations tab enables inspect mode; clicking any page element opens the popover
-    const headline = page.locator('h1').first();
-    await expect(headline).toBeVisible();
-    await headline.click();
+  test('creates an annotation by clicking a page element with Alt+Shift', async ({ page }) => {
+    await page.locator('h1').first().click({ modifiers: ['Alt', 'Shift'] });
 
     const popover = page.locator('bridge-annotation-popover');
     await expect(popover.locator('textarea')).toBeVisible();
@@ -96,8 +89,7 @@ test.describe('Annotations', () => {
   });
 
   test('annotation badge appears on the annotated element', async ({ page }) => {
-    await openAnnotationsTab(page);
-    await page.locator('h1').first().click();
+    await page.locator('h1').first().click({ modifiers: ['Alt', 'Shift'] });
 
     const popover = page.locator('bridge-annotation-popover');
     await expect(popover.locator('textarea')).toBeVisible();
@@ -110,8 +102,7 @@ test.describe('Annotations', () => {
   // ── Persistence ─────────────────────────────────────────────────────────────
 
   test('annotation is persisted to the server API', async ({ page }) => {
-    await openAnnotationsTab(page);
-    await page.locator('h1').first().click();
+    await page.locator('h1').first().click({ modifiers: ['Alt', 'Shift'] });
 
     const popover = page.locator('bridge-annotation-popover');
     await expect(popover.locator('textarea')).toBeVisible();
@@ -126,8 +117,7 @@ test.describe('Annotations', () => {
   });
 
   test('page reload restores annotations from server', async ({ page }) => {
-    await openAnnotationsTab(page);
-    await page.locator('h1').first().click();
+    await page.locator('h1').first().click({ modifiers: ['Alt', 'Shift'] });
 
     const popover = page.locator('bridge-annotation-popover');
     await expect(popover.locator('textarea')).toBeVisible();
@@ -143,9 +133,7 @@ test.describe('Annotations', () => {
   });
 
   test('badge reappears on the correct element after reload', async ({ page }) => {
-    await openAnnotationsTab(page);
-    const target = page.locator('h1').first();
-    await target.click();
+    await page.locator('h1').first().click({ modifiers: ['Alt', 'Shift'] });
 
     const popover = page.locator('bridge-annotation-popover');
     await expect(popover.locator('textarea')).toBeVisible();
@@ -175,8 +163,7 @@ test.describe('Annotations', () => {
   // ── Editing an annotation ───────────────────────────────────────────────────
 
   test('editing an annotation updates its comment', async ({ page }) => {
-    await openAnnotationsTab(page);
-    await page.locator('h1').first().click();
+    await page.locator('h1').first().click({ modifiers: ['Alt', 'Shift'] });
 
     const popover = page.locator('bridge-annotation-popover');
     await expect(popover.locator('textarea')).toBeVisible();
@@ -200,8 +187,7 @@ test.describe('Annotations', () => {
   // ── Deleting annotations ────────────────────────────────────────────────────
 
   test('deletes a single annotation via the delete button in the list', async ({ page }) => {
-    await openAnnotationsTab(page);
-    await page.locator('h1').first().click();
+    await page.locator('h1').first().click({ modifiers: ['Alt', 'Shift'] });
 
     const popover = page.locator('bridge-annotation-popover');
     await expect(popover.locator('textarea')).toBeVisible();
@@ -217,8 +203,7 @@ test.describe('Annotations', () => {
   });
 
   test('deletes a single annotation via the delete button in the popover', async ({ page }) => {
-    await openAnnotationsTab(page);
-    await page.locator('h1').first().click();
+    await page.locator('h1').first().click({ modifiers: ['Alt', 'Shift'] });
 
     const popover = page.locator('bridge-annotation-popover');
     await expect(popover.locator('textarea')).toBeVisible();
@@ -239,8 +224,7 @@ test.describe('Annotations', () => {
 
   test('"Clear all" removes every annotation', async ({ page }) => {
     for (const selector of ['h1', 'p']) {
-      await openAnnotationsTab(page);
-      await page.locator(selector).first().click();
+      await page.locator(selector).first().click({ modifiers: ['Alt', 'Shift'] });
       const popover = page.locator('bridge-annotation-popover');
       await expect(popover.locator('textarea')).toBeVisible();
       await popover.locator('textarea').fill(`Comment on ${selector}`);
@@ -258,8 +242,7 @@ test.describe('Annotations', () => {
   });
 
   test('clear all is reflected in the server API', async ({ page }) => {
-    await openAnnotationsTab(page);
-    await page.locator('h1').first().click();
+    await page.locator('h1').first().click({ modifiers: ['Alt', 'Shift'] });
     const popover = page.locator('bridge-annotation-popover');
     await expect(popover.locator('textarea')).toBeVisible();
     await popover.locator('textarea').fill('API clear test');
@@ -275,17 +258,50 @@ test.describe('Annotations', () => {
     expect(body.annotations).toHaveLength(0);
   });
 
-  // ── Multi-element annotation ────────────────────────────────────────────────
+  // ── Source location + multi-element (code-inspector integration) ────────────
+
+  test('alt+shift+click opens popover with selector chip and source chip', async ({ page }) => {
+    await page.locator('h1').first().click({ modifiers: ['Alt', 'Shift'] });
+
+    const popover = page.locator('bridge-annotation-popover');
+    await expect(popover.locator('.chip')).toBeVisible();
+    await expect(popover.locator('.source-chip')).toBeVisible();
+  });
+
+  test('alt+shift+click while popover is open adds another selector chip', async ({ page }) => {
+    await page.locator('h1').first().click({ modifiers: ['Alt', 'Shift'] });
+    const popover = page.locator('bridge-annotation-popover');
+    await expect(popover.locator('.chip')).toBeVisible();
+
+    // Alt+Shift+click a second element while popover is open adds another chip
+    await page.locator('p').first().click({ modifiers: ['Alt', 'Shift'] });
+    await expect(popover.locator('.chip')).toHaveCount(2);
+  });
+
+  test('annotation saved with source location includes file, line, column', async ({ page }) => {
+    await page.locator('h1').first().click({ modifiers: ['Alt', 'Shift'] });
+
+    const popover = page.locator('bridge-annotation-popover');
+    await expect(popover.locator('.source-chip')).toBeVisible();
+    await popover.locator('textarea').fill('Has source info');
+    await popover.locator('button.btn-save, button:has-text("Save")').click();
+    await expect(popover).not.toBeVisible();
+
+    const apiRes = await page.request.get(`${API_BASE}/annotations`);
+    const body = await apiRes.json() as { annotations: { comment: string; source?: { file: string; line: number; column: number; }; }[]; };
+    const ann = body.annotations.find(a => a.comment === 'Has source info');
+    expect(ann).toBeDefined();
+    expect(ann!.source?.file).toContain('HeroSection.vue');
+    expect(typeof ann!.source?.line).toBe('number');
+    expect(typeof ann!.source?.column).toBe('number');
+  });
 
   test('can annotate multiple elements in one annotation via the popover chips', async ({ page }) => {
-    await openAnnotationsTab(page);
-
-    await page.locator('h1').first().click();
+    await page.locator('h1').first().click({ modifiers: ['Alt', 'Shift'] });
     const popover = page.locator('bridge-annotation-popover');
     await expect(popover.locator('textarea')).toBeVisible();
 
-    // Clicking a second element while the popover is open adds another chip
-    await page.locator('p').first().click();
+    await page.locator('p').first().click({ modifiers: ['Alt', 'Shift'] });
     await expect(popover.locator('.chip')).toHaveCount(2);
 
     await popover.locator('textarea').fill('Multi-element annotation');
