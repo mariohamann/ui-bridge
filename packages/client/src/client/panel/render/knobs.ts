@@ -1,5 +1,5 @@
 import { html, type TemplateResult } from 'lit';
-import type { TweakKnob } from '../../../shared/protocol.js';
+import type { TweakKnob } from '@design-bridge/core';
 
 export type KnobChangeHandler = (marker: string, value: string) => void;
 

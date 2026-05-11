@@ -11,6 +11,7 @@
     "design-bridge-server": "./index.mjs"
   },
   "dependencies": {
+    "@design-bridge/client": "workspace:*",
     "fast-glob": "^3.3.2",
     "ws": "^8.18.0"
   }

@@ -2,9 +2,10 @@ import { LitElement, html, type TemplateResult } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { computePosition, autoUpdate, flip, shift, offset } from '@floating-ui/dom';
 import autosize from 'autosize';
-import type { Annotation, AnnotationReply, AnnotationSource, AnnotationTweakLink } from '../../../shared/protocol.js';
+import type { Annotation, AnnotationReply, AnnotationSource, AnnotationTweakLink } from '@design-bridge/core';
 import { annotationItemStyles } from './annotation-item-styles.js';
 import { uid, buildAnnotationSelector, shortLabel, relativeTime, formatTweakReply } from './annotation-item-utils.js';
+import { annotationBus } from './annotation-bus.js';
 
 const HIGHLIGHT_ATTR = 'data-db-related';
 
@@ -129,9 +130,7 @@ export class BridgeAnnotationItem extends LitElement {
     }
     const updated = this._buildAnnotation({ replies, linkedTweaks });
     this.annotation = updated;
-    this.dispatchEvent(new CustomEvent<Annotation>('annotation-save', {
-      detail: updated, bubbles: true, composed: true,
-    }));
+    annotationBus.emit('annotation-save', updated);
   }
 
   get isOpen(): boolean { return this._open; }
@@ -413,9 +412,7 @@ export class BridgeAnnotationItem extends LitElement {
     this.annotation = ann;   // immediately switch to view mode
     this._mode = 'view';
     this._open = false;
-    this.dispatchEvent(new CustomEvent<Annotation>('annotation-save', {
-      detail: ann, bubbles: true, composed: true,
-    }));
+    annotationBus.emit('annotation-save', ann);
   }
 
   private _saveReply(): void {
@@ -432,22 +429,18 @@ export class BridgeAnnotationItem extends LitElement {
     });
     this.annotation = updated;
     this._replyDraft = '';
-    this.dispatchEvent(new CustomEvent<Annotation>('annotation-save', {
-      detail: updated, bubbles: true, composed: true,
-    }));
+    annotationBus.emit('annotation-save', updated);
   }
 
   private _cancelDraft(): void {
     this._clearHighlight();
-    this.dispatchEvent(new CustomEvent('annotation-cancel', { bubbles: true, composed: true }));
+    annotationBus.emit('annotation-cancel', { id: this._pendingId });
     // inspector.ts will remove this element from the DOM
   }
 
   private _delete(): void {
     if (this.annotation) {
-      this.dispatchEvent(new CustomEvent('annotation-delete', {
-        detail: { id: this.annotation.id }, bubbles: true, composed: true,
-      }));
+      annotationBus.emit('annotation-delete', { id: this.annotation.id });
     }
     this._showMenu = false;
     this._open = false;
@@ -460,27 +453,18 @@ export class BridgeAnnotationItem extends LitElement {
 
   private _acceptAllTweaks(): void {
     if (!this.annotation) return;
-    this.dispatchEvent(new CustomEvent('annotation-accept-tweaks', {
-      detail: { annotationId: this.annotation.id },
-      bubbles: true, composed: true,
-    }));
+    annotationBus.emit('annotation-accept-tweaks', { annotationId: this.annotation.id });
     this._open = false;
   }
 
   private _acceptOneTweak(marker: string): void {
     if (!this.annotation) return;
-    this.dispatchEvent(new CustomEvent('tweak-accept', {
-      detail: { annotationId: this.annotation.id, marker },
-      bubbles: true, composed: true,
-    }));
+    annotationBus.emit('tweak-accept', { annotationId: this.annotation.id, marker });
   }
 
   private _dismissTweak(marker: string): void {
     if (!this.annotation) return;
-    this.dispatchEvent(new CustomEvent('tweak-dismiss', {
-      detail: { annotationId: this.annotation.id, marker },
-      bubbles: true, composed: true,
-    }));
+    annotationBus.emit('tweak-dismiss', { annotationId: this.annotation.id, marker });
   }
 
   // ────────────────────────────────────────────────────────────────────────

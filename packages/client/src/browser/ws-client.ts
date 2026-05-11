@@ -1,4 +1,4 @@
-import type { BrowserMessage, ServerMessage } from '../shared/protocol.js';
+import type { BrowserMessage, ServerMessage } from '@design-bridge/core';
 
 const WS_PATH = '/design-bridge';
 const RECONNECT_BASE_MS = 500;

@@ -14,12 +14,17 @@
  */
 
 import { createServer } from 'node:http';
+import { readFileSync } from 'node:fs';
 import { WebSocketServer, WebSocket } from 'ws';
 import { readFile, writeFile, mkdir, rm, access } from 'node:fs/promises';
 import { watch } from 'node:fs';
 import { resolve, dirname, relative, isAbsolute } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { createRequire } from 'node:module';
 import fg from 'fast-glob';
+
+const _require = createRequire(import.meta.url);
+const CLIENT_BUNDLE_PATH = _require.resolve('@design-bridge/client');
 
 // ── CLI args ──────────────────────────────────────────────────────────────────
 
@@ -495,6 +500,23 @@ const httpServer = createServer(async (req, res) => {
   // Health check
   if (url === '/health') { jsonResponse(res, 200, { ok: true, port: PORT, root: ROOT }); return; }
 
+  // Serve the browser client bundle — allows any page to load Design Bridge with a single <script> tag
+  if (url === '/design-bridge/client.js' && req.method === 'GET') {
+    try {
+      const content = readFileSync(CLIENT_BUNDLE_PATH);
+      res.writeHead(200, {
+        'Content-Type': 'application/javascript; charset=utf-8',
+        'Access-Control-Allow-Origin': '*',
+        'Cache-Control': 'no-store',
+      });
+      res.end(content);
+    } catch (e) {
+      res.writeHead(500);
+      res.end(String(e));
+    }
+    return;
+  }
+
   // code-inspector hook: POST /inspect-pick { file, line, column }
   // Broadcasts inspect:pick to all connected browsers so they open the annotation popover
   if (url === '/inspect-pick' && req.method === 'POST') {
@@ -615,7 +637,7 @@ httpServer.on('upgrade', (req, socket, head) => {
 async function reloadScripts() {
   scripts = await discoverScripts();
   broadcast({ type: 'tweak:schema', payload: buildSchema(scripts) });
-  console.log(`[design-bridge] ${scripts.length} tweak(s) loaded`);
+  console.log(`[design-bridge] reloaded — ${scripts.length} tweak(s)`);
 }
 
 function watchScripts() {
@@ -636,14 +658,9 @@ function watchScripts() {
 await loadAnnotations();
 scripts = await discoverScripts();
 
-console.log(`[design-bridge] server starting on :${PORT}`);
-console.log(`[design-bridge] root: ${ROOT}`);
-console.log(`[design-bridge] ${scripts.length} tweak(s) loaded`);
-
 httpServer.listen(PORT, () => {
-  console.log(`[design-bridge] WS  → ws://localhost:${PORT}/design-bridge`);
-  console.log(`[design-bridge] API → http://localhost:${PORT}/api`);
-  console.log(`[design-bridge] inspect-pick → POST http://localhost:${PORT}/inspect-pick`);
+  const tweakInfo = scripts.length > 0 ? `, ${scripts.length} tweak(s)` : '';
+  console.log(`[design-bridge] :${PORT} → ${ROOT}${tweakInfo}`);
 });
 
 watchScripts();

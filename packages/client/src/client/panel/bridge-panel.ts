@@ -1,11 +1,12 @@
 import { LitElement, html, css, type TemplateResult } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import { onMessage, sendMessage } from '../../browser/ws-client.js';
-import type { TweakKnob, Annotation } from '../../shared/protocol.js';
+import type { TweakKnob, Annotation } from '@design-bridge/core';
 import { renderKnobs } from './render/knobs.js';
 import { renderActions } from './render/actions.js';
 import { renderAnnotations } from './render/annotations.js';
 import { onAnnotationsChange, getAnnotations, deleteAnnotation, clearAnnotations, getItemById, getOpenItem } from '../../browser/inspector.js';
+import { annotationBus } from './annotation-bus.js';
 
 // ── LocalStorage persistence ───────────────────────────────────────────────
 
@@ -371,12 +372,10 @@ export class BridgePanel extends LitElement {
       }
     });
 
-    // Tweak accept/dismiss events bubbled up from annotation items
-    // Note: bridge-annotation-item elements are siblings (not children) of bridge-panel,
-    // so we listen on document rather than `this`.
-    document.addEventListener('annotation-accept-tweaks', this._onAcceptTweaks);
-    document.addEventListener('tweak-accept', this._onTweakAccept);
-    document.addEventListener('tweak-dismiss', this._onTweakDismiss);
+    // Tweak accept/dismiss events from annotation items via the annotation bus
+    annotationBus.on('annotation-accept-tweaks', this._onAcceptTweaks);
+    annotationBus.on('tweak-accept', this._onTweakAccept);
+    annotationBus.on('tweak-dismiss', this._onTweakDismiss);
 
 
 
@@ -400,6 +399,9 @@ export class BridgePanel extends LitElement {
     document.removeEventListener('annotation-accept-tweaks', this._onAcceptTweaks);
     document.removeEventListener('tweak-accept', this._onTweakAccept);
     document.removeEventListener('tweak-dismiss', this._onTweakDismiss);
+    annotationBus.off('annotation-accept-tweaks', this._onAcceptTweaks);
+    annotationBus.off('tweak-accept', this._onTweakAccept);
+    annotationBus.off('tweak-dismiss', this._onTweakDismiss);
   }
 
   // ── Knob handlers ──────────────────────────────────────────────────────────
@@ -410,18 +412,18 @@ export class BridgePanel extends LitElement {
     getOpenItem()?.registerTweakReply(marker, value, knob?.label);
   };
 
-  private _onAcceptTweaks = (e: Event): void => {
-    const { annotationId } = (e as CustomEvent<{ annotationId: string }>).detail;
+  private _onAcceptTweaks = (e: CustomEvent<{ annotationId: string; }>): void => {
+    const { annotationId } = e.detail;
     sendMessage({ type: 'tweak:accept-annotation', payload: { annotationId } });
   };
 
-  private _onTweakAccept = (e: Event): void => {
-    const { annotationId, marker } = (e as CustomEvent<{ annotationId: string; marker: string }>).detail;
+  private _onTweakAccept = (e: CustomEvent<{ annotationId: string; marker: string; }>): void => {
+    const { annotationId, marker } = e.detail;
     sendMessage({ type: 'tweak:accept-tweak', payload: { annotationId, marker } });
   };
 
-  private _onTweakDismiss = (e: Event): void => {
-    const { annotationId, marker } = (e as CustomEvent<{ annotationId: string; marker: string }>).detail;
+  private _onTweakDismiss = (e: CustomEvent<{ annotationId: string; marker: string; }>): void => {
+    const { annotationId, marker } = e.detail;
     sendMessage({ type: 'tweak:dismiss', payload: { annotationId, marker } });
   };
 

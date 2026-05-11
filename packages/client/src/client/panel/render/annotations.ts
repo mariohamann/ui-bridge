@@ -1,5 +1,5 @@
 import { html, type TemplateResult } from 'lit';
-import type { Annotation } from '../../../shared/protocol.js';
+import type { Annotation } from '@design-bridge/core';
 
 export interface AnnotationHandlers {
   onEdit: (ann: Annotation) => void;

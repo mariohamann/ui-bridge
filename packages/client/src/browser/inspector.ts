@@ -9,8 +9,9 @@
 
 import { sendMessage, onMessage } from './ws-client.js';
 import { finder, idName } from '@medv/finder';
-import type { Annotation } from '../shared/protocol.js';
+import type { Annotation } from '@design-bridge/core';
 import type { BridgeAnnotationItem } from '../client/panel/bridge-annotation-item.js';
+import { annotationBus } from '../client/panel/annotation-bus.js';
 
 // ─── Selector helper ──────────────────────────────────────────────────────────
 
@@ -183,8 +184,8 @@ function onTrackCode(e: Event): void {
 
 // ─── Event wiring ────────────────────────────────────────────────────────────
 
-function onAnnotationSave(e: Event): void {
-  const ann = (e as CustomEvent<Annotation>).detail;
+function onAnnotationSave(e: CustomEvent<Annotation>): void {
+  const ann = e.detail;
   if (draftItem) {
     // Promote draft to saved item
     itemEls.set(ann.id, draftItem);
@@ -198,13 +199,13 @@ function onAnnotationCancel(): void {
   draftItem = null;
 }
 
-function onAnnotationDelete(e: Event): void {
-  const { id } = (e as CustomEvent<{ id: string; }>).detail;
+function onAnnotationDelete(e: CustomEvent<{ id: string; }>): void {
+  const { id } = e.detail;
   deleteAnnotation(id);
 }
 
-function onAnnotationResolve(e: Event): void {
-  const { id, tweakMarkers } = (e as CustomEvent<{ id: string; tweakMarkers: string[]; }>).detail;
+function onAnnotationResolve(e: CustomEvent<{ id: string; tweakMarkers: string[]; }>): void {
+  const { id, tweakMarkers } = e.detail;
   deleteAnnotation(id);
   for (const marker of [...new Set(tweakMarkers)]) {
     sendMessage({ type: 'tweak:reset', payload: { marker } });
@@ -240,10 +241,10 @@ export function initInspector(): void {
   document.addEventListener('pointerdown', onPointerDownForInspect as EventListener, { capture: true });
   window.addEventListener('code-inspector:trackCode', onTrackCode);
 
-  document.addEventListener('annotation-save', onAnnotationSave);
-  document.addEventListener('annotation-cancel', onAnnotationCancel);
-  document.addEventListener('annotation-delete', onAnnotationDelete);
-  document.addEventListener('annotation-resolve', onAnnotationResolve);
+  annotationBus.on('annotation-save', onAnnotationSave);
+  annotationBus.on('annotation-cancel', onAnnotationCancel as (e: CustomEvent<{ id: string; }>) => void);
+  annotationBus.on('annotation-delete', onAnnotationDelete);
+  annotationBus.on('annotation-resolve', onAnnotationResolve as (e: CustomEvent<{ id: string; tweakMarkers: string[]; }>) => void);
 
   reconcileItems();
 }

@@ -1,12 +1,11 @@
-import { resolve } from 'node:path';
 import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import { spawn, type ChildProcess } from 'node:child_process';
 import { createRequire } from 'node:module';
 import type { Plugin } from 'vite';
 import type { ServerResponse } from 'node:http';
 
-const clientBundlePath = fileURLToPath(new URL('../browser/client.js', import.meta.url));
+const _require = createRequire(import.meta.url);
+const clientBundlePath: string = _require.resolve('@design-bridge/client');
 const CLIENT_URL = '/__design-bridge/client.js';
 
 const DB_PORT = parseInt(process.env.DB_PORT ?? '7378', 10);
@@ -30,8 +29,7 @@ async function isServerRunning(port: number): Promise<boolean> {
 }
 
 function spawnServer(rootDir: string): ChildProcess {
-  const _req = createRequire(import.meta.url);
-  const serverEntry = _req.resolve('@design-bridge/server');
+  const serverEntry = _require.resolve('@design-bridge/server');
   const child = spawn(process.execPath, [serverEntry, '--root', rootDir], {
     stdio: ['ignore', 'pipe', 'pipe'],
     env: { ...process.env, DB_PORT: String(DB_PORT) },

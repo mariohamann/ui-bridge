@@ -16,6 +16,7 @@ import { fileURLToPath } from 'node:url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const PLUGIN_DIR = resolve(__dirname, 'packages/vite-plugin');
+const CLIENT_DIR = resolve(__dirname, 'packages/client');
 const DIST_NODE = resolve(PLUGIN_DIR, 'dist/node/index.js');
 const DEMO_DIR = resolve(__dirname, 'demos/vue-tailwind');
 
@@ -41,11 +42,17 @@ function kill(proc) {
 
 // Delete dist so the "wait for first build" check below always waits for a fresh bundle.
 rmSync(resolve(PLUGIN_DIR, 'dist'), { recursive: true, force: true });
+rmSync(resolve(CLIENT_DIR, 'dist'), { recursive: true, force: true });
 
 const builder = spawnInherited('node', ['build.mjs', '--watch'], PLUGIN_DIR);
+const clientBuilder = spawnInherited('node', ['build.mjs', '--watch'], CLIENT_DIR);
 
 builder.on('error', (err) => {
   console.error('[dev] esbuild watcher failed to start:', err.message);
+  process.exit(1);
+});
+clientBuilder.on('error', (err) => {
+  console.error('[dev] client esbuild watcher failed to start:', err.message);
   process.exit(1);
 });
 
@@ -88,13 +95,23 @@ function watchAndRestart(dir) {
 }
 
 watchAndRestart('dist/node');
-watchAndRestart('dist/browser');
+// Restart Vite when the browser client bundle changes (served by the standalone server)
+watch(resolve(CLIENT_DIR, 'dist'), { recursive: false }, async (_event, filename) => {
+  if (!filename?.endsWith('.js')) return;
+  if (restarting) return;
+  restarting = true;
+  console.log('[dev] client bundle changed — restarting Vite…');
+  await kill(viteProc);
+  viteProc = spawnInherited('pnpm', ['dev'], DEMO_DIR);
+  viteProc.on('error', (err) => console.error('[dev] Vite failed:', err.message));
+  setTimeout(() => { restarting = false; }, 1000);
+});
 
 // ── Cleanup on exit ───────────────────────────────────────────────────────────
 
 async function shutdown() {
   console.log('\n[dev] shutting down…');
-  await Promise.all([kill(builder), kill(viteProc)]);
+  await Promise.all([kill(builder), kill(clientBuilder), kill(viteProc)]);
   process.exit(0);
 }
 

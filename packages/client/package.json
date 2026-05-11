@@ -1,0 +1,26 @@
+{
+  "name": "@design-bridge/client",
+  "version": "0.0.1",
+  "type": "module",
+  "main": "./dist/design-bridge.js",
+  "exports": {
+    ".": "./dist/design-bridge.js"
+  },
+  "scripts": {
+    "build": "node build.mjs",
+    "dev": "node build.mjs --watch"
+  },
+  "dependencies": {
+    "@design-bridge/core": "workspace:*",
+    "@floating-ui/dom": "^1.7.6",
+    "@medv/finder": "^4.0.2",
+    "autosize": "^6.0.1",
+    "lit": "^3.3.0"
+  },
+  "devDependencies": {
+    "@types/autosize": "^4.0.3",
+    "@types/node": "^25.6.0",
+    "esbuild": "^0.25.0",
+    "typescript": "~6.0.2"
+  }
+}
