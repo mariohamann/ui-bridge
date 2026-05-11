@@ -81,7 +81,10 @@ export function designBridge(): Plugin {
       // Serve the pre-built browser bundle (bypasses Vite transform pipeline)
       server.middlewares.use(CLIENT_URL, (_req, res: ServerResponse) => {
         const content = readFileSync(clientBundlePath);
-        res.writeHead(200, { 'Content-Type': 'application/javascript; charset=utf-8' });
+        res.writeHead(200, {
+          'Content-Type': 'application/javascript; charset=utf-8',
+          'Cache-Control': 'no-store',
+        });
         res.end(content);
       });
     },
@@ -98,7 +101,7 @@ export function designBridge(): Plugin {
             children: `window.__DB_WS_URL__=${JSON.stringify(DB_WS_URL)};`,
             injectTo: 'head-prepend',
           },
-          { tag: 'script', attrs: { src: CLIENT_URL }, injectTo: 'head' },
+          { tag: 'script', attrs: { src: `${CLIENT_URL}?t=${Date.now()}` }, injectTo: 'head' },
         ];
       },
     },

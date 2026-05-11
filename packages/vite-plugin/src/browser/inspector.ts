@@ -164,8 +164,8 @@ function onTrackCode(e: Event): void {
   const sel = buildSelector(el);
   const existing = [...annotations.values()].find((a) => a.selectors.includes(sel));
 
-  if (existing) {
-    // Open the existing saved item
+  if (existing && !draftItem) {
+    // Open the existing saved item (only when not in draft/multi-select mode)
     getItemById(existing.id)?.openPanel();
   } else if (draftItem) {
     // Draft already open: add another selector + update source

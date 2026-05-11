@@ -72,19 +72,23 @@ let viteProc = spawnInherited('pnpm', ['dev'], DEMO_DIR);
 
 let restarting = false;
 
-watch(resolve(PLUGIN_DIR, 'dist/node'), { recursive: false }, async (_event, filename) => {
-  if (!filename?.endsWith('.js')) return;
-  if (restarting) return;
-  restarting = true;
+function watchAndRestart(dir) {
+  watch(resolve(PLUGIN_DIR, dir), { recursive: false }, async (_event, filename) => {
+    if (!filename?.endsWith('.js')) return;
+    if (restarting) return;
+    restarting = true;
 
-  console.log('[dev] plugin node bundle changed — restarting Vite…');
-  await kill(viteProc);
-  viteProc = spawnInherited('pnpm', ['dev'], DEMO_DIR);
-  viteProc.on('error', (err) => console.error('[dev] Vite failed:', err.message));
+    console.log(`[dev] plugin ${dir} bundle changed — restarting Vite…`);
+    await kill(viteProc);
+    viteProc = spawnInherited('pnpm', ['dev'], DEMO_DIR);
+    viteProc.on('error', (err) => console.error('[dev] Vite failed:', err.message));
 
-  // Debounce: ignore rapid successive changes for 1 s
-  setTimeout(() => { restarting = false; }, 1000);
-});
+    setTimeout(() => { restarting = false; }, 1000);
+  });
+}
+
+watchAndRestart('dist/node');
+watchAndRestart('dist/browser');
 
 // ── Cleanup on exit ───────────────────────────────────────────────────────────
 

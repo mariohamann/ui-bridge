@@ -226,21 +226,36 @@ test.describe('Annotations', () => {
     expect(body.annotations).toHaveLength(0);
   });
 
-  test('alt+shift+click opens panel with selector chip and source chip', async ({ page }) => {
-    await page.locator('h1').first().click({ modifiers: ['Alt', 'Shift'] });
+  test('alt+shift+click opens panel with source chip visible after save via "Show paths"', async ({ page }) => {
+    await createAnnotation(page, 'h1', 'Source chip test');
 
-    const panel = annotationPanel(page);
-    await expect(panel.locator('.chip')).toBeVisible();
-    await expect(panel.locator('.source-chip')).toBeVisible();
+    const badge = page.locator('bridge-annotation-item .badge').first();
+    await badge.click();
+    const p = annotationPanel(page);
+    await p.locator('.icon-btn[title="More options"]').click();
+    await p.locator('.menu-item:has-text("Show paths")').click();
+
+    await expect(p.locator('.chips-bar .chip')).toBeVisible();
+    await expect(p.locator('.chips-bar .source-chip')).toBeVisible();
   });
 
-  test('alt+shift+click while panel is open adds another selector chip', async ({ page }) => {
+  test('alt+shift+click while panel is open adds another selector chip (visible after save)', async ({ page }) => {
     await page.locator('h1').first().click({ modifiers: ['Alt', 'Shift'] });
-    const panel = annotationPanel(page);
-    await expect(panel.locator('.chip')).toBeVisible();
+    const draft = page.locator('bridge-annotation-item .panel:not([hidden])');
+    await expect(draft.locator('textarea[data-role="composer"]')).toBeVisible();
 
     await page.locator('p').first().click({ modifiers: ['Alt', 'Shift'] });
-    await expect(panel.locator('.chip')).toHaveCount(2);
+
+    // Save and verify via API that 2 selectors are stored
+    const textarea = draft.locator('textarea[data-role="composer"]');
+    await textarea.fill('Two selectors');
+    await textarea.press('Enter');
+    await expect(annotationPanel(page)).toHaveCount(0);
+
+    const res = await page.request.get(`${API_BASE}/annotations`);
+    const body = await res.json() as { annotations: { selectors: string[]; }[]; };
+    const ann = body.annotations.find((a) => a.selectors.length === 2);
+    expect(ann).toBeDefined();
   });
 
   test('annotation saved with source location includes file, line, column', async ({ page }) => {
@@ -419,5 +434,212 @@ test.describe('Panel scrolling & textarea autogrow', () => {
       (el: HTMLTextAreaElement) => el.scrollHeight > el.clientHeight
     );
     expect(hasInternalScroll).toBe(false);
+  });
+});
+
+test.describe('Compact UI (redesign)', () => {
+  test('annotation panel uses Inter font', async ({ page }) => {
+    await page.locator('h1').first().click({ modifiers: ['Alt', 'Shift'] });
+    const p = page.locator('bridge-annotation-item .panel:not([hidden])');
+    const fontFamily = await p.evaluate((el) => getComputedStyle(el).fontFamily);
+    expect(fontFamily.toLowerCase()).toContain('inter');
+  });
+
+  test('create mode: no Cancel button present', async ({ page }) => {
+    await page.locator('h1').first().click({ modifiers: ['Alt', 'Shift'] });
+    const p = page.locator('bridge-annotation-item .panel:not([hidden])');
+    await expect(p.locator('.btn-cancel, button:has-text("Cancel")')).toHaveCount(0);
+  });
+
+  test('create mode: send button is always visible', async ({ page }) => {
+    await page.locator('h1').first().click({ modifiers: ['Alt', 'Shift'] });
+    const p = page.locator('bridge-annotation-item .panel:not([hidden])');
+    await expect(p.locator('.send-btn')).toBeVisible();
+  });
+
+  test('create mode: send button is disabled when textarea is empty', async ({ page }) => {
+    await page.locator('h1').first().click({ modifiers: ['Alt', 'Shift'] });
+    const p = page.locator('bridge-annotation-item .panel:not([hidden])');
+    await expect(p.locator('.send-btn')).toBeDisabled();
+  });
+
+  test('create mode: send button becomes enabled when text is typed', async ({ page }) => {
+    await page.locator('h1').first().click({ modifiers: ['Alt', 'Shift'] });
+    const p = page.locator('bridge-annotation-item .panel:not([hidden])');
+    await p.locator('textarea[data-role="composer"]').fill('hello');
+    await expect(p.locator('.send-btn')).toBeEnabled();
+  });
+
+  test('create mode: no body padding (no .body element rendered)', async ({ page }) => {
+    await page.locator('h1').first().click({ modifiers: ['Alt', 'Shift'] });
+    const p = page.locator('bridge-annotation-item .panel:not([hidden])');
+    await expect(p.locator('.body')).toHaveCount(0);
+  });
+
+  test('create mode: no chips bar shown (paths hidden)', async ({ page }) => {
+    await page.locator('h1').first().click({ modifiers: ['Alt', 'Shift'] });
+    const p = page.locator('bridge-annotation-item .panel:not([hidden])');
+    await expect(p.locator('.chips-bar')).toHaveCount(0);
+  });
+
+  test('create mode: composer has rounded inner card', async ({ page }) => {
+    await page.locator('h1').first().click({ modifiers: ['Alt', 'Shift'] });
+    const p = page.locator('bridge-annotation-item .panel:not([hidden])');
+    const inner = p.locator('.composer-inner');
+    await expect(inner).toBeVisible();
+    const radius = await inner.evaluate((el) => getComputedStyle(el).borderRadius);
+    // 10px border-radius
+    expect(radius).not.toBe('0px');
+  });
+
+  test('view mode: header has Close button, no Cancel button', async ({ page }) => {
+    await createAnnotation(page, 'h1', 'Header test');
+    const badge = page.locator('bridge-annotation-item .badge').first();
+    await badge.click();
+    const p = annotationPanel(page);
+    await expect(p.locator('.icon-btn.close')).toBeVisible();
+    await expect(p.locator('.btn-cancel, button:has-text("Cancel")')).toHaveCount(0);
+  });
+
+  test('view mode: paths hidden by default', async ({ page }) => {
+    await createAnnotation(page, 'h1', 'Paths hidden test');
+    const badge = page.locator('bridge-annotation-item .badge').first();
+    await badge.click();
+    const p = annotationPanel(page);
+    await expect(p.locator('.chips-bar')).toHaveCount(0);
+  });
+
+  test('view mode: "Show paths" in menu reveals chips bar', async ({ page }) => {
+    await createAnnotation(page, 'h1', 'Show paths test');
+    const badge = page.locator('bridge-annotation-item .badge').first();
+    await badge.click();
+    const p = annotationPanel(page);
+
+    await p.locator('.icon-btn[title="More options"]').click();
+    await p.locator('.menu-item:has-text("Show paths")').click();
+
+    await expect(p.locator('.chips-bar')).toBeVisible();
+    await expect(p.locator('.chips-bar .chip, .chips-bar .source-chip')).not.toHaveCount(0);
+  });
+
+  test('view mode: "Hide paths" in menu hides chips bar again', async ({ page }) => {
+    await createAnnotation(page, 'h1', 'Toggle paths test');
+    const badge = page.locator('bridge-annotation-item .badge').first();
+    await badge.click();
+    const p = annotationPanel(page);
+
+    await p.locator('.icon-btn[title="More options"]').click();
+    await p.locator('.menu-item:has-text("Show paths")').click();
+    await expect(p.locator('.chips-bar')).toBeVisible();
+
+    await p.locator('.icon-btn[title="More options"]').click();
+    await p.locator('.menu-item:has-text("Hide paths")').click();
+    await expect(p.locator('.chips-bar')).toHaveCount(0);
+  });
+
+  test('chips-bar is horizontally scrollable when selectors overflow', async ({ page }) => {
+    // Add multiple selectors so the chips bar overflows
+    await page.locator('h1').first().click({ modifiers: ['Alt', 'Shift'] });
+    const draft = page.locator('bridge-annotation-item .panel:not([hidden])');
+    await page.locator('p').first().click({ modifiers: ['Alt', 'Shift'] });
+    await page.locator('nav').first().click({ modifiers: ['Alt', 'Shift'] }).catch(() => {});
+
+    const textarea = draft.locator('textarea[data-role="composer"]');
+    await textarea.fill('Multi selector');
+    await textarea.press('Enter');
+    await expect(annotationPanel(page)).toHaveCount(0);
+
+    const badge = page.locator('bridge-annotation-item .badge').first();
+    await badge.click();
+    const p = annotationPanel(page);
+    await p.locator('.icon-btn[title="More options"]').click();
+    await p.locator('.menu-item:has-text("Show paths")').click();
+
+    const bar = p.locator('.chips-bar');
+    await expect(bar).toBeVisible();
+    const overflow = await bar.evaluate((el) => getComputedStyle(el).overflowX);
+    expect(overflow).toBe('auto');
+  });
+
+  test('chip font is monospace', async ({ page }) => {
+    await page.locator('h1').first().click({ modifiers: ['Alt', 'Shift'] });
+    const draft = page.locator('bridge-annotation-item .panel:not([hidden])');
+    const textarea = draft.locator('textarea[data-role="composer"]');
+    await textarea.fill('Chip font test');
+    await textarea.press('Enter');
+
+    const badge = page.locator('bridge-annotation-item .badge').first();
+    await badge.click();
+    const p = annotationPanel(page);
+    await p.locator('.icon-btn[title="More options"]').click();
+    await p.locator('.menu-item:has-text("Show paths")').click();
+
+    const chip = p.locator('.chips-bar .chip').first();
+    await expect(chip).toBeVisible();
+    const font = await chip.evaluate((el) => getComputedStyle(el).fontFamily);
+    expect(font).toMatch(/monospace/i);
+  });
+});
+
+test.describe('Element highlight on annotation create', () => {
+  test('target element gets amber outline when draft opens', async ({ page }) => {
+    await page.locator('h1').first().click({ modifiers: ['Alt', 'Shift'] });
+    await expect(annotationPanel(page)).toBeVisible();
+
+    const highlighted = page.locator('[data-db-related]');
+    await expect(highlighted).not.toHaveCount(0);
+  });
+
+  test('outline clears after saving the annotation', async ({ page }) => {
+    await createAnnotation(page, 'h1', 'Outline clears on save');
+    await expect(page.locator('[data-db-related]')).toHaveCount(0);
+  });
+
+  test('outline clears after cancelling (clicking outside)', async ({ page }) => {
+    await page.locator('h1').first().click({ modifiers: ['Alt', 'Shift'] });
+    await expect(page.locator('[data-db-related]')).not.toHaveCount(0);
+
+    await page.locator('main').click({ position: { x: 8, y: 8 } });
+    await expect(annotationPanel(page)).toHaveCount(0);
+    await expect(page.locator('[data-db-related]')).toHaveCount(0);
+  });
+
+  test('all elements get highlighted when multiple are added to draft', async ({ page }) => {
+    await page.locator('h1').first().click({ modifiers: ['Alt', 'Shift'] });
+    await expect(page.locator('[data-db-related]')).toHaveCount(1);
+
+    await page.locator('p').first().click({ modifiers: ['Alt', 'Shift'] });
+    await expect(page.locator('[data-db-related]')).toHaveCount(2);
+  });
+});
+
+test.describe('Multi-select while draft is open', () => {
+  test('clicking an already-annotated element while draft is open adds it to draft', async ({ page }) => {
+    // Create a saved annotation on h1
+    await createAnnotation(page, 'h1', 'Existing annotation');
+    await expect(page.locator('bridge-annotation-item .badge')).toHaveCount(1);
+
+    // Start a new draft on p
+    await page.locator('p').first().click({ modifiers: ['Alt', 'Shift'] });
+    const draft = annotationPanel(page);
+    await expect(draft).toBeVisible();
+
+    // Click h1 (already annotated) while draft is open — should add to draft, not open old annotation
+    await page.locator('h1').first().click({ modifiers: ['Alt', 'Shift'] });
+
+    // Still just one open panel (the draft), not the existing annotation's panel
+    await expect(page.locator('bridge-annotation-item .panel:not([hidden])')).toHaveCount(1);
+
+    // Save and verify via API that the new annotation has 2 selectors (p + h1)
+    const textarea = draft.locator('textarea[data-role="composer"]');
+    await textarea.fill('Multi-select with existing element');
+    await textarea.press('Enter');
+    await expect(annotationPanel(page)).toHaveCount(0);
+
+    const res = await page.request.get(`${API_BASE}/annotations`);
+    const body = await res.json() as { annotations: { comment: string; selectors: string[]; }[]; };
+    const newAnn = body.annotations.find((a) => a.comment === 'Multi-select with existing element');
+    expect(newAnn).toBeDefined();
+    expect(newAnn!.selectors.length).toBe(2);
   });
 });

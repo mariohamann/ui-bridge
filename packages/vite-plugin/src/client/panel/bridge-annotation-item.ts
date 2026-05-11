@@ -68,6 +68,7 @@ export class BridgeAnnotationItem extends LitElement {
       --db-red: #f38ba8;
       --db-green: #a6e3a1;
       --db-font-mono: ui-monospace, monospace;
+      --db-font: 'Inter', system-ui, -apple-system, sans-serif;
 
       position: fixed;
       top: 0;
@@ -111,9 +112,9 @@ export class BridgeAnnotationItem extends LitElement {
       background: var(--db-bg);
       color: var(--db-text);
       border: 1px solid var(--db-border);
-      border-radius: 6px;
+      border-radius: 10px;
       padding: 5px 9px;
-      font: 12px/1.4 var(--db-font-mono);
+      font: 12px/1.4 var(--db-font);
       box-shadow: 0 4px 12px rgba(0,0,0,.45);
       width: 220px;
       z-index: 2147483647;
@@ -145,13 +146,13 @@ export class BridgeAnnotationItem extends LitElement {
       z-index: 2147483646;
       background: var(--db-bg);
       color: var(--db-text);
-      border-radius: 8px;
+      border-radius: 14px;
       padding: 0;
-      width: 300px;
+      width: min(320px, 90vw);
       max-height: calc(100dvh - 32px);
       overflow-y: auto;
       box-shadow: 0 8px 24px rgba(0,0,0,.6);
-      font: 13px/1.5 var(--db-font-mono);
+      font: 13px/1.5 var(--db-font);
     }
     .panel[hidden] { display: none !important; }
 
@@ -161,7 +162,6 @@ export class BridgeAnnotationItem extends LitElement {
       align-items: center;
       gap: 4px;
       padding: 8px 10px;
-      border-bottom: 1px solid var(--db-border);
     }
     .header-title {
       flex: 1;
@@ -216,8 +216,29 @@ export class BridgeAnnotationItem extends LitElement {
     .menu-item:hover { background: var(--db-border); }
     .menu-item.danger { color: var(--db-red); }
 
+    /* ── Chips bar ─────────────────────────── */
+    .chips-bar {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 0 10px 6px;
+      overflow-x: auto;
+      scrollbar-width: none;
+      border-bottom: 1px solid var(--db-border);
+    }
+    .chips-bar::-webkit-scrollbar { display: none; }
+    .chips-bar .chip {
+      flex-shrink: 0;
+      max-width: 160px;
+    }
+    .chips-bar .source-chip {
+      flex-shrink: 0;
+      margin-bottom: 0;
+      max-width: 200px;
+    }
+
     /* ── Body ───────────────────────────────── */
-    .body { padding: 10px 12px; }
+    .body { padding: 8px 12px; }
 
     .comment-text {
       font-size: 13px;
@@ -236,23 +257,16 @@ export class BridgeAnnotationItem extends LitElement {
     textarea {
       width: 100%;
       box-sizing: border-box;
-      background: var(--db-surface);
+      background: transparent;
       color: var(--db-text);
-      border: 1px solid var(--db-border);
-      border-radius: 4px;
-      padding: 8px;
+      border: none;
+      padding: 8px 10px 4px;
       font: inherit;
-      font-size: 12px;
+      font-size: 13px;
       field-sizing: content;
       resize: none;
       min-height: 2lh;
       outline: none;
-      margin-bottom: 8px;
-      transition: border-color .12s, box-shadow .12s;
-    }
-    textarea:focus {
-      border-color: var(--db-blue);
-      box-shadow: 0 0 0 2px rgba(137,180,250,.28);
     }
 
     @supports not (field-sizing: content) {
@@ -270,6 +284,7 @@ export class BridgeAnnotationItem extends LitElement {
       border-radius: 4px;
       padding: 2px 6px;
       font-size: 11px;
+      font-family: var(--db-font-mono);
       color: var(--db-amber);
       max-width: 260px;
       overflow: hidden;
@@ -290,6 +305,7 @@ export class BridgeAnnotationItem extends LitElement {
       border-radius: 4px;
       padding: 3px 8px;
       font-size: 11px;
+      font-family: var(--db-font-mono);
       color: var(--db-blue);
       margin-bottom: 6px;
       overflow: hidden;
@@ -305,27 +321,40 @@ export class BridgeAnnotationItem extends LitElement {
       font-style: italic;
     }
 
-    /* ── Footer ─────────────────────────────── */
-    .footer {
+    /* ── Composer ─────────────────────────────── */
+    .composer {
+      padding: 8px;
+    }
+    .composer-inner {
+      background: var(--db-surface);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    .composer-row {
       display: flex;
-      gap: 6px;
-      padding: 8px 12px;
-      border-top: 1px solid var(--db-border);
       align-items: center;
+      justify-content: flex-end;
+      padding: 4px 6px 6px;
     }
-    .footer textarea { margin-bottom: 0; resize: none; flex: 1; }
-    button.btn {
-      flex: 1;
-      padding: 5px 8px;
-      border-radius: 4px;
-      border: none;
+    .send-btn {
+      all: unset;
       cursor: pointer;
-      font: inherit;
-      font-size: 12px;
-      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: var(--db-blue);
+      color: #1e1e2e;
+      font-size: 14px;
+      flex-shrink: 0;
     }
-    .btn-save { background: var(--db-amber); color: #1e1e2e; }
-    .btn-cancel { background: var(--db-border); color: var(--db-text); flex: 0 0 auto; }
+    .send-btn:disabled {
+      background: var(--db-surface);
+      color: var(--db-muted);
+      cursor: default;
+    }
   `;
 
   /** The saved annotation. null = draft (unsaved, panel auto-opens). */
@@ -344,6 +373,7 @@ export class BridgeAnnotationItem extends LitElement {
   @state() private _pendingSource: AnnotationSource | null = null;
   @state() private _createdAt = 0;
   @state() private _showMenu = false;
+  @state() private _showPaths = false;
 
   // ── badge + panel + preview position ────────────────────────────────────
   @state() private _badgeTop = -9999;
@@ -380,6 +410,7 @@ export class BridgeAnnotationItem extends LitElement {
     this._open = true;
     this._showMenu = false;
     this._repositionBadge();
+    this._highlightRelated();
     this._focusTextarea();
   }
 
@@ -400,6 +431,7 @@ export class BridgeAnnotationItem extends LitElement {
     }
     // Update anchor to the latest element so badge tracks it
     this._anchorEl = el;
+    this._highlightRelated();
   }
 
   /** Open the panel (called from panel list row click). */
@@ -693,6 +725,7 @@ export class BridgeAnnotationItem extends LitElement {
   private _saveNew(): void {
     const text = this._draft.trim();
     if (!text) return;
+    this._clearHighlight();
     const ann = this._buildAnnotation({
       comment: text,
       replies: [{ id: uid(), type: 'comment', text, createdAt: Date.now() }],
@@ -725,6 +758,7 @@ export class BridgeAnnotationItem extends LitElement {
   }
 
   private _cancelDraft(): void {
+    this._clearHighlight();
     this.dispatchEvent(new CustomEvent('annotation-cancel', { bubbles: true, composed: true }));
     // inspector.ts will remove this element from the DOM
   }
@@ -762,6 +796,7 @@ export class BridgeAnnotationItem extends LitElement {
           <button class="icon-btn" @click=${() => { this._showMenu = !this._showMenu; }} title="More options">···</button>
           ${this._showMenu ? html`
             <div class="overflow-menu">
+              <button class="menu-item" @click=${() => { this._showPaths = !this._showPaths; this._showMenu = false; }}>${this._showPaths ? 'Hide paths' : 'Show paths'}</button>
               <button class="menu-item danger" @click=${this._delete}>Delete</button>
             </div>
           ` : ''}
@@ -773,8 +808,7 @@ export class BridgeAnnotationItem extends LitElement {
   }
 
   private _renderSendBtn(enabled: boolean, onClick: () => void): TemplateResult {
-    if (!enabled) return html``;
-    return html`<button class="icon-btn resolve" @click=${onClick} title="Send">↑</button>`;
+    return html`<button class="send-btn" ?disabled=${!enabled} @click=${enabled ? onClick : undefined} title="Send">↑</button>`;
   }
 
   private _renderReplies(): TemplateResult {
@@ -785,25 +819,25 @@ export class BridgeAnnotationItem extends LitElement {
     `)}`;
   }
 
-  private _renderChips(editable: boolean): TemplateResult {
+  private _renderChipsBar(editable: boolean): TemplateResult {
     const selectors = this._mode === 'create' ? this._pendingSelectors : (this.annotation?.selectors ?? []);
     const source = this._mode === 'create' ? this._pendingSource : (this.annotation?.source ?? null);
+    if (!editable && !this._showPaths) return html``;
+    if (!selectors.length && !source) return html``;
     return html`
-      ${selectors.length ? html`
-        <div class="chips">
-          ${selectors.map((sel, i) => html`
-            <span class="chip" title=${sel}>
-              ${sel}
-              ${editable ? html`<button @click=${() => this._removeChip(i)}>×</button>` : ''}
-            </span>
-          `)}
-        </div>
-      ` : ''}
-      ${source ? html`
-        <div class="source-chip" title="${source.file}:${source.line}:${source.column}">
-          📍 <span class="source-chip-label">${source.file}:${source.line}:${source.column}</span>
-        </div>
-      ` : ''}
+      <div class="chips-bar">
+        ${selectors.map((sel, i) => html`
+          <span class="chip" title=${sel}>
+            ${sel}
+            ${editable ? html`<button @click=${() => this._removeChip(i)}>×</button>` : ''}
+          </span>
+        `)}
+        ${source ? html`
+          <div class="source-chip" title="${source.file}:${source.line}:${source.column}">
+            📍 <span class="source-chip-label">${source.file}:${source.line}:${source.column}</span>
+          </div>
+        ` : ''}
+      </div>
     `;
   }
 
@@ -858,36 +892,32 @@ export class BridgeAnnotationItem extends LitElement {
         @keydown=${this._onKeyDown}
       >
         ${this._renderHeader()}
+        ${!isDraft ? this._renderChipsBar(false) : ''}
 
+        ${!isDraft ? html`
         <div class="body">
-          ${isDraft ? html`
-            ${!this._pendingSource ? html`<div class="hint">Keep clicking elements to group them</div>` : ''}
-            <textarea
-              data-role="composer"
-              placeholder="Add a comment"
-              .value=${this._draft}
-              @input=${(e: Event) => { this._draft = (e.target as HTMLTextAreaElement).value; }}
-              @keydown=${this._onComposerKeyDown}
-            ></textarea>
-            ${this._renderChips(true)}
-            <div class="footer">
-              <button class="btn btn-cancel" @click=${this._cancelDraft}>Cancel</button>
-              ${this._renderSendBtn(canSendNew, () => this._saveNew())}
-            </div>
-          ` : html`
             ${this._renderReplies()}
-            ${this._renderChips(false)}
-            <div class="footer">
-              <textarea
-                data-role="reply"
-                placeholder="Reply"
-                .value=${this._replyDraft}
-                @input=${(e: Event) => { this._replyDraft = (e.target as HTMLTextAreaElement).value; }}
-                @keydown=${this._onReplyKeyDown}
-              ></textarea>
-              ${this._renderSendBtn(canSendReply, () => this._saveReply())}
-            </div>
-          `}
+        </div>
+        ` : ''}
+
+        <div class="composer">
+          <div class="composer-inner">
+          <textarea
+            data-role=${isDraft ? 'composer' : 'reply'}
+            placeholder=${isDraft ? 'Add a comment\u2026' : 'Reply\u2026'}
+            .value=${isDraft ? this._draft : this._replyDraft}
+            @input=${(e: Event) => {
+        const v = (e.target as HTMLTextAreaElement).value;
+        if (isDraft) this._draft = v; else this._replyDraft = v;
+      }}
+            @keydown=${isDraft ? this._onComposerKeyDown : this._onReplyKeyDown}
+          ></textarea>
+          <div class="composer-row">
+            ${isDraft
+        ? this._renderSendBtn(canSendNew, () => this._saveNew())
+        : this._renderSendBtn(canSendReply, () => this._saveReply())}
+          </div>
+          </div>
         </div>
       </div>
     `;
