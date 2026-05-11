@@ -574,18 +574,21 @@ const httpServer = createServer(async (req, res) => {
       jsonResponse(res, 200, { ok: true });
       return;
     }
-    // POST /annotations/:id/accept — accept all tweaks for this annotation
-    if (req.method === 'POST' && url.endsWith('/accept')) {
-      try {
-        await finalizeForAnnotation(annId);
-        annotations.delete(annId);
-        await deleteAnnotationFile(annId);
-        broadcast({ type: 'tweak:schema', payload: buildSchema(scripts) });
-        broadcast({ type: 'annotations:sync', payload: [...annotations.values()] });
-        jsonResponse(res, 200, { ok: true });
-      } catch (e) { jsonResponse(res, 400, { error: String(e) }); }
-      return;
-    }
+  }
+
+  // POST /annotations/:id/accept — accept all tweaks for this annotation
+  const acceptAnnMatch = apiPath.match(/^\/annotations\/([^/]+)\/accept$/);
+  if (acceptAnnMatch && req.method === 'POST') {
+    const annId = acceptAnnMatch[1];
+    try {
+      await finalizeForAnnotation(annId);
+      annotations.delete(annId);
+      await deleteAnnotationFile(annId);
+      broadcast({ type: 'tweak:schema', payload: buildSchema(scripts) });
+      broadcast({ type: 'annotations:sync', payload: [...annotations.values()] });
+      jsonResponse(res, 200, { ok: true });
+    } catch (e) { jsonResponse(res, 400, { error: String(e) }); }
+    return;
   }
 
   // DELETE /annotations/:id/tweaks/:marker — dismiss a single tweak

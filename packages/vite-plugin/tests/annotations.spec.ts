@@ -657,7 +657,7 @@ test.describe('Multi-select while draft is open', () => {
 /** Inject an annotation directly via the REST API. */
 async function injectAnnotation(
   page: Page,
-  overrides: Record<string, unknown> & { id: string },
+  overrides: Record<string, unknown> & { id: string; },
 ): Promise<void> {
   const ann = {
     selectors: ['h1'],
@@ -751,44 +751,6 @@ test.describe('Tweaks in annotations', () => {
     await expect(page.locator('bridge-annotation-item .tweak-accept-all')).toBeVisible();
   });
 
-  test('per-annotation GET returns the annotation by id', async ({ page }) => {
-    await injectAnnotation(page, { id: 'get-by-id-test', comment: 'GET by ID' });
-    const res = await page.request.get(`${API_BASE}/annotations/get-by-id-test`);
-    expect(res.status()).toBe(200);
-    const ann = await res.json() as { id: string; comment: string };
-    expect(ann.id).toBe('get-by-id-test');
-    expect(ann.comment).toBe('GET by ID');
-  });
-
-  test('per-annotation DELETE removes only that annotation', async ({ page }) => {
-    await injectAnnotation(page, { id: 'del-target', comment: 'To delete' });
-    await injectAnnotation(page, { id: 'del-keeper', comment: 'To keep' });
-    const del = await page.request.delete(`${API_BASE}/annotations/del-target`);
-    expect(del.status()).toBe(200);
-    const get = await page.request.get(`${API_BASE}/annotations/del-target`);
-    expect(get.status()).toBe(404);
-    const getKeeper = await page.request.get(`${API_BASE}/annotations/del-keeper`);
-    expect(getKeeper.status()).toBe(200);
-  });
-
-  test('dismiss tweak via API removes it from annotation linkedTweaks', async ({ page }) => {
-    await injectAnnotation(page, {
-      id: 'dismiss-api-test',
-      comment: 'Dismiss via API',
-      linkedTweaks: [
-        { marker: 'color-a', label: 'Color A', lastValue: '#red', linkedAt: Date.now() },
-        { marker: 'color-b', label: 'Color B', lastValue: '#blue', linkedAt: Date.now() },
-      ],
-    });
-    // Dismiss color-a (no active script, so server just removes from linkedTweaks)
-    const res = await page.request.delete(`${API_BASE}/annotations/dismiss-api-test/tweaks/color-a`);
-    expect(res.status()).toBe(200);
-    const ann = await page.request.get(`${API_BASE}/annotations/dismiss-api-test`);
-    const body = await ann.json() as { linkedTweaks: { marker: string }[] };
-    expect(body.linkedTweaks.find((t) => t.marker === 'color-a')).toBeUndefined();
-    expect(body.linkedTweaks.find((t) => t.marker === 'color-b')).toBeDefined();
-  });
-
   test('annotation persists to disk as JSON file after injection', async ({ page }) => {
     await injectAnnotation(page, { id: 'persist-json-test', comment: 'JSON file test' });
     // Verify it can be retrieved (confirms it was stored)
@@ -799,7 +761,7 @@ test.describe('Tweaks in annotations', () => {
     await expect(panel(page)).toBeAttached();
     const res2 = await page.request.get(`${API_BASE}/annotations/persist-json-test`);
     expect(res2.status()).toBe(200);
-    const ann = await res2.json() as { comment: string };
+    const ann = await res2.json() as { comment: string; };
     expect(ann.comment).toBe('JSON file test');
   });
 

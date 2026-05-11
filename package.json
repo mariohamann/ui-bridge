@@ -8,7 +8,7 @@
   },
   "scripts": {
     "dev": "node dev.mjs",
-    "build": "pnpm --filter @design-bridge/vite-plugin build",
-    "test": "pnpm --filter @design-bridge/vite-plugin test"
+    "build": "pnpm --filter @design-bridge/core build && pnpm --filter @design-bridge/client build && pnpm --filter @design-bridge/vite-plugin build",
+    "test": "pnpm --filter @design-bridge/server test && pnpm --filter @design-bridge/vite-plugin test"
   }
 }
