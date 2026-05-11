@@ -154,7 +154,7 @@ function onPointerDownForInspect(e: PointerEvent): void {
 }
 
 function onTrackCode(e: Event): void {
-  const detail = (e as CustomEvent<{ path: string; line: number; column: number }>).detail;
+  const detail = (e as CustomEvent<{ path: string; line: number; column: number; }>).detail;
   if (!detail?.path) return;
   if (!itemContainer) return;
 
@@ -199,12 +199,12 @@ function onAnnotationCancel(): void {
 }
 
 function onAnnotationDelete(e: Event): void {
-  const { id } = (e as CustomEvent<{ id: string }>).detail;
+  const { id } = (e as CustomEvent<{ id: string; }>).detail;
   deleteAnnotation(id);
 }
 
 function onAnnotationResolve(e: Event): void {
-  const { id, tweakMarkers } = (e as CustomEvent<{ id: string; tweakMarkers: string[] }>).detail;
+  const { id, tweakMarkers } = (e as CustomEvent<{ id: string; tweakMarkers: string[]; }>).detail;
   deleteAnnotation(id);
   for (const marker of [...new Set(tweakMarkers)]) {
     sendMessage({ type: 'tweak:reset', payload: { marker } });
@@ -214,7 +214,7 @@ function onAnnotationResolve(e: Event): void {
 // ─── Cross-tab BroadcastChannel ──────────────────────────────────────────────
 
 channel.addEventListener('message', (e) => {
-  const { type, payload } = e.data as { type: string; payload: Annotation[] };
+  const { type, payload } = e.data as { type: string; payload: Annotation[]; };
   if (type === 'annotations:sync') syncAnnotations(payload);
 });
 
