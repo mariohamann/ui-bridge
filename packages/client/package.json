@@ -8,7 +8,8 @@
   },
   "scripts": {
     "build": "node build.mjs",
-    "dev": "node build.mjs --watch"
+    "dev": "node build.mjs --watch",
+    "test": "playwright test"
   },
   "dependencies": {
     "@design-bridge/core": "workspace:*",
@@ -18,6 +19,7 @@
     "lit": "^3.3.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.50.0",
     "@types/autosize": "^4.0.3",
     "@types/node": "^25.6.0",
     "esbuild": "^0.25.0",
