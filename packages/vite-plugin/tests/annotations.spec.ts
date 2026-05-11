@@ -542,7 +542,7 @@ test.describe('Compact UI (redesign)', () => {
     await page.locator('h1').first().click({ modifiers: ['Alt', 'Shift'] });
     const draft = page.locator('bridge-annotation-item .panel:not([hidden])');
     await page.locator('p').first().click({ modifiers: ['Alt', 'Shift'] });
-    await page.locator('nav').first().click({ modifiers: ['Alt', 'Shift'] }).catch(() => {});
+    await page.locator('nav').first().click({ modifiers: ['Alt', 'Shift'] }).catch(() => { });
 
     const textarea = draft.locator('textarea[data-role="composer"]');
     await textarea.fill('Multi selector');
