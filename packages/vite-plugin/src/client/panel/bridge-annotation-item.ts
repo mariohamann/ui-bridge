@@ -1,7 +1,8 @@
 import { LitElement, html, css, type TemplateResult } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
-import { computePosition, flip, shift, offset, size } from '@floating-ui/dom';
+import { computePosition, autoUpdate, flip, shift, offset } from '@floating-ui/dom';
 import { finder, idName } from '@medv/finder';
+import autosize from 'autosize';
 import type { Annotation, AnnotationReply, AnnotationSource, AnnotationTweakLink } from '../../../shared/protocol.js';
 
 const HIGHLIGHT_ATTR = 'data-db-related';
@@ -103,6 +104,40 @@ export class BridgeAnnotationItem extends LitElement {
       background: var(--db-amber);
     }
 
+    /* ── Badge hover preview ─────────────────── */
+    .badge-preview {
+      position: fixed;
+      pointer-events: none;
+      background: var(--db-bg);
+      color: var(--db-text);
+      border: 1px solid var(--db-border);
+      border-radius: 6px;
+      padding: 5px 9px;
+      font: 12px/1.4 var(--db-font-mono);
+      box-shadow: 0 4px 12px rgba(0,0,0,.45);
+      width: 220px;
+      z-index: 2147483647;
+      opacity: 0;
+      transform: scale(0.95);
+      transition: opacity .12s ease, transform .12s ease;
+    }
+    .badge-preview.visible {
+      opacity: 1;
+      transform: scale(1);
+    }
+    .badge-preview-text {
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 3;
+      overflow: hidden;
+      word-break: break-word;
+    }
+    .badge-preview-meta {
+      font-size: 10px;
+      color: var(--db-muted);
+      margin-top: 2px;
+    }
+
     /* ── Panel ─────────────────────────────── */
     .panel {
       position: fixed;
@@ -113,9 +148,10 @@ export class BridgeAnnotationItem extends LitElement {
       border-radius: 8px;
       padding: 0;
       width: 300px;
+      max-height: calc(100dvh - 32px);
+      overflow-y: auto;
       box-shadow: 0 8px 24px rgba(0,0,0,.6);
       font: 13px/1.5 var(--db-font-mono);
-      overflow: hidden;
     }
     .panel[hidden] { display: none !important; }
 
@@ -204,11 +240,12 @@ export class BridgeAnnotationItem extends LitElement {
       color: var(--db-text);
       border: 1px solid var(--db-border);
       border-radius: 4px;
-      padding: 6px 8px;
+      padding: 8px;
       font: inherit;
       font-size: 12px;
-      resize: vertical;
-      min-height: 60px;
+      field-sizing: content;
+      resize: none;
+      min-height: 2lh;
       outline: none;
       margin-bottom: 8px;
       transition: border-color .12s, box-shadow .12s;
@@ -216,6 +253,10 @@ export class BridgeAnnotationItem extends LitElement {
     textarea:focus {
       border-color: var(--db-blue);
       box-shadow: 0 0 0 2px rgba(137,180,250,.28);
+    }
+
+    @supports not (field-sizing: content) {
+      textarea { overflow: hidden; }
     }
 
     /* ── Chips ──────────────────────────────── */
@@ -272,7 +313,7 @@ export class BridgeAnnotationItem extends LitElement {
       border-top: 1px solid var(--db-border);
       align-items: center;
     }
-    .footer textarea { margin-bottom: 0; min-height: 38px; resize: none; flex: 1; }
+    .footer textarea { margin-bottom: 0; resize: none; flex: 1; }
     button.btn {
       flex: 1;
       padding: 5px 8px;
@@ -304,11 +345,17 @@ export class BridgeAnnotationItem extends LitElement {
   @state() private _createdAt = 0;
   @state() private _showMenu = false;
 
-  // ── badge + panel position ─────────────────────────────────────────────
+  // ── badge + panel + preview position ────────────────────────────────────
   @state() private _badgeTop = -9999;
   @state() private _badgeLeft = -9999;
   @state() private _panelTop = -9999;
   @state() private _panelLeft = -9999;
+  @state() private _previewTop = -9999;
+  @state() private _previewLeft = -9999;
+  @state() private _hovered = false;
+
+  private _cleanupPanel: (() => void) | null = null;
+  private _cleanupPreview: (() => void) | null = null;
 
   private _anchorEl: Element | null = null;
 
@@ -396,16 +443,20 @@ export class BridgeAnnotationItem extends LitElement {
   connectedCallback(): void {
     super.connectedCallback();
     document.addEventListener('pointerdown', this._onDocPointerDown, true);
-    window.addEventListener('scroll', this._onScrollResize, { passive: true, capture: true });
-    window.addEventListener('resize', this._onScrollResize, { passive: true });
+    window.addEventListener('scroll', this._repositionBadge, { passive: true, capture: true });
+    window.addEventListener('resize', this._repositionBadge, { passive: true });
     this._repositionBadge();
   }
 
   disconnectedCallback(): void {
     super.disconnectedCallback();
     document.removeEventListener('pointerdown', this._onDocPointerDown, true);
-    window.removeEventListener('scroll', this._onScrollResize, true);
-    window.removeEventListener('resize', this._onScrollResize);
+    window.removeEventListener('scroll', this._repositionBadge, true);
+    window.removeEventListener('resize', this._repositionBadge);
+    this._cleanupPanel?.();
+    this._cleanupPanel = null;
+    this._cleanupPreview?.();
+    this._cleanupPreview = null;
     this._clearHighlight();
   }
 
@@ -415,8 +466,14 @@ export class BridgeAnnotationItem extends LitElement {
       this._mode = 'view';
       this._repositionBadge();
     }
-    if (changed.has('_open') && this._open) {
-      this._floatPanel();
+    if (changed.has('_open')) {
+      if (this._open) {
+        this._startPanelAutoUpdate();
+        this._applyAutosize();
+      } else {
+        this._cleanupPanel?.();
+        this._cleanupPanel = null;
+      }
     }
   }
 
@@ -442,55 +499,39 @@ export class BridgeAnnotationItem extends LitElement {
     if (!rect) { this._badgeTop = -9999; this._badgeLeft = -9999; return; }
     this._badgeTop = rect.top - 10;
     this._badgeLeft = rect.right - 8;
-    if (this._open) this._floatPanel();
   };
 
-  private _onScrollResize = (): void => { this._repositionBadge(); };
-
-  private _floatPanel(): void {
-    const rect = this._anchorRect();
-    if (!rect) return;
-    // Synchronous initial position (right of element, falls back to left)
-    const w = 300; const h = 280; const gap = 8;
-    let x = rect.right + gap;
-    let y = rect.top;
-    if (x + w + gap > window.innerWidth) x = Math.max(8, rect.left - w - gap);
-    if (x + w + gap > window.innerWidth) x = Math.max(8, window.innerWidth - w - 8);
-    if (y + h + gap > window.innerHeight) y = Math.max(8, window.innerHeight - h - 8);
-    if (y < 8) y = 8;
-    this._panelLeft = x;
-    this._panelTop = y;
-
-    // Precise async position via floating-ui
-    requestAnimationFrame(() => {
+  private _startPanelAutoUpdate(): void {
+    this._cleanupPanel?.();
+    this.updateComplete.then(() => {
       const panelEl = this.shadowRoot?.querySelector<HTMLElement>('.panel');
-      if (!panelEl) return;
-      const reference = { getBoundingClientRect: () => rect };
-      computePosition(reference as Element, panelEl, {
-        placement: 'right-start',
-        strategy: 'fixed',
-        middleware: [
-          offset(8),
-          flip({ fallbackPlacements: ['left-start', 'bottom-start', 'top-start'] }),
-          size({
-            padding: 8,
-            apply({ availableHeight, availableWidth, elements }) {
-              Object.assign(elements.floating.style, {
-                maxHeight: `${Math.max(availableHeight, 120)}px`,
-                maxWidth: `${Math.max(availableWidth, 200)}px`,
-                overflowY: 'auto',
-              });
-            },
-          }),
-          shift({ padding: 8 }),
-        ],
-      }).then(({ x, y }) => { this._panelLeft = x; this._panelTop = y; });
+      const badgeEl = this.shadowRoot?.querySelector<HTMLElement>('.badge');
+      if (!panelEl || !badgeEl) return;
+      this._cleanupPanel = autoUpdate(badgeEl, panelEl, () => {
+        computePosition(badgeEl, panelEl, {
+          placement: 'right-start',
+          strategy: 'fixed',
+          middleware: [
+            offset(8),
+            flip({
+              fallbackPlacements: ['left-start', 'bottom-start', 'top-start'],
+              padding: 8,
+            }),
+            shift({ padding: 8 }),
+          ],
+        }).then(({ x, y }) => { this._panelLeft = x; this._panelTop = y; });
+      });
     });
   }
 
   // ────────────────────────────────────────────────────────────────────────
   // Focus
   // ────────────────────────────────────────────────────────────────────────
+
+  private _applyAutosize(): void {
+    const textareas = this.shadowRoot?.querySelectorAll<HTMLTextAreaElement>('textarea');
+    if (textareas) autosize(textareas);
+  }
 
   private _focusTextarea(): void {
     this.updateComplete.then(() => {
@@ -521,6 +562,40 @@ export class BridgeAnnotationItem extends LitElement {
 
   private _clearHighlight(): void {
     document.querySelectorAll(`[${HIGHLIGHT_ATTR}]`).forEach((el) => el.removeAttribute(HIGHLIGHT_ATTR));
+  }
+
+  private _onBadgeMouseEnter = (): void => {
+    this._highlightRelated();
+    if (!this.annotation || this._open) return;
+    this._hovered = true;
+    this._startPreviewAutoUpdate();
+  };
+
+  private _onBadgeMouseLeave = (): void => {
+    this._clearHighlight();
+    this._hovered = false;
+    this._cleanupPreview?.();
+    this._cleanupPreview = null;
+  };
+
+  private _startPreviewAutoUpdate(): void {
+    this._cleanupPreview?.();
+    this.updateComplete.then(() => {
+      const badgeEl = this.shadowRoot?.querySelector<HTMLElement>('.badge');
+      const previewEl = this.shadowRoot?.querySelector<HTMLElement>('.badge-preview');
+      if (!badgeEl || !previewEl) return;
+      this._cleanupPreview = autoUpdate(badgeEl, previewEl, () => {
+        computePosition(badgeEl, previewEl, {
+          placement: 'right',
+          strategy: 'fixed',
+          middleware: [
+            offset(8),
+            flip({ fallbackPlacements: ['left', 'bottom', 'top'] }),
+            shift({ padding: 8 }),
+          ],
+        }).then(({ x, y }) => { this._previewLeft = x; this._previewTop = y; });
+      });
+    });
   }
 
   // ────────────────────────────────────────────────────────────────────────
@@ -732,6 +807,28 @@ export class BridgeAnnotationItem extends LitElement {
     `;
   }
 
+  private _renderBadgePreview(): TemplateResult {
+    // Only show preview for saved annotations when the panel is closed
+    if (!this.annotation || this._open) return html``;
+    const comment = this.annotation.comment ?? '';
+    const replies = this._normalizeReplies(this.annotation);
+    const tweakCount = replies.filter((r) => r.type === 'tweak').length;
+    // Subtract 1 for the root comment itself (shown as the preview text)
+    const replyCount = replies.filter((r) => r.type !== 'tweak').length - 1;
+    const parts: string[] = [];
+    if (replyCount > 0) parts.push(`${replyCount} repl${replyCount === 1 ? 'y' : 'ies'}`);
+    if (tweakCount) parts.push(`${tweakCount} tweak${tweakCount === 1 ? '' : 's'}`);
+    return html`
+      <div
+        class="badge-preview${this._hovered ? ' visible' : ''}"
+        style="top:${this._previewTop}px;left:${this._previewLeft}px"
+      >
+        <span class="badge-preview-text">${comment}</span>
+        ${parts.length ? html`<div class="badge-preview-meta">${parts.join(' · ')}</div>` : ''}
+      </div>
+    `;
+  }
+
   render(): TemplateResult {
     const isDraft = this._mode === 'create';
     const isResolved = !!this.annotation?.resolvedAt;
@@ -745,10 +842,13 @@ export class BridgeAnnotationItem extends LitElement {
         class="badge${isResolved ? ' resolved' : isDraft ? ' draft' : ''}"
         style="top:${this._badgeTop}px;left:${this._badgeLeft}px"
         title=${this.annotation?.comment ?? this._pendingLabels.join(', ')}
-        @mouseenter=${this._highlightRelated}
-        @mouseleave=${this._clearHighlight}
+        @mouseenter=${this._onBadgeMouseEnter}
+        @mouseleave=${this._onBadgeMouseLeave}
         @click=${this._onBadgeClick}
       >${label}</div>
+
+      <!-- Badge hover preview (floating-ui positioned) -->
+      ${this._renderBadgePreview()}
 
       <!-- Thread panel -->
       <div
@@ -770,29 +870,25 @@ export class BridgeAnnotationItem extends LitElement {
               @keydown=${this._onComposerKeyDown}
             ></textarea>
             ${this._renderChips(true)}
+            <div class="footer">
+              <button class="btn btn-cancel" @click=${this._cancelDraft}>Cancel</button>
+              ${this._renderSendBtn(canSendNew, () => this._saveNew())}
+            </div>
           ` : html`
             ${this._renderReplies()}
             ${this._renderChips(false)}
+            <div class="footer">
+              <textarea
+                data-role="reply"
+                placeholder="Reply"
+                .value=${this._replyDraft}
+                @input=${(e: Event) => { this._replyDraft = (e.target as HTMLTextAreaElement).value; }}
+                @keydown=${this._onReplyKeyDown}
+              ></textarea>
+              ${this._renderSendBtn(canSendReply, () => this._saveReply())}
+            </div>
           `}
         </div>
-
-        ${isDraft ? html`
-          <div class="footer">
-            <button class="btn btn-cancel" @click=${this._cancelDraft}>Cancel</button>
-            ${this._renderSendBtn(canSendNew, () => this._saveNew())}
-          </div>
-        ` : html`
-          <div class="footer">
-            <textarea
-              data-role="reply"
-              placeholder="Reply"
-              .value=${this._replyDraft}
-              @input=${(e: Event) => { this._replyDraft = (e.target as HTMLTextAreaElement).value; }}
-              @keydown=${this._onReplyKeyDown}
-            ></textarea>
-            ${this._renderSendBtn(canSendReply, () => this._saveReply())}
-          </div>
-        `}
       </div>
     `;
   }

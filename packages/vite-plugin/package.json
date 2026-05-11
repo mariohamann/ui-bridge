@@ -19,12 +19,14 @@
     "@design-bridge/server": "workspace:*",
     "@floating-ui/dom": "^1.7.6",
     "@medv/finder": "^4.0.2",
+    "autosize": "^6.0.1",
     "fast-glob": "^3.3.2",
     "lit": "^3.3.0",
     "ws": "^8.18.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.50.0",
+    "@types/autosize": "^4.0.3",
     "@types/node": "^25.6.0",
     "@types/ws": "^8.5.14",
     "esbuild": "^0.25.0",

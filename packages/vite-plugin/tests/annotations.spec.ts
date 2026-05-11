@@ -36,17 +36,17 @@ async function createAnnotation(page: Page, selector: string, comment: string): 
   await expect(annotationPanel(page)).toHaveCount(0);
 }
 
+test.beforeEach(async ({ page }) => {
+  await page.request.delete(`${API_BASE}/annotations`);
+  await page.goto('/');
+  await expect(panel(page)).toBeAttached();
+});
+
+test.afterEach(async ({ page }) => {
+  await page.request.delete(`${API_BASE}/annotations`);
+});
+
 test.describe('Annotations', () => {
-  test.beforeEach(async ({ page }) => {
-    await page.request.delete(`${API_BASE}/annotations`);
-    await page.goto('/');
-    await page.waitForSelector('bridge-panel');
-  });
-
-  test.afterEach(async ({ page }) => {
-    await page.request.delete(`${API_BASE}/annotations`);
-  });
-
   test('bridge-panel is injected into the page', async ({ page }) => {
     await expect(panel(page)).toBeAttached();
   });
@@ -79,7 +79,7 @@ test.describe('Annotations', () => {
 
     const res = await page.request.get(`${API_BASE}/annotations`);
     expect(res.status()).toBe(200);
-    const body = await res.json() as { annotations: { comment: string }[] };
+    const body = await res.json() as { annotations: { comment: string; }[]; };
     expect(body.annotations.some((a) => a.comment === 'Persisted comment')).toBe(true);
   });
 
@@ -87,7 +87,7 @@ test.describe('Annotations', () => {
     await createAnnotation(page, 'h1', 'Survives reload');
 
     await page.reload();
-    await page.waitForSelector('bridge-panel');
+    await expect(panel(page)).toBeAttached();
     await openAnnotationsTab(page);
     await expect(inPanel(page, '.db-ann-comment')).toHaveText('Survives reload');
   });
@@ -95,17 +95,21 @@ test.describe('Annotations', () => {
   test('badge reappears on the correct element after reload', async ({ page }) => {
     await createAnnotation(page, 'h1', 'Pinned to h1');
 
+    const h1Box = await page.locator('h1').first().boundingBox();
+    expect(h1Box).not.toBeNull();
+
     await page.reload();
-    await page.waitForSelector('bridge-panel');
-    await page.waitForSelector('bridge-annotation-item', { state: 'attached' });
+    await expect(panel(page)).toBeAttached();
+    await expect(page.locator('bridge-annotation-item')).toBeAttached();
 
     const badge = page.locator('bridge-annotation-item .badge').first();
     await expect(badge).toBeVisible();
 
     const badgeBox = await badge.boundingBox();
     expect(badgeBox).not.toBeNull();
+    // Badge should be vertically near the h1 element (within 200px)
+    expect(Math.abs(badgeBox!.y - h1Box!.y)).toBeLessThan(200);
     expect(badgeBox!.x).toBeGreaterThanOrEqual(0);
-    expect(badgeBox!.y).toBeGreaterThanOrEqual(0);
 
     await openAnnotationsTab(page);
     await expect(inPanel(page, '.db-ann-comment')).toHaveText('Pinned to h1');
@@ -218,7 +222,7 @@ test.describe('Annotations', () => {
     await expect(inPanel(page, '.db-empty')).toBeVisible();
 
     const res = await page.request.get(`${API_BASE}/annotations`);
-    const body = await res.json() as { annotations: unknown[] };
+    const body = await res.json() as { annotations: unknown[]; };
     expect(body.annotations).toHaveLength(0);
   });
 
@@ -250,7 +254,7 @@ test.describe('Annotations', () => {
     await expect(annotationPanel(page)).toHaveCount(0);
 
     const apiRes = await page.request.get(`${API_BASE}/annotations`);
-    const body = await apiRes.json() as { annotations: { comment: string; source?: { file: string; line: number; column: number } }[] };
+    const body = await apiRes.json() as { annotations: { comment: string; source?: { file: string; line: number; column: number; }; }[]; };
     const ann = body.annotations.find((a) => a.comment === 'Has source info');
     expect(ann).toBeDefined();
     expect(ann!.source?.file).toContain('HeroSection.vue');
@@ -274,5 +278,146 @@ test.describe('Annotations', () => {
     await openAnnotationsTab(page);
     await expect(inPanel(page, '.db-ann-extra')).toBeVisible();
     await expect(inPanel(page, '.db-ann-extra')).toHaveText('+1');
+  });
+});
+
+test.describe('Badge hover preview', () => {
+  test('preview appears on badge hover and shows the comment', async ({ page }) => {
+    await createAnnotation(page, 'h1', 'This headline needs a stronger CTA.');
+
+    const badge = page.locator('bridge-annotation-item .badge').first();
+    await badge.hover();
+
+    const preview = page.locator('bridge-annotation-item .badge-preview');
+    await expect(preview).toBeVisible();
+    await expect(preview.locator('.badge-preview-text')).toHaveText('This headline needs a stronger CTA.');
+  });
+
+  test('preview is not visible when not hovering', async ({ page }) => {
+    await createAnnotation(page, 'h1', 'Preview hidden at rest');
+
+    const preview = page.locator('bridge-annotation-item .badge-preview');
+    await page.mouse.move(0, 0);
+    await expect(preview).not.toHaveClass(/visible/);
+  });
+
+  test('preview shows reply count when replies exist', async ({ page }) => {
+    await createAnnotation(page, 'h1', 'Original comment');
+
+    const badge = page.locator('bridge-annotation-item .badge').first();
+    await badge.click();
+    const replyInput = annotationPanel(page).locator('textarea[data-role="reply"]');
+    await expect(replyInput).toBeVisible();
+    await replyInput.fill('A reply');
+    await replyInput.press('Enter');
+
+    await page.locator('bridge-annotation-item .icon-btn.close').click();
+    await expect(annotationPanel(page)).toHaveCount(0);
+
+    await badge.hover();
+    const preview = page.locator('bridge-annotation-item .badge-preview');
+    await expect(preview).toBeVisible();
+    await expect(preview.locator('.badge-preview-meta')).toHaveText('1 reply');
+  });
+
+  test('preview is hidden while panel is open', async ({ page }) => {
+    await createAnnotation(page, 'h1', 'Open panel test');
+
+    const badge = page.locator('bridge-annotation-item .badge').first();
+    await badge.click();
+    await expect(annotationPanel(page)).toBeVisible();
+
+    await expect(page.locator('bridge-annotation-item .badge-preview')).toHaveCount(0);
+  });
+
+  test('preview text wraps to at most 3 lines', async ({ page }) => {
+    const long = 'The quick brown fox jumps over the lazy dog. '.repeat(4).trim();
+    await createAnnotation(page, 'h1', long);
+
+    const badge = page.locator('bridge-annotation-item .badge').first();
+    await badge.hover();
+    const previewText = page.locator('bridge-annotation-item .badge-preview-text').first();
+    await expect(previewText).toBeVisible();
+
+    // 12px font × 1.4 line-height × 3 lines ≈ 50px; allow a small margin
+    const box = await previewText.boundingBox();
+    expect(box!.height).toBeLessThanOrEqual(55);
+  });
+});
+
+test.describe('Panel scrolling & textarea autogrow', () => {
+  test('panel scrolls when replies overflow its max-height', async ({ page }) => {
+    await createAnnotation(page, 'h1', 'Overflow test');
+
+    const badge = page.locator('bridge-annotation-item .badge').first();
+    await badge.click();
+    const p = page.locator('bridge-annotation-item .panel:not([hidden])');
+
+    // Add enough replies to overflow the panel
+    for (let i = 1; i <= 8; i++) {
+      const reply = p.locator('textarea[data-role="reply"]');
+      await reply.scrollIntoViewIfNeeded();
+      await expect(reply).toBeVisible();
+      await reply.fill(`Reply number ${i} with some extra text to take up space`);
+      await reply.press('Enter');
+      await expect(p.locator('.comment-text')).toHaveCount(i + 1);
+    }
+
+    // Panel should be scrollable: scrollHeight > clientHeight
+    const isScrollable = await p.evaluate((el) => el.scrollHeight > el.clientHeight);
+    expect(isScrollable).toBe(true);
+  });
+
+  test('reply textarea remains accessible when panel overflows', async ({ page }) => {
+    await createAnnotation(page, 'h1', 'Scroll position test');
+
+    const badge = page.locator('bridge-annotation-item .badge').first();
+    await badge.click();
+    const p = page.locator('bridge-annotation-item .panel:not([hidden])');
+
+    for (let i = 1; i <= 8; i++) {
+      const reply = p.locator('textarea[data-role="reply"]');
+      await reply.scrollIntoViewIfNeeded();
+      await expect(reply).toBeVisible();
+      await reply.fill(`Reply ${i}`);
+      await reply.press('Enter');
+      await expect(p.locator('.comment-text')).toHaveCount(i + 1);
+    }
+
+    // Even with 8 replies, the textarea should still be visible/reachable
+    const reply = p.locator('textarea[data-role="reply"]');
+    await reply.scrollIntoViewIfNeeded();
+    await expect(reply).toBeVisible();
+    await expect(reply).toBeEditable();
+  });
+
+  test('textarea grows taller as content is typed', async ({ page }) => {
+    await page.locator('h1').first().click({ modifiers: ['Alt', 'Shift'] });
+    const p = page.locator('bridge-annotation-item .panel:not([hidden])');
+    const textarea = p.locator('textarea[data-role="composer"]');
+    await expect(textarea).toBeVisible();
+
+    const initialHeight = (await textarea.boundingBox())!.height;
+
+    // Type enough lines to force growth
+    await textarea.fill('Line 1\nLine 2\nLine 3\nLine 4\nLine 5\nLine 6');
+
+    const grownHeight = (await textarea.boundingBox())!.height;
+    expect(grownHeight).toBeGreaterThan(initialHeight);
+  });
+
+  test('textarea has no internal scrollbar (overflow is hidden or field-sizing)', async ({ page }) => {
+    await page.locator('h1').first().click({ modifiers: ['Alt', 'Shift'] });
+    const p = page.locator('bridge-annotation-item .panel:not([hidden])');
+    const textarea = p.locator('textarea[data-role="composer"]');
+    await expect(textarea).toBeVisible();
+
+    await textarea.fill('Line 1\nLine 2\nLine 3\nLine 4\nLine 5\nLine 6');
+
+    // scrollHeight should equal clientHeight — no internal scroll
+    const hasInternalScroll = await textarea.evaluate(
+      (el: HTMLTextAreaElement) => el.scrollHeight > el.clientHeight
+    );
+    expect(hasInternalScroll).toBe(false);
   });
 });
