@@ -1,5 +1,5 @@
-import { initPanel } from '../client/panel/index.js';
 import { initInspector } from './inspector.js';
+import { initPanel } from '../client/panel/index.js';
 
 function boot(): void {
   initPanel();

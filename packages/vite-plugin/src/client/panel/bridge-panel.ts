@@ -5,8 +5,7 @@ import type { TweakKnob, Annotation } from '../../shared/protocol.js';
 import { renderKnobs } from './render/knobs.js';
 import { renderActions } from './render/actions.js';
 import { renderAnnotations } from './render/annotations.js';
-import type { BridgeAnnotationPopover } from './bridge-annotation-popover.js';
-import { onAnnotationsChange, getAnnotations, deleteAnnotation, clearAnnotations, upsertAnnotation } from '../../browser/inspector.js';
+import { onAnnotationsChange, getAnnotations, deleteAnnotation, clearAnnotations, getItemById, getOpenItem } from '../../browser/inspector.js';
 
 // ── LocalStorage persistence ───────────────────────────────────────────────
 
@@ -240,6 +239,8 @@ const PANEL_STYLES = css`
     cursor: pointer;
   }
   .db-ann-row:hover { background: rgba(245,158,11,.08); }
+  .db-ann-row--resolved { opacity: 0.5; }
+  .db-ann-row--resolved .db-ann-index { color: #a6e3a1; }
   .db-ann-meta { flex: 1; min-width: 0; }
   .db-ann-targets {
     display: flex;
@@ -370,10 +371,7 @@ export class BridgePanel extends LitElement {
       }
     });
 
-    // Listen for popover save/delete events (composed, bubbles through shadow)
-    document.addEventListener('annotation-save', this._onAnnotationSave as EventListener);
-    document.addEventListener('annotation-delete', this._onAnnotationDelete as EventListener);
-    document.addEventListener('annotation-open', this._onAnnotationOpen as EventListener);
+
 
     // Save size changes to localStorage (debounced)
     this._resizeObserver = new ResizeObserver(() => {
@@ -392,15 +390,13 @@ export class BridgePanel extends LitElement {
     this._unsubAnnotations?.();
     this._resizeObserver?.disconnect();
     if (this._saveResizeTimer) clearTimeout(this._saveResizeTimer);
-    document.removeEventListener('annotation-save', this._onAnnotationSave as EventListener);
-    document.removeEventListener('annotation-delete', this._onAnnotationDelete as EventListener);
-    document.removeEventListener('annotation-open', this._onAnnotationOpen as EventListener);
   }
 
   // ── Knob handlers ──────────────────────────────────────────────────────────
 
   private _onKnobChange = (marker: string, value: string): void => {
     sendMessage({ type: 'tweak:change', payload: { marker, value } });
+    getOpenItem()?.registerTweakReply(marker, value);
   };
 
   private _onRevert = (): void => { sendMessage({ type: 'tweak:reset-all' }); };
@@ -415,23 +411,18 @@ export class BridgePanel extends LitElement {
     this._knobs = [];
   };
 
-  // ── Annotation handlers ────────────────────────────────────────────────────
+  // ── Annotation open (from panel row click) ───────────────────────────────
 
-  private _onAnnotationSave = (e: CustomEvent<Annotation>): void => {
-    upsertAnnotation(e.detail);
-  };
-
-  private _onAnnotationDelete = (e: CustomEvent<{ id: string; }>): void => {
-    deleteAnnotation(e.detail.id);
-  };
-
-  private _onAnnotationOpen = (e: CustomEvent<{ annotation: Annotation; rect?: DOMRect; }>): void => {
-    const popover = document.querySelector('bridge-annotation-popover') as BridgeAnnotationPopover | null;
-    popover?.showForAnnotation(e.detail.annotation, e.detail.rect);
-  };
-
-  private _getPopover(): BridgeAnnotationPopover | null {
-    return document.querySelector('bridge-annotation-popover') as BridgeAnnotationPopover | null;
+  private _openAnnotation(ann: Annotation): void {
+    // Scroll target element into view if off-screen
+    for (const sel of ann.selectors) {
+      try {
+        const el = document.querySelector(sel);
+        if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); break; }
+      } catch { /* bad selector */ }
+    }
+    // Open the item's panel
+    getItemById(ann.id)?.openPanel();
   }
 
   // ── Drag to move ──────────────────────────────────────────────────────────
@@ -580,7 +571,7 @@ export class BridgePanel extends LitElement {
     })}
               ${!hasKnobs ? html`<div class="db-empty">No tweaks active — drop a .mjs script into tweaks/scripts/</div>` : ''}
             ` : renderAnnotations(this._annotations, {
-      onEdit: (ann, anchor) => this._getPopover()?.showForAnnotation(ann, anchor),
+      onEdit: (ann) => this._openAnnotation(ann),
       onDelete: (id) => deleteAnnotation(id),
       onClear: () => clearAnnotations(),
     })}

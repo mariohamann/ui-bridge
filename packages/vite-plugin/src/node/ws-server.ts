@@ -17,9 +17,14 @@ function annotationsToMarkdown(annotations: Map<string, Annotation>): string {
     lines.push(`## ${i++} — ${ann.labels.join(', ')}`);
     if (ann.comment) lines.push(`\n**Comment:** ${ann.comment}`);
     lines.push(`\n**Selectors:** ${ann.selectors.map(s => `\`${s}\``).join(', ')}`);
+    if (ann.source) lines.push(`**Source:** \`${ann.source.file}:${ann.source.line}:${ann.source.column}\``);
     if (ann.labels.length > 1) lines.push(`**Targets:** ${ann.labels.join(' · ')}`);
     lines.push(`**Page:** ${ann.pageUrl}`);
     lines.push(`**Saved:** ${new Date(ann.timestamp).toISOString()}`);
+    lines.push(`**CreatedAt:** ${new Date(ann.createdAt ?? ann.timestamp).toISOString()}`);
+    if (ann.resolvedAt) lines.push(`**ResolvedAt:** ${new Date(ann.resolvedAt).toISOString()}`);
+    if (ann.replies?.length) lines.push(`**Replies:** ${JSON.stringify(ann.replies)}`);
+    if (ann.linkedTweaks?.length) lines.push(`**LinkedTweaks:** ${JSON.stringify(ann.linkedTweaks)}`);
     lines.push('\n---\n');
   }
   return lines.join('\n');
@@ -41,24 +46,55 @@ export async function loadAnnotationsFromFile(state: PluginState): Promise<void>
   try {
     const raw = await readFile(annotationsFile, 'utf-8');
     // Parse sections between ## and ---
-    const sections = raw.split(/\n---\n/).filter(s => s.includes('**Selectors:**'));
+    const sections = raw.split(/\n---\n/).filter(s => s.includes('**Selectors:**') || s.includes('**Source:**'));
     for (const section of sections) {
       const idMatch = section.match(/\*\*Saved:\*\* (.+)/);
       const commentMatch = section.match(/\*\*Comment:\*\* (.+)/);
       const selectorsMatch = section.match(/\*\*Selectors:\*\* (.+)/);
+      const sourceMatch = section.match(/\*\*Source:\*\* `([^:]+):(\d+):(\d+)`/);
       const pageMatch = section.match(/\*\*Page:\*\* (.+)/);
+      const createdAtMatch = section.match(/\*\*CreatedAt:\*\* (.+)/);
+      const resolvedAtMatch = section.match(/\*\*ResolvedAt:\*\* (.+)/);
+      const repliesMatch = section.match(/\*\*Replies:\*\* (.+)/);
+      const linkedTweaksMatch = section.match(/\*\*LinkedTweaks:\*\* (.+)/);
       const headingMatch = section.match(/## \d+ — (.+)/);
-      if (!selectorsMatch || !idMatch) continue;
-      const selectors = selectorsMatch[1].split(',').map(s => s.trim().replace(/^`|`$/g, ''));
+      if (!idMatch) continue;
+      const selectors = selectorsMatch ? selectorsMatch[1].split(',').map(s => s.trim().replace(/^`|`$/g, '')) : [];
       const labels = headingMatch ? headingMatch[1].split(',').map(s => s.trim()) : selectors;
       const id = `loaded-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      const savedAt = new Date(idMatch[1].trim()).getTime() || Date.now();
+      let replies = undefined;
+      if (repliesMatch) {
+        try {
+          replies = JSON.parse(repliesMatch[1].trim()) as Annotation['replies'];
+        } catch {
+          replies = undefined;
+        }
+      }
+      let linkedTweaks = undefined;
+      if (linkedTweaksMatch) {
+        try {
+          linkedTweaks = JSON.parse(linkedTweaksMatch[1].trim()) as Annotation['linkedTweaks'];
+        } catch {
+          linkedTweaks = undefined;
+        }
+      }
       const ann: Annotation = {
         id,
         selectors,
         labels,
         comment: commentMatch?.[1]?.trim() ?? '',
         pageUrl: pageMatch?.[1]?.trim() ?? '',
-        timestamp: new Date(idMatch[1].trim()).getTime() || Date.now(),
+        timestamp: savedAt,
+        createdAt: createdAtMatch ? (new Date(createdAtMatch[1].trim()).getTime() || savedAt) : savedAt,
+        resolvedAt: resolvedAtMatch ? new Date(resolvedAtMatch[1].trim()).getTime() : undefined,
+        source: sourceMatch ? {
+          file: sourceMatch[1],
+          line: Number(sourceMatch[2]),
+          column: Number(sourceMatch[3]),
+        } : undefined,
+        replies,
+        linkedTweaks,
       };
       state.annotations.set(id, ann);
     }

@@ -3,3 +3,4 @@
 **/dist
 **/tweaks
 **/playwright-report
+**/.DS_Store

@@ -23,10 +23,14 @@ export class BridgeAnnotationBadge extends LitElement {
       text-align: center;
       cursor: pointer;
       box-shadow: 0 2px 6px rgba(0,0,0,.4);
-      transition: transform .1s;
+      transition: transform .1s, opacity .1s;
       user-select: none;
     }
     .badge:hover { transform: scale(1.25); }
+    .badge.resolved {
+      background: #a6e3a1;
+      opacity: 0.55;
+    }
   `;
 
   @property({ attribute: false }) annotation!: Annotation;
@@ -106,13 +110,13 @@ export class BridgeAnnotationBadge extends LitElement {
   render(): TemplateResult {
     return html`
       <div
-        class="badge"
+        class="badge${this.annotation.resolvedAt ? ' resolved' : ''}"
         style="position:fixed;top:${this._top}px;left:${this._left}px"
         title=${this.annotation.comment || this.annotation.labels.join(', ')}
         @mouseenter=${this._highlightRelated}
         @mouseleave=${this._clearHighlight}
         @click=${this._handleClick}
-      >${this.index + 1}</div>
+      >${this.annotation.resolvedAt ? '✓' : this.index + 1}</div>
     `;
   }
 }

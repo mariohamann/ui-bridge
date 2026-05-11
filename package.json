@@ -2,6 +2,7 @@
   "name": "design-bridge",
   "private": true,
   "version": "0.0.1",
+  "engines": { "vscode": "^1.90.0", "node": "^20.0.0" },
   "scripts": {
     "dev": "node dev.mjs",
     "build": "pnpm --filter @design-bridge/vite-plugin build",

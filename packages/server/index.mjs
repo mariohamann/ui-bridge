@@ -226,6 +226,8 @@ function annotationsToMarkdown() {
     if (ann.source) lines.push(`**Source:** \`${ann.source.file}:${ann.source.line}:${ann.source.column}\``);
     lines.push(`**Page:** ${ann.pageUrl}`);
     lines.push(`**Saved:** ${new Date(ann.timestamp).toISOString()}`);
+    lines.push(`**CreatedAt:** ${new Date(ann.createdAt ?? ann.timestamp).toISOString()}`);
+    if (ann.resolvedAt) lines.push(`**ResolvedAt:** ${new Date(ann.resolvedAt).toISOString()}`);
     lines.push('\n---\n');
   }
   return lines.join('\n');
@@ -250,6 +252,8 @@ async function loadAnnotations() {
       const sourceMatch = section.match(/\*\*Source:\*\* `([^:]+):(\d+):(\d+)`/);
       const pageMatch = section.match(/\*\*Page:\*\* (.+)/);
       const savedMatch = section.match(/\*\*Saved:\*\* (.+)/);
+      const createdAtMatch = section.match(/\*\*CreatedAt:\*\* (.+)/);
+      const resolvedAtMatch = section.match(/\*\*ResolvedAt:\*\* (.+)/);
       const headingMatch = section.match(/## \d+ — (.+)/);
       const selectors = selectorsMatch ? selectorsMatch[1].split(',').map(s => s.trim().replace(/^`|`$/g, '')) : [];
       const labels = headingMatch ? headingMatch[1].split(',').map(s => s.trim()) : selectors;
@@ -261,6 +265,8 @@ async function loadAnnotations() {
         comment: commentMatch?.[1]?.trim() ?? '',
         pageUrl: pageMatch?.[1]?.trim() ?? '',
         timestamp: savedMatch ? new Date(savedMatch[1].trim()).getTime() : Date.now(),
+        createdAt: createdAtMatch ? new Date(createdAtMatch[1].trim()).getTime() : (savedMatch ? new Date(savedMatch[1].trim()).getTime() : Date.now()),
+        resolvedAt: resolvedAtMatch ? new Date(resolvedAtMatch[1].trim()).getTime() : undefined,
         source: sourceMatch ? { file: sourceMatch[1], line: parseInt(sourceMatch[2]), column: parseInt(sourceMatch[3]) } : undefined,
       });
     }

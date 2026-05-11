@@ -2,7 +2,7 @@ import { html, type TemplateResult } from 'lit';
 import type { Annotation } from '../../../shared/protocol.js';
 
 export interface AnnotationHandlers {
-  onEdit: (ann: Annotation, anchor: Element) => void;
+  onEdit: (ann: Annotation) => void;
   onDelete: (id: string) => void;
   onClear: () => void;
 }
@@ -24,15 +24,16 @@ function clearHighlightAnnotation(ann: Annotation): void {
 function renderAnnotationRow(ann: Annotation, index: number, handlers: AnnotationHandlers): TemplateResult {
   const primaryLabel = ann.labels[0] ?? '?';
   const extraCount = ann.labels.length - 1;
+  const resolved = !!ann.resolvedAt;
 
   return html`
-    <div class="db-ann-row"
-      @click=${(e: Event) => handlers.onEdit(ann, e.currentTarget as Element)}
+    <div class="db-ann-row${resolved ? ' db-ann-row--resolved' : ''}"
+      @click=${() => handlers.onEdit(ann)}
       @mouseenter=${() => highlightAnnotation(ann)}
       @mouseleave=${() => clearHighlightAnnotation(ann)}>
       <div class="db-ann-meta">
         <div class="db-ann-targets">
-          <span class="db-ann-index">${index + 1}.</span>
+          <span class="db-ann-index">${resolved ? '✓' : `${index + 1}.`}</span>
           <span class="db-ann-label">${primaryLabel}</span>
           ${extraCount > 0 ? html`<span class="db-ann-extra">+${extraCount}</span>` : ''}
         </div>

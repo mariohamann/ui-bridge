@@ -46,6 +46,20 @@ export interface AnnotationSource {
   column: number;
 }
 
+export interface AnnotationReply {
+  id: string;
+  type: 'comment' | 'tweak';
+  text: string;
+  createdAt: number;
+  author?: string;
+}
+
+export interface AnnotationTweakLink {
+  marker: string;
+  lastValue: string;
+  linkedAt: number;
+}
+
 export interface Annotation {
   id: string;            // stable uuid, set by browser
   selectors: string[];   // CSS selectors of all annotated elements (via @medv/finder)
@@ -53,7 +67,11 @@ export interface Annotation {
   comment: string;
   pageUrl: string;
   timestamp: number;
+  createdAt: number;     // timestamp when annotation was first created
+  resolvedAt?: number;   // timestamp when resolved; undefined = open
   source?: AnnotationSource; // source location from code-inspector (file:line:column)
+  replies?: AnnotationReply[];
+  linkedTweaks?: AnnotationTweakLink[];
 }
 
 export interface AnnotationUpsertMsg {
