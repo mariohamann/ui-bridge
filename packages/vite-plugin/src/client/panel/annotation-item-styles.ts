@@ -300,4 +300,84 @@ export const annotationItemStyles = css`
     color: var(--db-muted);
     cursor: default;
   }
+
+  /* ── Tweaks section ────────────────────────── */
+  .tweaks-section {
+    border-top: 1px solid var(--db-border);
+    padding: 6px 12px 4px;
+  }
+  .tweaks-section-header {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-bottom: 4px;
+  }
+  .tweaks-section-title {
+    flex: 1;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--db-muted);
+  }
+  .tweak-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 0;
+    font-size: 12px;
+  }
+  .tweak-label {
+    flex: 1;
+    color: var(--db-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+  }
+  .tweak-value {
+    font-family: var(--db-font-mono);
+    font-size: 11px;
+    color: var(--db-amber);
+    background: var(--db-amber-dim);
+    border-radius: 3px;
+    padding: 1px 5px;
+    white-space: nowrap;
+    max-width: 90px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex-shrink: 0;
+  }
+  .tweak-btn {
+    all: unset;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 4px;
+    font-size: 12px;
+    line-height: 1;
+    flex-shrink: 0;
+    color: var(--db-muted);
+    transition: background .1s, color .1s;
+  }
+  .tweak-btn:hover { background: var(--db-surface); }
+  .tweak-btn.accept:hover { color: var(--db-green); }
+  .tweak-btn.dismiss:hover { color: var(--db-red); }
+  .tweak-accept-all {
+    all: unset;
+    cursor: pointer;
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--db-green);
+    padding: 2px 6px;
+    border-radius: 4px;
+    border: 1px solid var(--db-green);
+    opacity: 0.75;
+    transition: opacity .1s;
+  }
+  .tweak-accept-all:hover { opacity: 1; }
 `;
+

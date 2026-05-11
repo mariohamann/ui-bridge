@@ -371,6 +371,13 @@ export class BridgePanel extends LitElement {
       }
     });
 
+    // Tweak accept/dismiss events bubbled up from annotation items
+    // Note: bridge-annotation-item elements are siblings (not children) of bridge-panel,
+    // so we listen on document rather than `this`.
+    document.addEventListener('annotation-accept-tweaks', this._onAcceptTweaks);
+    document.addEventListener('tweak-accept', this._onTweakAccept);
+    document.addEventListener('tweak-dismiss', this._onTweakDismiss);
+
 
 
     // Save size changes to localStorage (debounced)
@@ -390,13 +397,32 @@ export class BridgePanel extends LitElement {
     this._unsubAnnotations?.();
     this._resizeObserver?.disconnect();
     if (this._saveResizeTimer) clearTimeout(this._saveResizeTimer);
+    document.removeEventListener('annotation-accept-tweaks', this._onAcceptTweaks);
+    document.removeEventListener('tweak-accept', this._onTweakAccept);
+    document.removeEventListener('tweak-dismiss', this._onTweakDismiss);
   }
 
   // ── Knob handlers ──────────────────────────────────────────────────────────
 
   private _onKnobChange = (marker: string, value: string): void => {
     sendMessage({ type: 'tweak:change', payload: { marker, value } });
-    getOpenItem()?.registerTweakReply(marker, value);
+    const knob = this._knobs.find((k) => k.marker === marker);
+    getOpenItem()?.registerTweakReply(marker, value, knob?.label);
+  };
+
+  private _onAcceptTweaks = (e: Event): void => {
+    const { annotationId } = (e as CustomEvent<{ annotationId: string }>).detail;
+    sendMessage({ type: 'tweak:accept-annotation', payload: { annotationId } });
+  };
+
+  private _onTweakAccept = (e: Event): void => {
+    const { annotationId, marker } = (e as CustomEvent<{ annotationId: string; marker: string }>).detail;
+    sendMessage({ type: 'tweak:accept-tweak', payload: { annotationId, marker } });
+  };
+
+  private _onTweakDismiss = (e: Event): void => {
+    const { annotationId, marker } = (e as CustomEvent<{ annotationId: string; marker: string }>).detail;
+    sendMessage({ type: 'tweak:dismiss', payload: { annotationId, marker } });
   };
 
   private _onRevert = (): void => { sendMessage({ type: 'tweak:reset-all' }); };

@@ -31,6 +31,8 @@ export interface ScriptMeta {
   min?: number;
   max?: number;
   step?: number;
+  /** The annotation UUID this tweak is linked to. Written by the MCP agent. */
+  annotationId?: string;
 }
 
 export interface TweakScript {
@@ -85,6 +87,7 @@ export function buildSchema(scripts: TweakScript[]): TweakKnob[] {
     min: meta.min,
     max: meta.max,
     step: meta.step,
+    annotationId: meta.annotationId,
   }));
 }
 
@@ -247,6 +250,119 @@ async function replayAllTweaks(state: TweakState): Promise<void> {
 }
 
 // ─── Public API ───────────────────────────────────────────────────────────────
+
+// ─── Selective Finalize & Dismiss ────────────────────────────────────────────────────
+
+/**
+ * Bake in the changes from `toFinalize` scripts as the new file baseline,
+ * then replay `toKeep` scripts on top. Deletes finalized script files.
+ */
+export async function finalizeScripts(
+  state: TweakState,
+  toFinalize: TweakScript[],
+  toKeep: TweakScript[],
+): Promise<void> {
+  if (toFinalize.length === 0) return;
+  const { rootDir, cacheDir } = state;
+  const allScripts = [...toFinalize, ...toKeep];
+
+  // Step 1: Collect all touched files + ensure snapshots
+  const allTouched = new Set<string>();
+  for (const s of allScripts) {
+    for (const f of await dryRun(s, s.meta.value, rootDir)) allTouched.add(f);
+  }
+  for (const filePath of allTouched) await ensureFileSnapshot(cacheDir, filePath);
+
+  // Step 2: Restore all to originals
+  for (const filePath of allTouched) {
+    const orig = await readFileSnapshot(cacheDir, filePath);
+    if (orig !== null) await fs.writeFile(filePath, orig, 'utf-8');
+  }
+
+  // Step 3: Apply only the finalized scripts — their state becomes the new permanent baseline
+  const ctx = makeSandboxCtx(rootDir);
+  for (const s of toFinalize) {
+    try {
+      const mod = await importScript(s.scriptPath);
+      const applyFn = mod['apply'] as ((v: unknown, ctx: unknown) => Promise<void>) | undefined;
+      if (typeof applyFn === 'function') await applyFn(s.meta.value, ctx);
+    } catch (e) {
+      console.error(`[design-bridge] finalize error in "${s.meta.id}":`, e);
+    }
+  }
+
+  // Step 4: Update snapshots for finalized-script files (new baseline includes their changes)
+  const finalizedFiles = new Set<string>();
+  for (const s of toFinalize) {
+    for (const f of await dryRun(s, s.meta.value, rootDir)) finalizedFiles.add(f);
+  }
+  for (const filePath of finalizedFiles) {
+    await deleteFileSnapshot(cacheDir, filePath);
+    try {
+      const content = await fs.readFile(filePath, 'utf-8');
+      await fs.mkdir(cacheDir, { recursive: true });
+      await fs.writeFile(fileSnapshotPath(cacheDir, filePath), content, 'utf-8');
+    } catch { /* file might not exist */ }
+  }
+
+  // Step 5: Delete finalized script files from disk
+  for (const s of toFinalize) await fs.rm(s.scriptPath, { force: true });
+
+  // Step 6: Replay remaining scripts on top of the new baseline
+  state.scripts = toKeep;
+  if (toKeep.length > 0) {
+    await replayAllTweaks(state);
+  } else {
+    // No remaining — clean up all snapshots for finalized files
+    for (const filePath of finalizedFiles) {
+      await deleteFileSnapshot(cacheDir, filePath);
+    }
+  }
+}
+
+/** Finalize all tweaks linked to the given annotationId. */
+export async function finalizeForAnnotation(state: TweakState, annotationId: string): Promise<void> {
+  const toFinalize = state.scripts.filter((s) => s.meta.annotationId === annotationId);
+  const toKeep = state.scripts.filter((s) => s.meta.annotationId !== annotationId);
+  await finalizeScripts(state, toFinalize, toKeep);
+}
+
+/** Finalize a single tweak by marker. */
+export async function finalizeOneTweak(state: TweakState, marker: string): Promise<void> {
+  const toFinalize = state.scripts.filter((s) => s.meta.id === marker);
+  const toKeep = state.scripts.filter((s) => s.meta.id !== marker);
+  await finalizeScripts(state, toFinalize, toKeep);
+}
+
+/** Revert a single tweak's file changes and remove it from the active set. */
+export async function dismissTweak(state: TweakState, marker: string): Promise<void> {
+  const idx = state.scripts.findIndex((s) => s.meta.id === marker);
+  if (idx < 0) return;
+  const [dismissed] = state.scripts.splice(idx, 1);
+  const { rootDir, cacheDir } = state;
+
+  const dismissedFiles = new Set(await dryRun(dismissed, dismissed.meta.value, rootDir));
+
+  if (state.scripts.length > 0) {
+    await replayAllTweaks(state);
+    // Clean up snapshots for files only the dismissed script used
+    const keepFiles = new Set<string>();
+    for (const s of state.scripts) for (const f of await dryRun(s, s.meta.value, rootDir)) keepFiles.add(f);
+    for (const filePath of dismissedFiles) {
+      if (!keepFiles.has(filePath)) await deleteFileSnapshot(cacheDir, filePath);
+    }
+  } else {
+    for (const filePath of dismissedFiles) {
+      const orig = await readFileSnapshot(cacheDir, filePath);
+      if (orig !== null) {
+        await fs.writeFile(filePath, orig, 'utf-8');
+        await deleteFileSnapshot(cacheDir, filePath);
+      }
+    }
+  }
+
+  await fs.rm(dismissed.scriptPath, { force: true });
+}
 
 export async function applyTweakChange(state: TweakState, id: string, value: string): Promise<void> {
   const script = state.scripts.find((s) => s.meta.id === id);

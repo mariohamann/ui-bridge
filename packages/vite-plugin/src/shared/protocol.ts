@@ -11,6 +11,8 @@ export interface TweakKnob {
   max?: number;
   step?: number;
   options?: Record<string, string>;
+  /** The annotation this tweak is linked to. Set by the MCP agent in meta.annotationId. */
+  annotationId?: string;
 }
 
 // ─── Browser → Server ────────────────────────────────────────────────────────
@@ -56,6 +58,7 @@ export interface AnnotationReply {
 
 export interface AnnotationTweakLink {
   marker: string;
+  label?: string;
   lastValue: string;
   linkedAt: number;
 }
@@ -88,12 +91,30 @@ export interface AnnotationClearMsg {
   type: 'annotation:clear';
 }
 
+export interface TweakAcceptAnnotationMsg {
+  type: 'tweak:accept-annotation';
+  payload: { annotationId: string; };
+}
+
+export interface TweakAcceptTweakMsg {
+  type: 'tweak:accept-tweak';
+  payload: { annotationId: string; marker: string; };
+}
+
+export interface TweakDismissMsg {
+  type: 'tweak:dismiss';
+  payload: { annotationId: string; marker: string; };
+}
+
 export type BrowserMessage =
   | TweakChangeMsg
   | TweakFinalizeMsg
   | TweakResetMsg
   | TweakResetAllMsg
   | TweakDiscardAllMsg
+  | TweakAcceptAnnotationMsg
+  | TweakAcceptTweakMsg
+  | TweakDismissMsg
   | AnnotationUpsertMsg
   | AnnotationDeleteMsg
   | AnnotationClearMsg;

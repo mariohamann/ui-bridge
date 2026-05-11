@@ -110,7 +110,7 @@ export class BridgeAnnotationItem extends LitElement {
   }
 
   /** Register a tweak change as a reply on this annotation. */
-  registerTweakReply(marker: string, value: string): void {
+  registerTweakReply(marker: string, value: string, label?: string): void {
     if (!this.annotation || !this._open || this._mode !== 'view') return;
     const text = formatTweakReply(marker, value);
     const replies = this._normalizeReplies(this.annotation);
@@ -125,7 +125,7 @@ export class BridgeAnnotationItem extends LitElement {
     if (linkedIdx >= 0) {
       linkedTweaks[linkedIdx] = { ...linkedTweaks[linkedIdx], lastValue: value, linkedAt: Date.now() };
     } else {
-      linkedTweaks.push({ marker, lastValue: value, linkedAt: Date.now() });
+      linkedTweaks.push({ marker, label, lastValue: value, linkedAt: Date.now() });
     }
     const updated = this._buildAnnotation({ replies, linkedTweaks });
     this.annotation = updated;
@@ -135,6 +135,18 @@ export class BridgeAnnotationItem extends LitElement {
   }
 
   get isOpen(): boolean { return this._open; }
+
+  /** Number of selectors currently connected to this annotation (draft or saved). */
+  get connectedSelectorCount(): number {
+    return this._mode === 'create'
+      ? this._pendingSelectors.length
+      : (this.annotation?.selectors?.length ?? 0);
+  }
+
+  /** The source location attached to the open draft, or null if none yet. */
+  get draftSource(): AnnotationSource | null {
+    return this._mode === 'create' ? this._pendingSource : null;
+  }
 
   // ────────────────────────────────────────────────────────────────────────
   // Lifecycle
@@ -442,18 +454,59 @@ export class BridgeAnnotationItem extends LitElement {
   }
 
   private _resolve(): void {
-    if (!this.annotation) return;
     this._showMenu = false;
-    this.dispatchEvent(new CustomEvent('annotation-resolve', {
-      detail: { id: this.annotation.id, tweakMarkers: (this.annotation.linkedTweaks ?? []).map((t) => t.marker) },
+    this._acceptAllTweaks();
+  }
+
+  private _acceptAllTweaks(): void {
+    if (!this.annotation) return;
+    this.dispatchEvent(new CustomEvent('annotation-accept-tweaks', {
+      detail: { annotationId: this.annotation.id },
       bubbles: true, composed: true,
     }));
     this._open = false;
   }
 
+  private _acceptOneTweak(marker: string): void {
+    if (!this.annotation) return;
+    this.dispatchEvent(new CustomEvent('tweak-accept', {
+      detail: { annotationId: this.annotation.id, marker },
+      bubbles: true, composed: true,
+    }));
+  }
+
+  private _dismissTweak(marker: string): void {
+    if (!this.annotation) return;
+    this.dispatchEvent(new CustomEvent('tweak-dismiss', {
+      detail: { annotationId: this.annotation.id, marker },
+      bubbles: true, composed: true,
+    }));
+  }
+
   // ────────────────────────────────────────────────────────────────────────
   // Render
   // ────────────────────────────────────────────────────────────────────────
+
+  private _renderTweaksSection(): TemplateResult {
+    const tweaks = this.annotation?.linkedTweaks ?? [];
+    if (!tweaks.length) return html``;
+    return html`
+      <div class="tweaks-section">
+        <div class="tweaks-section-header">
+          <span class="tweaks-section-title">Tweaks</span>
+          <button class="tweak-accept-all" @click=${this._acceptAllTweaks} title="Accept all tweaks and resolve annotation">Accept all ✓</button>
+        </div>
+        ${tweaks.map((t) => html`
+          <div class="tweak-row">
+            <span class="tweak-label">${t.label ?? t.marker}</span>
+            <span class="tweak-value">${t.lastValue}</span>
+            <button class="tweak-btn accept" @click=${() => this._acceptOneTweak(t.marker)} title="Accept this tweak">✓</button>
+            <button class="tweak-btn dismiss" @click=${() => this._dismissTweak(t.marker)} title="Dismiss this tweak">✕</button>
+          </div>
+        `)}
+      </div>
+    `;
+  }
 
   private _renderHeader(): TemplateResult {
     if (this._mode === 'create') return html``;
@@ -567,6 +620,8 @@ export class BridgeAnnotationItem extends LitElement {
             ${this._renderReplies()}
         </div>
         ` : ''}
+
+        ${!isDraft ? this._renderTweaksSection() : ''}
 
         <div class="composer">
           <div class="composer-inner">

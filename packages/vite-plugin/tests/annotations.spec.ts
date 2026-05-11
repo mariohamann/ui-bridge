@@ -261,8 +261,12 @@ test.describe('Annotations', () => {
   test('annotation saved with source location includes file, line, column', async ({ page }) => {
     await page.locator('h1').first().click({ modifiers: ['Alt', 'Shift'] });
 
+    // Wait for code-inspector to fire and populate draftSource via the public getter
+    await expect.poll(async () =>
+      page.evaluate(() => (document.querySelector('bridge-annotation-item') as any)?.draftSource)
+    ).not.toBeNull();
+
     const panel = annotationPanel(page);
-    await expect(panel.locator('.source-chip')).toBeVisible();
     const input = panel.locator('textarea').first();
     await input.fill('Has source info');
     await input.press('Enter');
@@ -283,7 +287,11 @@ test.describe('Annotations', () => {
     await expect(panel.locator('textarea').first()).toBeVisible();
 
     await page.locator('p').first().click({ modifiers: ['Alt', 'Shift'] });
-    await expect(panel.locator('.chip')).toHaveCount(2);
+
+    // Wait until the draft item reports 2 connected selectors via its public property
+    await expect.poll(async () =>
+      page.evaluate(() => (document.querySelector('bridge-annotation-item') as any)?.connectedSelectorCount)
+    ).toBe(2);
 
     const input = panel.locator('textarea').first();
     await input.fill('Multi-element annotation');
@@ -643,3 +651,178 @@ test.describe('Multi-select while draft is open', () => {
     expect(newAnn!.selectors.length).toBe(2);
   });
 });
+
+// ─── Tweak-in-annotation tests ───────────────────────────────────────────────
+
+/** Inject an annotation directly via the REST API. */
+async function injectAnnotation(
+  page: Page,
+  overrides: Record<string, unknown> & { id: string },
+): Promise<void> {
+  const ann = {
+    selectors: ['h1'],
+    labels: ['h1'],
+    comment: 'Test annotation',
+    pageUrl: 'http://localhost:5173/',
+    timestamp: Date.now(),
+    createdAt: Date.now(),
+    replies: [],
+    linkedTweaks: [],
+    ...overrides,
+  };
+  const res = await page.request.post(`${API_BASE}/annotations`, { data: ann });
+  expect(res.status()).toBe(200);
+}
+
+/** Open an annotation's panel by clicking its row in the annotations tab list. */
+async function openAnnotationPanel(page: Page, comment: string): Promise<void> {
+  await openAnnotationsTab(page);
+  const row = inPanel(page, `.db-ann-row`);
+  await expect(row.filter({ hasText: comment })).toBeVisible();
+  await row.filter({ hasText: comment }).click();
+}
+
+test.describe('Tweaks in annotations', () => {
+  test('tweaks section is not visible when annotation has no linkedTweaks', async ({ page }) => {
+    await injectAnnotation(page, { id: 'test-no-tweaks', comment: 'No tweaks here', linkedTweaks: [] });
+    await page.reload();
+    await expect(panel(page)).toBeAttached();
+    await openAnnotationPanel(page, 'No tweaks here');
+    const tweaksSection = page.locator('bridge-annotation-item .tweaks-section');
+    await expect(tweaksSection).toHaveCount(0);
+  });
+
+  test('tweaks section appears when annotation has linkedTweaks', async ({ page }) => {
+    await injectAnnotation(page, {
+      id: 'test-with-tweaks',
+      comment: 'Has a tweak',
+      linkedTweaks: [{ marker: 'font-size', label: 'Font Size', lastValue: '18px', linkedAt: Date.now() }],
+    });
+    await page.reload();
+    await expect(panel(page)).toBeAttached();
+    await openAnnotationPanel(page, 'Has a tweak');
+    const tweaksSection = page.locator('bridge-annotation-item .tweaks-section');
+    await expect(tweaksSection).toBeVisible();
+  });
+
+  test('tweaks section shows label and value for each linked tweak', async ({ page }) => {
+    await injectAnnotation(page, {
+      id: 'test-tweak-content',
+      comment: 'Tweak content check',
+      linkedTweaks: [
+        { marker: 'primary-color', label: 'Primary Color', lastValue: '#ff6600', linkedAt: Date.now() },
+        { marker: 'font-size', label: 'Font Size', lastValue: '20px', linkedAt: Date.now() },
+      ],
+    });
+    await page.reload();
+    await expect(panel(page)).toBeAttached();
+    await openAnnotationPanel(page, 'Tweak content check');
+    const tweaksSection = page.locator('bridge-annotation-item .tweaks-section');
+    await expect(tweaksSection).toBeVisible();
+    await expect(tweaksSection.locator('.tweak-label').nth(0)).toHaveText('Primary Color');
+    await expect(tweaksSection.locator('.tweak-value').nth(0)).toHaveText('#ff6600');
+    await expect(tweaksSection.locator('.tweak-label').nth(1)).toHaveText('Font Size');
+    await expect(tweaksSection.locator('.tweak-value').nth(1)).toHaveText('20px');
+  });
+
+  test('tweaks section shows Accept and Dismiss buttons per tweak', async ({ page }) => {
+    await injectAnnotation(page, {
+      id: 'test-tweak-buttons',
+      comment: 'Tweak buttons',
+      linkedTweaks: [{ marker: 'spacing', label: 'Spacing', lastValue: '8px', linkedAt: Date.now() }],
+    });
+    await page.reload();
+    await expect(panel(page)).toBeAttached();
+    await openAnnotationPanel(page, 'Tweak buttons');
+    const tweaksSection = page.locator('bridge-annotation-item .tweaks-section');
+    await expect(tweaksSection.locator('.tweak-btn.accept')).toBeVisible();
+    await expect(tweaksSection.locator('.tweak-btn.dismiss')).toBeVisible();
+  });
+
+  test('"Accept all" button is visible when annotation has linked tweaks', async ({ page }) => {
+    await injectAnnotation(page, {
+      id: 'test-accept-all-btn',
+      comment: 'Accept all button',
+      linkedTweaks: [{ marker: 'spacing', label: 'Spacing', lastValue: '8px', linkedAt: Date.now() }],
+    });
+    await page.reload();
+    await expect(panel(page)).toBeAttached();
+    await openAnnotationPanel(page, 'Accept all button');
+    await expect(page.locator('bridge-annotation-item .tweak-accept-all')).toBeVisible();
+  });
+
+  test('per-annotation GET returns the annotation by id', async ({ page }) => {
+    await injectAnnotation(page, { id: 'get-by-id-test', comment: 'GET by ID' });
+    const res = await page.request.get(`${API_BASE}/annotations/get-by-id-test`);
+    expect(res.status()).toBe(200);
+    const ann = await res.json() as { id: string; comment: string };
+    expect(ann.id).toBe('get-by-id-test');
+    expect(ann.comment).toBe('GET by ID');
+  });
+
+  test('per-annotation DELETE removes only that annotation', async ({ page }) => {
+    await injectAnnotation(page, { id: 'del-target', comment: 'To delete' });
+    await injectAnnotation(page, { id: 'del-keeper', comment: 'To keep' });
+    const del = await page.request.delete(`${API_BASE}/annotations/del-target`);
+    expect(del.status()).toBe(200);
+    const get = await page.request.get(`${API_BASE}/annotations/del-target`);
+    expect(get.status()).toBe(404);
+    const getKeeper = await page.request.get(`${API_BASE}/annotations/del-keeper`);
+    expect(getKeeper.status()).toBe(200);
+  });
+
+  test('dismiss tweak via API removes it from annotation linkedTweaks', async ({ page }) => {
+    await injectAnnotation(page, {
+      id: 'dismiss-api-test',
+      comment: 'Dismiss via API',
+      linkedTweaks: [
+        { marker: 'color-a', label: 'Color A', lastValue: '#red', linkedAt: Date.now() },
+        { marker: 'color-b', label: 'Color B', lastValue: '#blue', linkedAt: Date.now() },
+      ],
+    });
+    // Dismiss color-a (no active script, so server just removes from linkedTweaks)
+    const res = await page.request.delete(`${API_BASE}/annotations/dismiss-api-test/tweaks/color-a`);
+    expect(res.status()).toBe(200);
+    const ann = await page.request.get(`${API_BASE}/annotations/dismiss-api-test`);
+    const body = await ann.json() as { linkedTweaks: { marker: string }[] };
+    expect(body.linkedTweaks.find((t) => t.marker === 'color-a')).toBeUndefined();
+    expect(body.linkedTweaks.find((t) => t.marker === 'color-b')).toBeDefined();
+  });
+
+  test('annotation persists to disk as JSON file after injection', async ({ page }) => {
+    await injectAnnotation(page, { id: 'persist-json-test', comment: 'JSON file test' });
+    // Verify it can be retrieved (confirms it was stored)
+    const res = await page.request.get(`${API_BASE}/annotations/persist-json-test`);
+    expect(res.status()).toBe(200);
+    // Reload page and confirm annotation survives (loaded from disk)
+    await page.reload();
+    await expect(panel(page)).toBeAttached();
+    const res2 = await page.request.get(`${API_BASE}/annotations/persist-json-test`);
+    expect(res2.status()).toBe(200);
+    const ann = await res2.json() as { comment: string };
+    expect(ann.comment).toBe('JSON file test');
+  });
+
+  test('dismissing a tweak via API removes its row from the tweaks section', async ({ page }) => {
+    await injectAnnotation(page, {
+      id: 'dismiss-ui-test',
+      comment: 'Dismiss via API + UI check',
+      linkedTweaks: [
+        { marker: 'ui-tweak-1', label: 'UI Tweak 1', lastValue: '10px', linkedAt: Date.now() },
+        { marker: 'ui-tweak-2', label: 'UI Tweak 2', lastValue: '20px', linkedAt: Date.now() },
+      ],
+    });
+    await page.reload();
+    await expect(panel(page)).toBeAttached();
+    await openAnnotationPanel(page, 'Dismiss via API + UI check');
+    const tweaksSection = page.locator('bridge-annotation-item .tweaks-section');
+    await expect(tweaksSection.locator('.tweak-row')).toHaveCount(2);
+    // Dismiss via REST API (the server broadcasts annotations:sync → UI re-renders)
+    const res = await page.request.delete(`${API_BASE}/annotations/dismiss-ui-test/tweaks/ui-tweak-1`);
+    expect(res.status()).toBe(200);
+    // UI should update via annotations:sync broadcast
+    await expect(tweaksSection.locator('.tweak-row')).toHaveCount(1);
+    await expect(tweaksSection.locator('.tweak-label')).toHaveText('UI Tweak 2');
+  });
+});
+

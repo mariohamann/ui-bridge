@@ -3,106 +3,54 @@ import type { IncomingMessage } from 'node:http';
 import type { ServerMessage, BrowserMessage, Annotation } from '../shared/protocol.js';
 import type { ViteDevServer } from 'vite';
 import type { TweakScript } from './script-runner.js';
-import { applyTweakChange, buildSchema, resetTweak, resetAllTweaks } from './script-runner.js';
-import { writeFile, mkdir } from 'node:fs/promises';
-import { resolve, dirname } from 'node:path';
+import { applyTweakChange, buildSchema, resetTweak, resetAllTweaks, finalizeForAnnotation, finalizeOneTweak, dismissTweak } from './script-runner.js';
+import { writeFile, mkdir, rm, readdir } from 'node:fs/promises';
+import { resolve } from 'node:path';
 
-// ─── Annotations markdown helpers ────────────────────────────────────────────
+// ─── Annotations per-file JSON helpers ─────────────────────────────────────────
 
-function annotationsToMarkdown(annotations: Map<string, Annotation>): string {
-  if (annotations.size === 0) return '# Annotations\n\n_No annotations yet._\n';
-  const lines: string[] = ['# Annotations\n'];
-  let i = 1;
-  for (const ann of annotations.values()) {
-    lines.push(`## ${i++} — ${ann.labels.join(', ')}`);
-    if (ann.comment) lines.push(`\n**Comment:** ${ann.comment}`);
-    lines.push(`\n**Selectors:** ${ann.selectors.map(s => `\`${s}\``).join(', ')}`);
-    if (ann.source) lines.push(`**Source:** \`${ann.source.file}:${ann.source.line}:${ann.source.column}\``);
-    if (ann.labels.length > 1) lines.push(`**Targets:** ${ann.labels.join(' · ')}`);
-    lines.push(`**Page:** ${ann.pageUrl}`);
-    lines.push(`**Saved:** ${new Date(ann.timestamp).toISOString()}`);
-    lines.push(`**CreatedAt:** ${new Date(ann.createdAt ?? ann.timestamp).toISOString()}`);
-    if (ann.resolvedAt) lines.push(`**ResolvedAt:** ${new Date(ann.resolvedAt).toISOString()}`);
-    if (ann.replies?.length) lines.push(`**Replies:** ${JSON.stringify(ann.replies)}`);
-    if (ann.linkedTweaks?.length) lines.push(`**LinkedTweaks:** ${JSON.stringify(ann.linkedTweaks)}`);
-    lines.push('\n---\n');
-  }
-  return lines.join('\n');
-}
-
-export async function persistAnnotations(state: PluginState): Promise<void> {
-  const annotationsFile = resolve(dirname(state.scriptsDir), 'annotations.md');
+export async function persistAnnotation(state: PluginState, ann: Annotation): Promise<void> {
   try {
-    await mkdir(dirname(annotationsFile), { recursive: true });
-    await writeFile(annotationsFile, annotationsToMarkdown(state.annotations), 'utf-8');
+    await mkdir(state.annotationsDir, { recursive: true });
+    await writeFile(resolve(state.annotationsDir, `${ann.id}.json`), JSON.stringify(ann, null, 2), 'utf-8');
   } catch (e) {
-    console.warn('[design-bridge] could not write annotations.md:', e);
+    console.warn('[design-bridge] could not write annotation file:', e);
   }
 }
 
-export async function loadAnnotationsFromFile(state: PluginState): Promise<void> {
-  const { readFile } = await import('node:fs/promises');
-  const annotationsFile = resolve(dirname(state.scriptsDir), 'annotations.md');
+export async function deleteAnnotationFile(state: PluginState, id: string): Promise<void> {
   try {
-    const raw = await readFile(annotationsFile, 'utf-8');
-    // Parse sections between ## and ---
-    const sections = raw.split(/\n---\n/).filter(s => s.includes('**Selectors:**') || s.includes('**Source:**'));
-    for (const section of sections) {
-      const idMatch = section.match(/\*\*Saved:\*\* (.+)/);
-      const commentMatch = section.match(/\*\*Comment:\*\* (.+)/);
-      const selectorsMatch = section.match(/\*\*Selectors:\*\* (.+)/);
-      const sourceMatch = section.match(/\*\*Source:\*\* `([^:]+):(\d+):(\d+)`/);
-      const pageMatch = section.match(/\*\*Page:\*\* (.+)/);
-      const createdAtMatch = section.match(/\*\*CreatedAt:\*\* (.+)/);
-      const resolvedAtMatch = section.match(/\*\*ResolvedAt:\*\* (.+)/);
-      const repliesMatch = section.match(/\*\*Replies:\*\* (.+)/);
-      const linkedTweaksMatch = section.match(/\*\*LinkedTweaks:\*\* (.+)/);
-      const headingMatch = section.match(/## \d+ — (.+)/);
-      if (!idMatch) continue;
-      const selectors = selectorsMatch ? selectorsMatch[1].split(',').map(s => s.trim().replace(/^`|`$/g, '')) : [];
-      const labels = headingMatch ? headingMatch[1].split(',').map(s => s.trim()) : selectors;
-      const id = `loaded-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-      const savedAt = new Date(idMatch[1].trim()).getTime() || Date.now();
-      let replies = undefined;
-      if (repliesMatch) {
-        try {
-          replies = JSON.parse(repliesMatch[1].trim()) as Annotation['replies'];
-        } catch {
-          replies = undefined;
-        }
+    await rm(resolve(state.annotationsDir, `${id}.json`), { force: true });
+  } catch { /* ignore */ }
+}
+
+export async function loadAnnotationsFromDir(state: PluginState): Promise<void> {
+  try {
+    const { readFile } = await import('node:fs/promises');
+    const files = await readdir(state.annotationsDir).catch(() => []);
+    for (const file of files.filter((f) => f.endsWith('.json'))) {
+      try {
+        const raw = await readFile(resolve(state.annotationsDir, file), 'utf-8');
+        const ann = JSON.parse(raw) as Annotation;
+        if (ann?.id) state.annotations.set(ann.id, ann);
+      } catch (e) {
+        console.warn(`[design-bridge] could not parse annotation ${file}:`, e);
       }
-      let linkedTweaks = undefined;
-      if (linkedTweaksMatch) {
-        try {
-          linkedTweaks = JSON.parse(linkedTweaksMatch[1].trim()) as Annotation['linkedTweaks'];
-        } catch {
-          linkedTweaks = undefined;
-        }
-      }
-      const ann: Annotation = {
-        id,
-        selectors,
-        labels,
-        comment: commentMatch?.[1]?.trim() ?? '',
-        pageUrl: pageMatch?.[1]?.trim() ?? '',
-        timestamp: savedAt,
-        createdAt: createdAtMatch ? (new Date(createdAtMatch[1].trim()).getTime() || savedAt) : savedAt,
-        resolvedAt: resolvedAtMatch ? new Date(resolvedAtMatch[1].trim()).getTime() : undefined,
-        source: sourceMatch ? {
-          file: sourceMatch[1],
-          line: Number(sourceMatch[2]),
-          column: Number(sourceMatch[3]),
-        } : undefined,
-        replies,
-        linkedTweaks,
-      };
-      state.annotations.set(id, ann);
     }
     if (state.annotations.size > 0) {
-      console.log(`[design-bridge] loaded ${state.annotations.size} annotation(s) from annotations.md`);
+      console.log(`[design-bridge] loaded ${state.annotations.size} annotation(s)`);
     }
-  } catch {
-    // File doesn't exist yet — that's fine
+  } catch { /* dir doesn't exist yet — that's fine */ }
+}
+
+/** Remove a single tweak link from an annotation and persist. */
+export function unlinkTweakFromAnnotation(state: PluginState, annotationId: string, marker: string): void {
+  const ann = state.annotations.get(annotationId);
+  if (ann) {
+    ann.linkedTweaks = (ann.linkedTweaks ?? []).filter((t) => t.marker !== marker);
+    ann.timestamp = Date.now();
+    state.annotations.set(annotationId, ann);
+    void persistAnnotation(state, ann);
   }
 }
 
@@ -110,6 +58,7 @@ export interface PluginState {
   rootDir: string;
   scriptsDir: string;
   cacheDir: string;
+  annotationsDir: string;
   scripts: TweakScript[];
   annotations: Map<string, Annotation>;
   broadcast: (msg: unknown) => void;
@@ -196,21 +145,49 @@ export function createWsServer(server: ViteDevServer, state: PluginState): void 
         case 'annotation:upsert': {
           state.annotations.set(msg.payload.id, msg.payload);
           broadcast({ type: 'annotations:sync', payload: [...state.annotations.values()] });
-          void persistAnnotations(state);
+          void persistAnnotation(state, msg.payload);
           break;
         }
 
         case 'annotation:delete': {
           state.annotations.delete(msg.payload.id);
           broadcast({ type: 'annotations:sync', payload: [...state.annotations.values()] });
-          void persistAnnotations(state);
+          void deleteAnnotationFile(state, msg.payload.id);
           break;
         }
 
         case 'annotation:clear': {
+          for (const id of state.annotations.keys()) void deleteAnnotationFile(state, id);
           state.annotations.clear();
           broadcast({ type: 'annotations:sync', payload: [] });
-          void persistAnnotations(state);
+          break;
+        }
+
+        case 'tweak:accept-annotation': {
+          const { annotationId } = msg.payload;
+          await finalizeForAnnotation(state, annotationId);
+          state.annotations.delete(annotationId);
+          void deleteAnnotationFile(state, annotationId);
+          broadcast({ type: 'tweak:schema', payload: buildSchema(state.scripts) });
+          broadcast({ type: 'annotations:sync', payload: [...state.annotations.values()] });
+          break;
+        }
+
+        case 'tweak:accept-tweak': {
+          const { annotationId, marker } = msg.payload;
+          await finalizeOneTweak(state, marker);
+          unlinkTweakFromAnnotation(state, annotationId, marker);
+          broadcast({ type: 'tweak:schema', payload: buildSchema(state.scripts) });
+          broadcast({ type: 'annotations:sync', payload: [...state.annotations.values()] });
+          break;
+        }
+
+        case 'tweak:dismiss': {
+          const { annotationId, marker } = msg.payload;
+          await dismissTweak(state, marker);
+          unlinkTweakFromAnnotation(state, annotationId, marker);
+          broadcast({ type: 'tweak:schema', payload: buildSchema(state.scripts) });
+          broadcast({ type: 'annotations:sync', payload: [...state.annotations.values()] });
           break;
         }
 

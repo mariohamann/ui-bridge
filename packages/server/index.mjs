@@ -30,7 +30,7 @@ const PORT = parseInt(process.env.DB_PORT ?? '7378', 10);
 
 const SCRIPTS_DIR = resolve(ROOT, 'tweaks', 'scripts');
 const CACHE_DIR = resolve(ROOT, 'tweaks', '.cache');
-const ANNOTATIONS_FILE = resolve(ROOT, 'tweaks', 'annotations.md');
+const ANNOTATIONS_DIR = resolve(ROOT, 'tweaks', 'annotations');
 
 // ── State ─────────────────────────────────────────────────────────────────────
 
@@ -75,6 +75,7 @@ function buildSchema(scripts) {
     max: meta.max,
     step: meta.step,
     options: meta.options,
+    annotationId: meta.annotationId,
   }));
 }
 
@@ -213,65 +214,151 @@ async function resetAllTweaks() {
   }
 }
 
-// ── Annotations persistence ───────────────────────────────────────────────────
+/**
+ * Finalize a subset of scripts (make their changes permanent), then replay the rest.
+ * @param {typeof scripts} toFinalize - scripts to bake in
+ * @param {typeof scripts} toKeep    - scripts to continue with
+ */
+async function finalizeScripts(toFinalize, toKeep) {
+  if (toFinalize.length === 0) return;
 
-function annotationsToMarkdown() {
-  if (annotations.size === 0) return '# Annotations\n\n_No annotations yet._\n';
-  const lines = ['# Annotations\n'];
-  let i = 1;
-  for (const ann of annotations.values()) {
-    lines.push(`## ${i++} — ${ann.labels.join(', ')}`);
-    if (ann.comment) lines.push(`\n**Comment:** ${ann.comment}`);
-    if (ann.selectors?.length) lines.push(`\n**Selectors:** ${ann.selectors.map(s => `\`${s}\``).join(', ')}`);
-    if (ann.source) lines.push(`**Source:** \`${ann.source.file}:${ann.source.line}:${ann.source.column}\``);
-    lines.push(`**Page:** ${ann.pageUrl}`);
-    lines.push(`**Saved:** ${new Date(ann.timestamp).toISOString()}`);
-    lines.push(`**CreatedAt:** ${new Date(ann.createdAt ?? ann.timestamp).toISOString()}`);
-    if (ann.resolvedAt) lines.push(`**ResolvedAt:** ${new Date(ann.resolvedAt).toISOString()}`);
-    lines.push('\n---\n');
+  const allScripts = [...toFinalize, ...toKeep];
+
+  // Step 1: Collect all files any script touches, ensure snapshots exist
+  const allTouched = new Set();
+  for (const s of allScripts) for (const f of await dryRun(s, s.meta.value, ROOT)) allTouched.add(f);
+  for (const f of allTouched) await ensureSnapshot(f);
+
+  // Step 2: Restore all touched files to their originals
+  for (const f of allTouched) {
+    const orig = await readSnapshot(f);
+    if (orig !== null) await writeFile(f, orig, 'utf-8');
   }
-  return lines.join('\n');
+
+  // Step 3: Apply ONLY the finalised scripts — their state becomes the new baseline
+  const ctx = makeCtx(ROOT);
+  for (const s of toFinalize) {
+    try {
+      const mod = await import(pathToFileURL(s.scriptPath).href + `?t=${Date.now()}`);
+      if (typeof mod.apply === 'function') await mod.apply(s.meta.value, ctx);
+    } catch (e) {
+      console.error(`[design-bridge] finalize error in "${s.meta.id}":`, e);
+    }
+  }
+
+  // Step 4: Update snapshots for files the finalised scripts touch
+  // (so toKeep scripts replay on top of the new permanent baseline)
+  const finalizedFiles = new Set();
+  for (const s of toFinalize) for (const f of await dryRun(s, s.meta.value, ROOT)) finalizedFiles.add(f);
+  for (const f of finalizedFiles) {
+    await deleteSnapshot(f);
+    try {
+      const content = await readFile(f, 'utf-8');
+      await mkdir(CACHE_DIR, { recursive: true });
+      await writeFile(snapshotPath(f), content, 'utf-8');
+    } catch { /* file might not exist */ }
+  }
+
+  // Step 5: Delete finalized script files
+  for (const s of toFinalize) await rm(s.scriptPath, { force: true });
+
+  // Step 6: Replay remaining scripts on top of the new baseline
+  scripts = toKeep;
+  if (toKeep.length > 0) {
+    await replayAllTweaks();
+  } else {
+    // No remaining — clean up all snapshots for finalized files
+    for (const f of finalizedFiles) {
+      await deleteSnapshot(f);
+    }
+  }
 }
 
-async function persistAnnotations() {
+/** Finalize ALL tweaks linked to the given annotationId. */
+async function finalizeForAnnotation(annotationId) {
+  const toFinalize = scripts.filter(s => s.meta.annotationId === annotationId);
+  const toKeep = scripts.filter(s => s.meta.annotationId !== annotationId);
+  await finalizeScripts(toFinalize, toKeep);
+}
+
+/** Finalize a single tweak (by marker), keep all others. */
+async function finalizeOneTweak(marker) {
+  const toFinalize = scripts.filter(s => s.meta.id === marker);
+  const toKeep = scripts.filter(s => s.meta.id !== marker);
+  await finalizeScripts(toFinalize, toKeep);
+}
+
+/** Revert a single tweak's file changes and remove it from the active set. */
+async function dismissTweak(marker) {
+  const idx = scripts.findIndex(s => s.meta.id === marker);
+  if (idx < 0) return;
+  const [dismissed] = scripts.splice(idx, 1);
+
+  // Files this script would have touched
+  const dismissedFiles = new Set(await dryRun(dismissed, dismissed.meta.value, ROOT));
+
+  if (scripts.length > 0) {
+    // Replay remaining — they restore snapshots (originals) then re-apply themselves
+    await replayAllTweaks();
+    // Clean up snapshots for files only the dismissed script was using
+    const keepFiles = new Set();
+    for (const s of scripts) for (const f of await dryRun(s, s.meta.value, ROOT)) keepFiles.add(f);
+    for (const f of dismissedFiles) {
+      if (!keepFiles.has(f)) await deleteSnapshot(f);
+    }
+  } else {
+    // No remaining scripts — restore dismissed files to their originals
+    for (const f of dismissedFiles) {
+      const orig = await readSnapshot(f);
+      if (orig !== null) { await writeFile(f, orig, 'utf-8'); await deleteSnapshot(f); }
+    }
+  }
+
+  await rm(dismissed.scriptPath, { force: true });
+}
+
+// ── Annotations persistence (per-file JSON) ──────────────────────────────────
+
+async function persistAnnotation(ann) {
   try {
-    await mkdir(dirname(ANNOTATIONS_FILE), { recursive: true });
-    await writeFile(ANNOTATIONS_FILE, annotationsToMarkdown(), 'utf-8');
+    await mkdir(ANNOTATIONS_DIR, { recursive: true });
+    await writeFile(resolve(ANNOTATIONS_DIR, `${ann.id}.json`), JSON.stringify(ann, null, 2), 'utf-8');
   } catch (e) {
-    console.warn('[design-bridge] could not write annotations.md:', e);
+    console.warn('[design-bridge] could not write annotation file:', e);
+  }
+}
+
+async function deleteAnnotationFile(id) {
+  try {
+    await rm(resolve(ANNOTATIONS_DIR, `${id}.json`), { force: true });
+  } catch { /* ignore */ }
+}
+
+function unlinkTweakFromAnnotation(annotationId, marker) {
+  const ann = annotations.get(annotationId);
+  if (ann) {
+    ann.linkedTweaks = (ann.linkedTweaks ?? []).filter(t => t.marker !== marker);
+    ann.timestamp = Date.now();
+    annotations.set(annotationId, ann);
+    persistAnnotation(ann);
   }
 }
 
 async function loadAnnotations() {
   try {
-    const raw = await readFile(ANNOTATIONS_FILE, 'utf-8');
-    const sections = raw.split(/\n---\n/).filter(s => s.includes('**Selectors:**') || s.includes('**Source:**'));
-    for (const section of sections) {
-      const commentMatch = section.match(/\*\*Comment:\*\* (.+)/);
-      const selectorsMatch = section.match(/\*\*Selectors:\*\* (.+)/);
-      const sourceMatch = section.match(/\*\*Source:\*\* `([^:]+):(\d+):(\d+)`/);
-      const pageMatch = section.match(/\*\*Page:\*\* (.+)/);
-      const savedMatch = section.match(/\*\*Saved:\*\* (.+)/);
-      const createdAtMatch = section.match(/\*\*CreatedAt:\*\* (.+)/);
-      const resolvedAtMatch = section.match(/\*\*ResolvedAt:\*\* (.+)/);
-      const headingMatch = section.match(/## \d+ — (.+)/);
-      const selectors = selectorsMatch ? selectorsMatch[1].split(',').map(s => s.trim().replace(/^`|`$/g, '')) : [];
-      const labels = headingMatch ? headingMatch[1].split(',').map(s => s.trim()) : selectors;
-      const id = `loaded-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-      annotations.set(id, {
-        id,
-        selectors,
-        labels,
-        comment: commentMatch?.[1]?.trim() ?? '',
-        pageUrl: pageMatch?.[1]?.trim() ?? '',
-        timestamp: savedMatch ? new Date(savedMatch[1].trim()).getTime() : Date.now(),
-        createdAt: createdAtMatch ? new Date(createdAtMatch[1].trim()).getTime() : (savedMatch ? new Date(savedMatch[1].trim()).getTime() : Date.now()),
-        resolvedAt: resolvedAtMatch ? new Date(resolvedAtMatch[1].trim()).getTime() : undefined,
-        source: sourceMatch ? { file: sourceMatch[1], line: parseInt(sourceMatch[2]), column: parseInt(sourceMatch[3]) } : undefined,
-      });
+    const { readdir } = await import('node:fs/promises');
+    const files = await readdir(ANNOTATIONS_DIR).catch(() => []);
+    for (const file of files.filter(f => f.endsWith('.json'))) {
+      try {
+        const raw = await readFile(resolve(ANNOTATIONS_DIR, file), 'utf-8');
+        const ann = JSON.parse(raw);
+        if (ann?.id) annotations.set(ann.id, ann);
+      } catch (e) {
+        console.warn(`[design-bridge] could not parse annotation ${file}:`, e);
+      }
     }
     if (annotations.size > 0) console.log(`[design-bridge] loaded ${annotations.size} annotation(s)`);
-  } catch { /* file doesn't exist yet — that's fine */ }
+  } catch { /* dir doesn't exist yet — that's fine */ }
 }
 
 // ── HTTP helpers ──────────────────────────────────────────────────────────────
@@ -352,20 +439,48 @@ wss.on('connection', (ws) => {
       case 'annotation:upsert':
         annotations.set(msg.payload.id, msg.payload);
         broadcast({ type: 'annotations:sync', payload: [...annotations.values()] });
-        persistAnnotations();
+        persistAnnotation(msg.payload);
         break;
 
       case 'annotation:delete':
         annotations.delete(msg.payload.id);
         broadcast({ type: 'annotations:sync', payload: [...annotations.values()] });
-        persistAnnotations();
+        deleteAnnotationFile(msg.payload.id);
         break;
 
       case 'annotation:clear':
+        for (const id of annotations.keys()) deleteAnnotationFile(id);
         annotations.clear();
         broadcast({ type: 'annotations:sync', payload: [] });
-        persistAnnotations();
         break;
+
+      case 'tweak:accept-annotation': {
+        const { annotationId } = msg.payload;
+        await finalizeForAnnotation(annotationId);
+        annotations.delete(annotationId);
+        await deleteAnnotationFile(annotationId);
+        broadcast({ type: 'tweak:schema', payload: buildSchema(scripts) });
+        broadcast({ type: 'annotations:sync', payload: [...annotations.values()] });
+        break;
+      }
+
+      case 'tweak:accept-tweak': {
+        const { annotationId, marker } = msg.payload;
+        await finalizeOneTweak(marker);
+        unlinkTweakFromAnnotation(annotationId, marker);
+        broadcast({ type: 'tweak:schema', payload: buildSchema(scripts) });
+        broadcast({ type: 'annotations:sync', payload: [...annotations.values()] });
+        break;
+      }
+
+      case 'tweak:dismiss': {
+        const { annotationId, marker } = msg.payload;
+        await dismissTweak(marker);
+        unlinkTweakFromAnnotation(annotationId, marker);
+        broadcast({ type: 'tweak:schema', payload: buildSchema(scripts) });
+        broadcast({ type: 'annotations:sync', payload: [...annotations.values()] });
+        break;
+      }
     }
   });
 });
@@ -400,11 +515,82 @@ const httpServer = createServer(async (req, res) => {
     return;
   }
 
+  if (req.method === 'POST' && apiPath === '/annotations') {
+    try {
+      const ann = await readBody(req);
+      if (!ann?.id) { jsonResponse(res, 400, { error: 'missing id' }); return; }
+      annotations.set(ann.id, ann);
+      broadcast({ type: 'annotations:sync', payload: [...annotations.values()] });
+      await persistAnnotation(ann);
+      jsonResponse(res, 200, { ok: true });
+    } catch (e) { jsonResponse(res, 400, { error: String(e) }); }
+    return;
+  }
+
   if (req.method === 'DELETE' && apiPath === '/annotations') {
+    for (const id of annotations.keys()) await deleteAnnotationFile(id);
     annotations.clear();
     broadcast({ type: 'annotations:sync', payload: [] });
-    persistAnnotations();
     jsonResponse(res, 200, { ok: true });
+    return;
+  }
+
+  // Per-annotation endpoints: /annotations/:id
+  const annIdMatch = apiPath.match(/^\/annotations\/([^/]+)$/);
+  if (annIdMatch) {
+    const annId = annIdMatch[1];
+    if (req.method === 'GET') {
+      const ann = annotations.get(annId);
+      if (!ann) { jsonResponse(res, 404, { error: 'not found' }); return; }
+      jsonResponse(res, 200, ann);
+      return;
+    }
+    if (req.method === 'DELETE') {
+      annotations.delete(annId);
+      await deleteAnnotationFile(annId);
+      broadcast({ type: 'annotations:sync', payload: [...annotations.values()] });
+      jsonResponse(res, 200, { ok: true });
+      return;
+    }
+    // POST /annotations/:id/accept — accept all tweaks for this annotation
+    if (req.method === 'POST' && url.endsWith('/accept')) {
+      try {
+        await finalizeForAnnotation(annId);
+        annotations.delete(annId);
+        await deleteAnnotationFile(annId);
+        broadcast({ type: 'tweak:schema', payload: buildSchema(scripts) });
+        broadcast({ type: 'annotations:sync', payload: [...annotations.values()] });
+        jsonResponse(res, 200, { ok: true });
+      } catch (e) { jsonResponse(res, 400, { error: String(e) }); }
+      return;
+    }
+  }
+
+  // DELETE /annotations/:id/tweaks/:marker — dismiss a single tweak
+  const dismissMatch = apiPath.match(/^\/annotations\/([^/]+)\/tweaks\/([^/]+)$/);
+  if (dismissMatch && req.method === 'DELETE') {
+    const [, annId, marker] = dismissMatch;
+    try {
+      await dismissTweak(marker);
+      unlinkTweakFromAnnotation(annId, marker);
+      broadcast({ type: 'tweak:schema', payload: buildSchema(scripts) });
+      broadcast({ type: 'annotations:sync', payload: [...annotations.values()] });
+      jsonResponse(res, 200, { ok: true });
+    } catch (e) { jsonResponse(res, 400, { error: String(e) }); }
+    return;
+  }
+
+  // POST /annotations/:id/tweaks/:marker/accept — accept a single tweak
+  const acceptTweakMatch = apiPath.match(/^\/annotations\/([^/]+)\/tweaks\/([^/]+)\/accept$/);
+  if (acceptTweakMatch && req.method === 'POST') {
+    const [, annId, marker] = acceptTweakMatch;
+    try {
+      await finalizeOneTweak(marker);
+      unlinkTweakFromAnnotation(annId, marker);
+      broadcast({ type: 'tweak:schema', payload: buildSchema(scripts) });
+      broadcast({ type: 'annotations:sync', payload: [...annotations.values()] });
+      jsonResponse(res, 200, { ok: true });
+    } catch (e) { jsonResponse(res, 400, { error: String(e) }); }
     return;
   }
 

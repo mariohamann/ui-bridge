@@ -1,6 +1,6 @@
 import { resolve } from 'node:path';
 import type { Plugin } from 'vite';
-import { createWsServer, type PluginState } from './ws-server.js';
+import { createWsServer, loadAnnotationsFromDir, type PluginState } from './ws-server.js';
 import { registerApiMiddleware } from './api-middleware.js';
 import { buildSchema, discoverScripts } from './script-runner.js';
 
@@ -9,7 +9,9 @@ export function designBridge(): Plugin {
     rootDir: '',
     scriptsDir: '',
     cacheDir: '',
+    annotationsDir: '',
     scripts: [],
+    annotations: new Map(),
     broadcast: () => { },
   };
 
@@ -29,9 +31,11 @@ export function designBridge(): Plugin {
       state.rootDir = config.root;
       state.scriptsDir = resolve(config.root, 'tweaks', 'scripts');
       state.cacheDir = resolve(config.root, 'tweaks', '.cache');
+      state.annotationsDir = resolve(config.root, 'tweaks', 'annotations');
       console.log('[design-bridge] loading scripts from', state.scriptsDir);
       state.scripts = await discoverScripts(state.scriptsDir);
       console.log(`[design-bridge] ${state.scripts.length} tweak(s) loaded`);
+      await loadAnnotationsFromDir(state);
     },
 
     configureServer(server) {
