@@ -10,10 +10,11 @@
  *   npx design-bridge-server --root .
  *
  * Environment:
- *   DB_PORT  — port to listen on (default: 7378)
+ *   DESIGN_BRIDGE_PORT  — port to listen on (default: 7378)
  */
 
 import { createServer } from 'node:http';
+import { createServer as createNetServer } from 'node:net';
 import { readFileSync } from 'node:fs';
 import { WebSocketServer, WebSocket } from 'ws';
 import { resolve } from 'node:path';
@@ -30,7 +31,39 @@ const REVIEW_BUNDLE_PATH = _require.resolve('@design-bridge/client/review-page')
 const args = process.argv.slice(2);
 const rootIdx = args.indexOf('--root');
 const ROOT = rootIdx >= 0 ? resolve(args[rootIdx + 1]) : process.cwd();
-const PORT = parseInt(process.env.DB_PORT ?? '7378', 10);
+const PREFERRED_PORT = parseInt(process.env.DESIGN_BRIDGE_PORT ?? process.env.DB_PORT ?? '7378', 10);
+/** Set once the server binds — used in the /health route and the DESIGN_BRIDGE_READY signal. */
+let actualPort = PREFERRED_PORT;
+
+// ── Free-port finder ──────────────────────────────────────────────────────────
+
+/** Try up to `maxAttempts` consecutive ports starting at `start`. Resolves with the first free one. */
+function findFreePort(start, maxAttempts = 10) {
+  return new Promise((resolve, reject) => {
+    let attempt = 0;
+    function tryPort(port) {
+      const probe = createNetServer();
+      probe.once('error', (err) => {
+        probe.close();
+        if (err.code === 'EADDRINUSE') {
+          attempt++;
+          if (attempt >= maxAttempts) {
+            reject(new Error(`[design-bridge] no free port found in range ${start}–${start + maxAttempts - 1}`));
+          } else {
+            tryPort(port + 1);
+          }
+        } else {
+          reject(err);
+        }
+      });
+      probe.once('listening', () => {
+        probe.close(() => resolve(port));
+      });
+      probe.listen(port, '127.0.0.1');
+    }
+    tryPort(start);
+  });
+}
 
 // ── Engine & store ────────────────────────────────────────────────────────────
 
@@ -180,7 +213,7 @@ const httpServer = createServer(async (req, res) => {
   if (req.method === 'OPTIONS') { jsonResponse(res, 204, {}); return; }
 
   if (url === '/health') {
-    jsonResponse(res, 200, { ok: true, port: PORT, root: ROOT });
+    jsonResponse(res, 200, { ok: true, port: actualPort, root: ROOT });
     return;
   }
 
@@ -321,6 +354,13 @@ await store.load();
 await tweaks.discoverScripts();
 tweaks.watchScripts(() => broadcast({ type: 'tweak:schema', payload: tweaks.buildSchema() }));
 
-httpServer.listen(PORT, () => {
-  console.log(`[design-bridge] server listening on http://localhost:${PORT} (root: ${ROOT})`);
+actualPort = await findFreePort(PREFERRED_PORT);
+if (actualPort !== PREFERRED_PORT) {
+  console.log(`[design-bridge] port ${PREFERRED_PORT} in use, using :${actualPort} instead`);
+}
+
+httpServer.listen(actualPort, () => {
+  console.log(`[design-bridge] server listening on http://localhost:${actualPort} (root: ${ROOT})`);
+  // Machine-readable signal read by the Vite plugin to discover the actual port.
+  process.stdout.write(`DESIGN_BRIDGE_READY:${actualPort}\n`);
 });

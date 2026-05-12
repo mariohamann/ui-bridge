@@ -55,6 +55,7 @@ const sharedOptions = {
   format: 'iife',
   minify: true,
   plugins: [injectCssPlugin],
+  conditions: ['source', 'import', 'default'],
   // Lit decorators require experimentalDecorators + useDefineForClassFields=false
   tsconfigRaw: {
     compilerOptions: {

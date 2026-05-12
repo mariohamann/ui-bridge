@@ -54,6 +54,8 @@ export async function apply(value, ctx) {
 | `color`        | `string` (hex/rgb)    | —                              |
 | `button-group` | `string`              | `options: Record<string,string>` — same key/label convention as `select` |
 
+In general `string` should be avoided in favor of more specific types. If the knob represents a fixed set of options, `select` or `button-group` is best — it constrains the user to valid values and provides a clear UI. Use `string` for freeform values like text content or so.
+
 ---
 
 ## The `ctx` API

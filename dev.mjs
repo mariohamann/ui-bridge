@@ -17,7 +17,9 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const PLUGIN_DIR = resolve(__dirname, 'packages/vite-plugin');
 const CLIENT_DIR = resolve(__dirname, 'packages/client');
+const COMPONENTS_DIR = resolve(__dirname, 'packages/components');
 const DIST_NODE = resolve(PLUGIN_DIR, 'dist/node/index.js');
+const COMPONENTS_DIST = resolve(COMPONENTS_DIR, 'dist');
 const DEMO_DIR = resolve(__dirname, 'demos/vue-tailwind');
 
 // ── helpers ──────────────────────────────────────────────────────────────────
@@ -38,12 +40,14 @@ function kill(proc) {
   });
 }
 
-// ── 1. Start esbuild watcher ─────────────────────────────────────────────────
+// ── 1. Start esbuild watchers ─────────────────────────────────────────────────
 
 // Delete dist so the "wait for first build" check below always waits for a fresh bundle.
 rmSync(resolve(PLUGIN_DIR, 'dist'), { recursive: true, force: true });
 rmSync(resolve(CLIENT_DIR, 'dist'), { recursive: true, force: true });
+rmSync(COMPONENTS_DIST, { recursive: true, force: true });
 
+const componentsBuilder = spawnInherited('pnpm', ['exec', 'tsc', '-p', 'tsconfig.json', '--watch', '--preserveWatchOutput'], COMPONENTS_DIR);
 const builder = spawnInherited('node', ['build.mjs', '--watch'], PLUGIN_DIR);
 const clientBuilder = spawnInherited('node', ['build.mjs', '--watch'], CLIENT_DIR);
 
@@ -55,21 +59,27 @@ clientBuilder.on('error', (err) => {
   console.error('[dev] client esbuild watcher failed to start:', err.message);
   process.exit(1);
 });
+componentsBuilder.on('error', (err) => {
+  console.error('[dev] components tsc watcher failed to start:', err.message);
+  process.exit(1);
+});
 
-// ── 2. Wait for first dist/node/index.js to appear ───────────────────────────
+// ── 2. Wait for plugin and client bundles ─────────────────────────────────────
 
-console.log('[dev] waiting for initial plugin build…');
+const CLIENT_BUNDLE = resolve(CLIENT_DIR, 'dist/design-bridge.js');
+
+console.log('[dev] waiting for initial plugin and client build…');
 
 await new Promise((resolve) => {
   const iv = setInterval(() => {
-    if (existsSync(DIST_NODE)) {
+    if (existsSync(DIST_NODE) && existsSync(CLIENT_BUNDLE)) {
       clearInterval(iv);
       resolve();
     }
   }, 200);
 });
 
-console.log('[dev] plugin built — starting demo Vite server…');
+console.log('[dev] plugin and client built — starting demo Vite server…');
 
 // ── 3. Start Vite dev server ──────────────────────────────────────────────────
 
@@ -111,7 +121,7 @@ watch(resolve(CLIENT_DIR, 'dist'), { recursive: false }, async (_event, filename
 
 async function shutdown() {
   console.log('\n[dev] shutting down…');
-  await Promise.all([kill(builder), kill(clientBuilder), kill(viteProc)]);
+  await Promise.all([kill(builder), kill(clientBuilder), kill(componentsBuilder), kill(viteProc)]);
   process.exit(0);
 }
 

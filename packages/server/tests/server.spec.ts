@@ -9,9 +9,10 @@
 import { test, expect } from '@playwright/test';
 import WebSocket from 'ws';
 
-const BASE = 'http://localhost:7379';
+const TEST_PORT = parseInt(process.env.DESIGN_BRIDGE_PORT ?? '7379', 10);
+const BASE = `http://localhost:${TEST_PORT}`;
 const API = `${BASE}/api`;
-const WS_URL = 'ws://localhost:7379/design-bridge';
+const WS_URL = `ws://localhost:${TEST_PORT}/design-bridge`;
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 

@@ -4,8 +4,9 @@
 
 import { test, expect, type Page, type Locator } from '@playwright/test';
 
-const API_BASE = 'http://localhost:7378/api';
-const REVIEW_URL = 'http://localhost:7378/';
+const DB_PORT = parseInt(process.env.DESIGN_BRIDGE_PORT ?? process.env.DB_PORT ?? '7378', 10);
+const API_BASE = `http://localhost:${DB_PORT}/api`;
+const REVIEW_URL = `http://localhost:${DB_PORT}/`;
 
 /** The draft or open annotation item's panel (shadow DOM piercing). */
 function annotationPanel(page: Page): Locator {

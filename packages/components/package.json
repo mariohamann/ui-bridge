@@ -6,34 +6,42 @@
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
+      "source": "./src/index.ts",
       "import": "./dist/index.js",
       "types": "./dist/index.d.ts"
     },
     "./styles/tokens": {
+      "source": "./src/styles/tokens.ts",
       "import": "./dist/styles/tokens.js",
       "types": "./dist/styles/tokens.d.ts"
     },
     "./state/knobs-store": {
+      "source": "./src/state/knobs-store.ts",
       "import": "./dist/state/knobs-store.js",
       "types": "./dist/state/knobs-store.d.ts"
     },
     "./state/annotations-store": {
+      "source": "./src/state/annotations-store.ts",
       "import": "./dist/state/annotations-store.js",
       "types": "./dist/state/annotations-store.d.ts"
     },
     "./state/intents": {
+      "source": "./src/state/intents.ts",
       "import": "./dist/state/intents.js",
       "types": "./dist/state/intents.d.ts"
     },
     "./review": {
+      "source": "./src/review/index.ts",
       "import": "./dist/review/index.js",
       "types": "./dist/review/index.d.ts"
     },
     "./annotation": {
+      "source": "./src/annotation/index.ts",
       "import": "./dist/annotation/index.js",
       "types": "./dist/annotation/index.d.ts"
     },
     "./annotation/utils": {
+      "source": "./src/annotation/db-annotation-utils.ts",
       "import": "./dist/annotation/db-annotation-utils.js",
       "types": "./dist/annotation/db-annotation-utils.d.ts"
     }

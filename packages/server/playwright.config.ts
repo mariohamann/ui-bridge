@@ -30,7 +30,7 @@ export default defineConfig({
     command: `node index.mjs --root ${TEST_ROOT}`,
     url: `http://localhost:${TEST_PORT}/health`,
     reuseExistingServer: false,
-    env: { DB_PORT: String(TEST_PORT) },
+    env: { DESIGN_BRIDGE_PORT: String(TEST_PORT) },
     timeout: 15_000,
   },
 

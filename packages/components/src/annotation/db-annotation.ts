@@ -1,11 +1,16 @@
-import { LitElement, html, type TemplateResult } from 'lit';
-import { customElement, property, state } from 'lit/decorators.js';
-import { computePosition, autoUpdate, flip, shift, offset } from '@floating-ui/dom';
+import '@awesome.me/webawesome/dist/components/badge/badge.js';
+import '@awesome.me/webawesome/dist/components/button/button.js';
+import '@awesome.me/webawesome/dist/components/dropdown-item/dropdown-item.js';
+import '@awesome.me/webawesome/dist/components/dropdown/dropdown.js';
+import '@awesome.me/webawesome/dist/components/tag/tag.js';
 import autosize from 'autosize';
 import type { Annotation, AnnotationReply, AnnotationSource, AnnotationTweakLink } from '@design-bridge/core';
+import { LitElement, html, type TemplateResult } from 'lit';
 import { annotationItemStyles } from './db-annotation-styles.js';
-import { uid, shortLabel, formatTweakReply } from './db-annotation-utils.js';
+import { computePosition, autoUpdate, flip, shift, offset } from '@floating-ui/dom';
+import { customElement, property, state } from 'lit/decorators.js';
 import { dispatchIntent } from '../state/intents.js';
+import { uid, shortLabel, formatTweakReply } from './db-annotation-utils.js';
 
 const HIGHLIGHT_ATTR = 'data-db-related';
 
@@ -487,7 +492,7 @@ export class DbAnnotation extends LitElement {
     const wsUrl = (window as unknown as Record<string, unknown>).__DB_WS_URL__ as string | undefined;
     const url = wsUrl
       ? wsUrl.replace(/^ws:\/\//, 'http://').replace(/\/design-bridge$/, '/')
-      : 'http://localhost:7378/';
+      : `http://${location.host}/`;
     navigator.clipboard.writeText(url).catch(() => { });
   }
 
