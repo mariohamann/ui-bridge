@@ -233,34 +233,56 @@ const PANEL_STYLES = css`
   .db-ann-list { display: flex; flex-direction: column; }
   .db-ann-row {
     display: flex;
-    align-items: center;
-    gap: 4px;
-    padding: 4px 4px;
+    flex-direction: column;
+    gap: 2px;
+    padding: 6px 4px;
     border-radius: var(--db-radius);
     cursor: pointer;
+    border-bottom: 1px solid rgba(69,71,90,.5);
   }
-  .db-ann-row:hover { background: rgba(245,158,11,.08); }
-  .db-ann-row--resolved { opacity: 0.5; }
+  .db-ann-row:last-child { border-bottom: none; }
+  .db-ann-row:hover { background: rgba(245,158,11,.06); }
+  .db-ann-row--resolved { opacity: 0.45; }
   .db-ann-row--resolved .db-ann-index { color: #a6e3a1; }
-  .db-ann-meta { flex: 1; min-width: 0; }
-  .db-ann-targets {
+  .db-ann-header {
     display: flex;
     align-items: center;
-    gap: 4px;
-    color: var(--db-amber);
-    font-size: 11px;
+    gap: 5px;
+    min-width: 0;
   }
-  .db-ann-index { color: var(--db-muted); font-size: 10px; }
-  .db-ann-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .db-ann-extra { color: var(--db-muted); font-size: 10px; }
-  .db-ann-comment {
-    color: var(--db-subtext);
+  .db-ann-index {
+    flex-shrink: 0;
     font-size: 10px;
+    font-weight: 700;
+    color: var(--db-amber);
+    font-variant-numeric: tabular-nums;
+  }
+  .db-ann-label {
+    flex: 1;
+    min-width: 0;
+    font-size: 11px;
+    color: var(--db-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .db-ann-time {
+    flex-shrink: 0;
+    font-size: 10px;
+    color: var(--db-muted);
+  }
+  .db-ann-body {
+    font-size: 11px;
+    color: var(--db-text);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: 160px;
-    margin-top: 1px;
+    padding-left: 1px;
+  }
+  .db-ann-footer {
+    font-size: 10px;
+    color: var(--db-muted);
+    padding-left: 1px;
   }
   .db-icon-btn {
     all: unset;

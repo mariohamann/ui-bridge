@@ -393,16 +393,36 @@ const REVIEW_PAGE_HTML = `<!DOCTYPE html>
     .bar {
       position: sticky; top: 0; z-index: 100;
       background: var(--bg); border-bottom: 1px solid var(--border);
-      padding: 10px 16px; display: flex; align-items: center; gap: 10px;
+      padding: 6px 12px; display: flex; align-items: center; gap: 8px;
     }
     .bar-title { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--subtext); flex: 1; }
     .bar-title strong { color: var(--amber); }
     .count { background: var(--amber); color: #1e1e2e; font-size: 10px; font-weight: 700; border-radius: 10px; padding: 1px 6px; }
     .count.zero { background: var(--border); color: var(--muted); }
-    .toggle { all: unset; cursor: pointer; font-size: 11px; color: var(--muted); padding: 3px 8px; border: 1px solid var(--border); border-radius: var(--r-sm); transition: color .1s, border-color .1s; }
-    .toggle:hover, .toggle.on { color: var(--amber); border-color: var(--amber); }
     .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--border); flex-shrink: 0; }
     .dot.ok { background: var(--green); }
+    /* bar three-dots menu */
+    .bar-menu-wrap { position: relative; }
+    .bar-dots {
+      all: unset; cursor: pointer; display: flex; align-items: center; justify-content: center;
+      width: 24px; height: 24px; border-radius: var(--r-sm);
+      color: var(--muted); font-size: 15px; letter-spacing: 1px; line-height: 1;
+      transition: background .1s, color .1s;
+    }
+    .bar-dots:hover { background: var(--surface); color: var(--text); }
+    .bar-dropdown {
+      position: absolute; top: calc(100% + 4px); right: 0; z-index: 200;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--r); padding: 4px; min-width: 160px;
+      box-shadow: 0 6px 18px rgba(0,0,0,.5);
+    }
+    .bar-mi {
+      all: unset; display: flex; align-items: center; gap: 8px; width: 100%; box-sizing: border-box;
+      padding: 6px 10px; font-size: 12px; border-radius: var(--r-sm);
+      cursor: pointer; color: var(--text); transition: background .08s;
+    }
+    .bar-mi:hover { background: var(--border); }
+    .bar-mi .check { color: var(--amber); font-size: 10px; width: 12px; text-align: center; }
 
     /* ── List ── */
     .list { max-width: 620px; margin: 0 auto; padding: 12px 16px 80px; display: flex; flex-direction: column; gap: 2px; }
@@ -411,40 +431,40 @@ const REVIEW_PAGE_HTML = `<!DOCTYPE html>
 
     /* ── Row ── */
     .row {
-      display: flex; align-items: flex-start; gap: 10px;
-      padding: 10px 10px 10px 12px;
+      display: flex; align-items: flex-start; gap: 8px;
+      padding: 7px 8px 7px 10px;
       border-radius: var(--r);
       cursor: pointer;
       position: relative;
+      border-bottom: 1px solid rgba(69,71,90,.5);
       transition: background .1s;
     }
-    .row:hover { background: var(--surface); }
+    .row:last-child { border-bottom: none; }
+    .row:hover { background: rgba(245,158,11,.05); }
     .row.resolved { opacity: .45; }
     .row.resolved:hover { opacity: .65; }
 
     /* number badge */
     .num {
-      flex-shrink: 0; margin-top: 1px;
-      width: 18px; height: 18px; border-radius: 50%;
+      flex-shrink: 0; margin-top: 2px;
+      width: 16px; height: 16px; border-radius: 50%;
       background: var(--amber); color: #1e1e2e;
-      font-size: 9px; font-weight: 700; line-height: 18px; text-align: center;
+      font-size: 8px; font-weight: 700; line-height: 16px; text-align: center;
     }
     .num.done { background: var(--surface2); color: var(--green); }
 
     /* main body */
     .body { flex: 1; min-width: 0; }
-    .meta { display: flex; align-items: baseline; gap: 6px; margin-bottom: 4px; }
-    .page-label { font-size: 11px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 260px; }
-    .ts { font-size: 11px; color: var(--border); flex-shrink: 0; }
+    .meta { display: flex; align-items: center; gap: 6px; margin-bottom: 2px; }
+    .src-label { font-size: 11px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; }
+    .ts { font-size: 10px; color: var(--border); flex-shrink: 0; }
     .comment {
-      font-size: 12px; line-height: 1.55; color: var(--text);
-      word-break: break-word; white-space: pre-wrap;
-      display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; overflow: hidden; white-space: normal;
+      font-size: 12px; line-height: 1.5; color: var(--text);
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
     .comment.empty-comment { color: var(--muted); font-style: italic; }
-    .footer { display: flex; align-items: center; gap: 8px; margin-top: 5px; }
-    .reply-count { font-size: 11px; color: var(--blue); }
-    .src { font-size: 10px; font-family: var(--mono); color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 200px; }
+    .footer { display: flex; align-items: center; gap: 8px; margin-top: 2px; }
+    .reply-count { font-size: 10px; color: var(--muted); }
     .resolved-tag { font-size: 10px; color: var(--green); font-weight: 600; letter-spacing: .04em; text-transform: uppercase; }
 
     /* three-dot menu */
@@ -477,8 +497,13 @@ const REVIEW_PAGE_HTML = `<!DOCTYPE html>
   <div class="bar">
     <span class="bar-title"><strong>Design Bridge</strong> — Annotations</span>
     <span class="count" id="count">0</span>
-    <button class="toggle" id="toggle-resolved">Show resolved</button>
     <span class="dot" id="dot"></span>
+    <div class="bar-menu-wrap" id="bar-menu-wrap">
+      <button class="bar-dots" id="bar-dots" title="Options">···</button>
+      <div class="bar-dropdown" id="bar-dropdown" style="display:none">
+        <button class="bar-mi" id="toggle-resolved"><span class="check" id="resolved-check"></span>Show resolved</button>
+      </div>
+    </div>
   </div>
   <div class="list" id="list"></div>
 
@@ -500,15 +525,23 @@ const REVIEW_PAGE_HTML = `<!DOCTYPE html>
     connect();
     fetch(API + '/api/annotations').then(r => r.json()).then(d => { if (d.annotations) { annotations = d.annotations; render(); } }).catch(() => {});
 
-    document.getElementById('toggle-resolved').addEventListener('click', () => {
-      showResolved = !showResolved;
-      document.getElementById('toggle-resolved').classList.toggle('on', showResolved);
-      render();
+    // Bar three-dots menu
+    const barWrap = document.getElementById('bar-menu-wrap');
+    const barDots = document.getElementById('bar-dots');
+    const barDropdown = document.getElementById('bar-dropdown');
+    let barMenuOpen = false;
+    barDots.addEventListener('click', e => { e.stopPropagation(); barMenuOpen = !barMenuOpen; barDropdown.style.display = barMenuOpen ? 'block' : 'none'; });
+    document.addEventListener('click', e => {
+      if (!e.target.closest('#bar-menu-wrap')) { barMenuOpen = false; barDropdown.style.display = 'none'; }
+      if (!e.target.closest('.menu-wrap')) { openMenuId = null; render(); }
     });
 
-    // Close menu on outside click
-    document.addEventListener('click', e => {
-      if (!e.target.closest('.menu-wrap')) { openMenuId = null; render(); }
+    document.getElementById('toggle-resolved').addEventListener('click', e => {
+      e.stopPropagation();
+      showResolved = !showResolved;
+      document.getElementById('resolved-check').textContent = showResolved ? '✓' : '';
+      barMenuOpen = false; barDropdown.style.display = 'none';
+      render();
     });
 
     // ── Actions ──
@@ -551,10 +584,18 @@ const REVIEW_PAGE_HTML = `<!DOCTYPE html>
     function pageLabel(url) {
       try { const u = new URL(url); return u.pathname === '/' ? u.host : u.host + u.pathname; } catch { return url || ''; }
     }
+    function sourceLabel(ann) {
+      if (ann.source && ann.source.file) {
+        const filename = ann.source.file.split('/').pop() || '';
+        return filename.replace(/\.[^.]+$/, '');
+      }
+      return (ann.labels && ann.labels[0]) || pageLabel(ann.pageUrl) || '';
+    }
 
     // ── Render ──
     function render() {
-      const visible = showResolved ? annotations : annotations.filter(a => !a.resolvedAt);
+      const sorted = [...annotations].sort((a, b) => (b.createdAt || b.timestamp || 0) - (a.createdAt || a.timestamp || 0));
+      const visible = showResolved ? sorted : sorted.filter(a => !a.resolvedAt);
       const openCount = annotations.filter(a => !a.resolvedAt).length;
       const el = document.getElementById('count');
       el.textContent = openCount;
@@ -575,7 +616,6 @@ const REVIEW_PAGE_HTML = `<!DOCTYPE html>
         const resolved = !!ann.resolvedAt;
         if (!resolved) idx++;
         const replies = (ann.replies || []).filter(r => r.type === 'comment');
-        const src = ann.source ? ann.source.file.split('/').pop() + ':' + ann.source.line : '';
         const menuOpen = openMenuId === ann.id;
 
         const menu = menuOpen ? '<div class="overflow-menu" onclick="event.stopPropagation()">' +
@@ -591,7 +631,7 @@ const REVIEW_PAGE_HTML = `<!DOCTYPE html>
             '<div class="num' + (resolved ? ' done' : '') + '">' + (resolved ? '✓' : idx) + '</div>' +
             '<div class="body">' +
               '<div class="meta">' +
-                (ann.pageUrl ? '<span class="page-label" title="' + esc(ann.pageUrl) + '">' + esc(pageLabel(ann.pageUrl)) + '</span>' : '') +
+                '<span class="src-label">' + esc(sourceLabel(ann)) + '</span>' +
                 '<span class="ts">' + relTime(ann.createdAt) + '</span>' +
                 (resolved ? '<span class="resolved-tag">resolved</span>' : '') +
               '</div>' +
@@ -599,8 +639,7 @@ const REVIEW_PAGE_HTML = `<!DOCTYPE html>
                 ? '<div class="comment">' + esc(ann.comment) + '</div>'
                 : '<div class="comment empty-comment">No comment</div>') +
               '<div class="footer">' +
-                (replies.length ? '<span class="reply-count">' + replies.length + (replies.length === 1 ? ' reply' : ' replies') + '</span>' : '') +
-                (src ? '<span class="src" title="' + esc(ann.source.file + ':' + ann.source.line + ':' + ann.source.column) + '">📍 ' + esc(src) + '</span>' : '') +
+                (replies.length > 1 ? '<span class="reply-count">' + (replies.length - 1) + (replies.length - 1 === 1 ? ' reply' : ' replies') + '</span>' : '') +
               '</div>' +
             '</div>' +
             '<div class="menu-wrap" onclick="event.stopPropagation(); openMenuId = openMenuId===\\''+ann.id+'\\' ? null : \\''+ann.id+'\\'; render();">' +
