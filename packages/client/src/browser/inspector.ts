@@ -12,6 +12,7 @@ import { finder, idName } from '@medv/finder';
 import type { Annotation } from '@design-bridge/core';
 import type { BridgeAnnotationItem } from '../client/panel/bridge-annotation-item.js';
 import { annotationBus } from '../client/panel/annotation-bus.js';
+import { updateAnnotations } from '@design-bridge/components';
 
 // ─── Selector helper ──────────────────────────────────────────────────────────
 
@@ -33,6 +34,8 @@ const channel = new BroadcastChannel('design-bridge:annotations');
 
 function notifyChange(): void {
   for (const cb of changeListeners) cb();
+  // Push into the shared signal store so any SignalWatcher consumer re-renders
+  updateAnnotations([...annotations.values()]);
 }
 
 export function getAnnotations(): Annotation[] {

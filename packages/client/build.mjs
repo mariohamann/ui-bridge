@@ -7,12 +7,10 @@ mkdirSync('dist', { recursive: true });
 
 // Lit and all other browser deps get bundled in — no external deps in the browser.
 // Use IIFE so the script can be injected as a plain <script> tag with no type="module".
-const options = {
-  entryPoints: ['src/browser/index.ts'],
+const sharedOptions = {
   bundle: true,
   platform: 'browser',
   format: 'iife',
-  outfile: 'dist/design-bridge.js',
   minify: true,
   // Lit decorators require experimentalDecorators + useDefineForClassFields=false
   tsconfigRaw: {
@@ -24,11 +22,14 @@ const options = {
   },
 };
 
+const panelOptions = { ...sharedOptions, entryPoints: ['src/browser/index.ts'], outfile: 'dist/design-bridge.js' };
+const reviewOptions = { ...sharedOptions, entryPoints: ['src/review/index.ts'], outfile: 'dist/review-page.js' };
+
 if (watch) {
-  const ctx = await context(options);
-  await ctx.watch();
+  const [ctx1, ctx2] = await Promise.all([context(panelOptions), context(reviewOptions)]);
+  await Promise.all([ctx1.watch(), ctx2.watch()]);
   console.log('[design-bridge/client] watching for changes…');
 } else {
-  await build(options);
-  console.log('[design-bridge/client] build complete → dist/design-bridge.js');
+  await Promise.all([build(panelOptions), build(reviewOptions)]);
+  console.log('[design-bridge/client] build complete → dist/design-bridge.js, dist/review-page.js');
 }

@@ -60,7 +60,9 @@ export function renderAnnotations(
   annotations: Annotation[],
   handlers: AnnotationHandlers,
 ): TemplateResult {
-  // Show newest first
+  // Assign stable numbers by creation order (oldest = #1), display newest first
+  const byAge = [...annotations].sort((a, b) => (a.createdAt || a.timestamp) - (b.createdAt || b.timestamp));
+  const rankById = new Map(byAge.map((ann, i) => [ann.id, i]));
   const sorted = [...annotations].sort((a, b) => (b.createdAt || b.timestamp) - (a.createdAt || a.timestamp));
   return html`
     <div class="db-annotate">
@@ -68,7 +70,7 @@ export function renderAnnotations(
       ? html`<div class="db-empty">No annotations yet — hold Alt+Shift and click any element</div>`
       : html`
           <div class="db-ann-list">
-            ${sorted.map((ann, i) => renderAnnotationRow(ann, i, handlers))}
+            ${sorted.map((ann) => renderAnnotationRow(ann, rankById.get(ann.id)!, handlers))}
           </div>
           <div class="db-separator"></div>
           <button class="db-btn db-btn--danger db-btn--full" @click=${handlers.onClear}>× Clear all</button>

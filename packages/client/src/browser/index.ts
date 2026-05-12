@@ -1,5 +1,6 @@
 import { initInspector } from './inspector.js';
 import { initPanel } from '../client/panel/index.js';
+import './ws-adapter.js'; // side-effect: wires signal stores ↔ WebSocket
 
 function boot(): void {
   initPanel();

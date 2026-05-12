@@ -1,0 +1,58 @@
+{
+  "name": "@design-bridge/components",
+  "version": "0.0.1",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./styles/tokens": {
+      "import": "./dist/styles/tokens.js",
+      "types": "./dist/styles/tokens.d.ts"
+    },
+    "./styles/base-controls": {
+      "import": "./dist/styles/base-controls.js",
+      "types": "./dist/styles/base-controls.d.ts"
+    },
+    "./styles/panel-layout": {
+      "import": "./dist/styles/panel-layout.js",
+      "types": "./dist/styles/panel-layout.d.ts"
+    },
+    "./state/knobs-store": {
+      "import": "./dist/state/knobs-store.js",
+      "types": "./dist/state/knobs-store.d.ts"
+    },
+    "./state/annotations-store": {
+      "import": "./dist/state/annotations-store.js",
+      "types": "./dist/state/annotations-store.d.ts"
+    },
+    "./state/panel-ui-store": {
+      "import": "./dist/state/panel-ui-store.js",
+      "types": "./dist/state/panel-ui-store.d.ts"
+    },
+    "./state/intents": {
+      "import": "./dist/state/intents.js",
+      "types": "./dist/state/intents.d.ts"
+    },
+    "./review": {
+      "import": "./dist/review/bridge-review-page.js",
+      "types": "./dist/review/bridge-review-page.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "node --test tests/stores.test.mjs"
+  },
+  "dependencies": {
+    "@design-bridge/core": "workspace:*",
+    "@lit-labs/signals": "^0.2.0",
+    "lit": "^3.3.0",
+    "signal-polyfill": "^0.2.2"
+  },
+  "devDependencies": {
+    "typescript": "~6.0.2"
+  }
+}

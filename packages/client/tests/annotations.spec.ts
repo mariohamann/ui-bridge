@@ -379,13 +379,14 @@ test.describe('Single panel + dirty-draft guard', () => {
     await expect(reviewPage.locator('.row')).toHaveCount(2);
     await expect(reviewPage.locator('.dot.ok')).toBeVisible();
 
-    // Click the second row — first time, should NOT switch (dirty guard)
-    await reviewPage.locator('.row').nth(1).locator('.body').click();
+    // Click the second annotation's row (index 0 — review page sorts newest-first)
+    // First time: should NOT switch (dirty guard)
+    await reviewPage.locator('.row').nth(0).locator('.body').click();
     await expect(annotationPanel(page)).toHaveCount(1);
     await expect(annotationPanel(page).locator('.comment-text')).toContainText('First');
 
-    // Click the second row again — should now switch
-    await reviewPage.locator('.row').nth(1).locator('.body').click();
+    // Second click on same row — should now switch
+    await reviewPage.locator('.row').nth(0).locator('.body').click();
     await expect(annotationPanel(page)).toHaveCount(1);
     await expect(annotationPanel(page).locator('.comment-text')).toContainText('Second');
 

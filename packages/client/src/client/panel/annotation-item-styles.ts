@@ -1,20 +1,8 @@
 import { css } from 'lit';
+import { designBridgeHostTokenStyles } from '@design-bridge/components/styles/tokens';
 
-export const annotationItemStyles = css`
+const ANNOTATION_ITEM_LOCAL_STYLES = css`
   :host {
-    --db-bg: #1e1e2e;
-    --db-surface: #313244;
-    --db-border: #45475a;
-    --db-text: #cdd6f4;
-    --db-muted: #6c7086;
-    --db-amber: #f59e0b;
-    --db-amber-dim: rgba(245,158,11,.12);
-    --db-blue: #89b4fa;
-    --db-red: #f38ba8;
-    --db-green: #a6e3a1;
-    --db-font-mono: ui-monospace, monospace;
-    --db-font: 'Inter', system-ui, -apple-system, sans-serif;
-
     position: fixed;
     top: 0;
     left: 0;
@@ -391,4 +379,6 @@ export const annotationItemStyles = css`
   }
   .tweak-accept-all:hover { opacity: 1; }
 `;
+
+export const annotationItemStyles = [designBridgeHostTokenStyles, ANNOTATION_ITEM_LOCAL_STYLES];
 

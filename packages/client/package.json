@@ -4,7 +4,8 @@
   "type": "module",
   "main": "./dist/design-bridge.js",
   "exports": {
-    ".": "./dist/design-bridge.js"
+    ".": "./dist/design-bridge.js",
+    "./review-page": "./dist/review-page.js"
   },
   "scripts": {
     "build": "node build.mjs",
@@ -12,11 +13,14 @@
     "test": "playwright test"
   },
   "dependencies": {
+    "@design-bridge/components": "workspace:*",
     "@design-bridge/core": "workspace:*",
     "@floating-ui/dom": "^1.7.6",
+    "@lit-labs/signals": "^0.2.0",
     "@medv/finder": "^4.0.2",
     "autosize": "^6.0.1",
-    "lit": "^3.3.0"
+    "lit": "^3.3.0",
+    "signal-polyfill": "^0.2.2"
   },
   "devDependencies": {
     "@playwright/test": "^1.50.0",
