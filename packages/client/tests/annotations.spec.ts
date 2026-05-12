@@ -9,7 +9,7 @@ const REVIEW_URL = 'http://localhost:7378/';
 
 /** The draft or open annotation item's panel (shadow DOM piercing). */
 function annotationPanel(page: Page): Locator {
-  return page.locator('bridge-annotation-item .panel:not([hidden])');
+  return page.locator('db-annotation .panel:not([hidden])');
 }
 
 async function createAnnotation(page: Page, selector: string, comment: string): Promise<void> {
@@ -50,7 +50,7 @@ test.describe('Annotations', () => {
 
   test('annotation badge appears on the annotated element', async ({ page }) => {
     await createAnnotation(page, 'h1', 'Badge test');
-    await expect(page.locator('bridge-annotation-item wa-badge')).toBeVisible();
+    await expect(page.locator('db-annotation wa-badge')).toBeVisible();
   });
 
   test('annotation is persisted to the server API', async ({ page }) => {
@@ -66,8 +66,8 @@ test.describe('Annotations', () => {
     await createAnnotation(page, 'h1', 'Survives reload');
 
     await page.reload();
-    await expect(page.locator('bridge-annotation-item')).toBeAttached();
-    await expect(page.locator('bridge-annotation-item wa-badge')).toBeVisible();
+    await expect(page.locator('db-annotation')).toBeAttached();
+    await expect(page.locator('db-annotation wa-badge')).toBeVisible();
   });
 
   test('badge reappears on the correct element after reload', async ({ page }) => {
@@ -77,9 +77,9 @@ test.describe('Annotations', () => {
     expect(h1Box).not.toBeNull();
 
     await page.reload();
-    await expect(page.locator('bridge-annotation-item')).toBeAttached();
+    await expect(page.locator('db-annotation')).toBeAttached();
 
-    const badge = page.locator('bridge-annotation-item wa-badge').first();
+    const badge = page.locator('db-annotation wa-badge').first();
     await expect(badge).toBeVisible();
 
     const badgeBox = await badge.boundingBox();
@@ -93,7 +93,7 @@ test.describe('Annotations', () => {
   test('can reply to an annotation from the badge', async ({ page }) => {
     await createAnnotation(page, 'h1', 'Original comment');
 
-    const badge = page.locator('bridge-annotation-item wa-badge').first();
+    const badge = page.locator('db-annotation wa-badge').first();
     await badge.click();
 
     const panel = annotationPanel(page);
@@ -122,7 +122,7 @@ test.describe('Annotations', () => {
     await composer.press('Enter');
     await expect(annotationPanel(page)).toHaveCount(0);
 
-    const badge = page.locator('bridge-annotation-item wa-badge').first();
+    const badge = page.locator('db-annotation wa-badge').first();
     await badge.click();
 
     const openPanel = annotationPanel(page);
@@ -144,13 +144,13 @@ test.describe('Annotations', () => {
   test('resolving from the annotation panel removes the annotation', async ({ page }) => {
     await createAnnotation(page, 'h1', 'Resolve me');
 
-    const badge = page.locator('bridge-annotation-item wa-badge').first();
+    const badge = page.locator('db-annotation wa-badge').first();
     await badge.click();
 
     const panel = annotationPanel(page);
     await panel.locator('wa-button[title="Resolve"]').click();
 
-    await expect(page.locator('bridge-annotation-item wa-badge')).toHaveCount(0);
+    await expect(page.locator('db-annotation wa-badge')).toHaveCount(0);
   });
 
   test('deletes an annotation via the review page discard button', async ({ page }) => {
@@ -169,14 +169,14 @@ test.describe('Annotations', () => {
   test('deletes a single annotation via the delete button in the panel', async ({ page }) => {
     await createAnnotation(page, 'h1', 'Panel delete test');
 
-    const badge = page.locator('bridge-annotation-item wa-badge').first();
+    const badge = page.locator('db-annotation wa-badge').first();
     await badge.click();
 
     const panel = annotationPanel(page);
     await panel.locator('wa-button[title="More options"]').click();
     await page.locator('wa-dropdown-item[variant="danger"]').click();
     await expect(annotationPanel(page)).toHaveCount(0);
-    await expect(page.locator('bridge-annotation-item wa-badge')).toHaveCount(0);
+    await expect(page.locator('db-annotation wa-badge')).toHaveCount(0);
   });
 
   test('review page can resolve all annotations', async ({ page }) => {
@@ -235,7 +235,7 @@ test.describe('Annotations', () => {
   test('alt+shift+click opens panel with source chip visible after save via "Show paths"', async ({ page }) => {
     await createAnnotation(page, 'h1', 'Source chip test');
 
-    const badge = page.locator('bridge-annotation-item wa-badge').first();
+    const badge = page.locator('db-annotation wa-badge').first();
     await badge.click();
     const p = annotationPanel(page);
     await p.locator('wa-button[title="More options"]').click();
@@ -246,7 +246,7 @@ test.describe('Annotations', () => {
 
   test('alt+shift+click while panel is open adds another selector chip (visible after save)', async ({ page }) => {
     await page.locator('h1').first().click({ modifiers: ['Alt', 'Shift'] });
-    const draft = page.locator('bridge-annotation-item .panel:not([hidden])');
+    const draft = page.locator('db-annotation .panel:not([hidden])');
     await expect(draft.locator('textarea[data-role="composer"]')).toBeVisible();
 
     await page.locator('p').first().click({ modifiers: ['Alt', 'Shift'] });
@@ -268,7 +268,7 @@ test.describe('Annotations', () => {
 
     // Wait for code-inspector to fire and populate draftSource via the public getter
     await expect.poll(async () =>
-      page.evaluate(() => (document.querySelector('bridge-annotation-item') as any)?.draftSource)
+      page.evaluate(() => (document.querySelector('db-annotation') as any)?.draftSource)
     ).not.toBeNull();
 
     const panel = annotationPanel(page);
@@ -295,7 +295,7 @@ test.describe('Annotations', () => {
 
     // Wait until the draft item reports 2 connected selectors via its public property
     await expect.poll(async () =>
-      page.evaluate(() => (document.querySelector('bridge-annotation-item') as any)?.connectedSelectorCount)
+      page.evaluate(() => (document.querySelector('db-annotation') as any)?.connectedSelectorCount)
     ).toBe(2);
 
     const input = panel.locator('textarea').first();
@@ -316,7 +316,7 @@ test.describe('Single panel + dirty-draft guard', () => {
     await createAnnotation(page, 'h1', 'First');
     await createAnnotation(page, 'p', 'Second');
 
-    const badges = page.locator('bridge-annotation-item wa-badge');
+    const badges = page.locator('db-annotation wa-badge');
     await badges.nth(0).click();
     await expect(annotationPanel(page)).toHaveCount(1);
 
@@ -332,7 +332,7 @@ test.describe('Single panel + dirty-draft guard', () => {
     await createAnnotation(page, 'h1', 'First');
     await createAnnotation(page, 'p', 'Second');
 
-    const badges = page.locator('bridge-annotation-item wa-badge');
+    const badges = page.locator('db-annotation wa-badge');
 
     // Open first panel and type an unsaved reply
     await badges.nth(0).click();
@@ -348,7 +348,7 @@ test.describe('Single panel + dirty-draft guard', () => {
     await createAnnotation(page, 'h1', 'First');
     await createAnnotation(page, 'p', 'Second');
 
-    const badges = page.locator('bridge-annotation-item wa-badge');
+    const badges = page.locator('db-annotation wa-badge');
 
     // Open first panel and type an unsaved reply
     await badges.nth(0).click();
@@ -370,7 +370,7 @@ test.describe('Single panel + dirty-draft guard', () => {
     await createAnnotation(page, 'p', 'Second');
 
     // Open first panel and type an unsaved reply
-    await page.locator('bridge-annotation-item wa-badge').nth(0).click();
+    await page.locator('db-annotation wa-badge').nth(0).click();
     await annotationPanel(page).locator('textarea[data-role="reply"]').fill('unsaved reply text');
 
     const reviewPage = await context.newPage();
@@ -397,10 +397,10 @@ test.describe('Badge hover preview', () => {
   test('preview appears on badge hover and shows the comment', async ({ page }) => {
     await createAnnotation(page, 'h1', 'This headline needs a stronger CTA.');
 
-    const badge = page.locator('bridge-annotation-item wa-badge').first();
+    const badge = page.locator('db-annotation wa-badge').first();
     await badge.hover();
 
-    const preview = page.locator('bridge-annotation-item .badge-preview');
+    const preview = page.locator('db-annotation .badge-preview');
     await expect(preview).toBeVisible();
     await expect(preview.locator('.badge-preview-text')).toHaveText('This headline needs a stronger CTA.');
   });
@@ -408,7 +408,7 @@ test.describe('Badge hover preview', () => {
   test('preview is not visible when not hovering', async ({ page }) => {
     await createAnnotation(page, 'h1', 'Preview hidden at rest');
 
-    const preview = page.locator('bridge-annotation-item .badge-preview');
+    const preview = page.locator('db-annotation .badge-preview');
     await page.mouse.move(0, 0);
     await expect(preview).not.toHaveClass(/visible/);
   });
@@ -416,18 +416,18 @@ test.describe('Badge hover preview', () => {
   test('preview shows reply count when replies exist', async ({ page }) => {
     await createAnnotation(page, 'h1', 'Original comment');
 
-    const badge = page.locator('bridge-annotation-item wa-badge').first();
+    const badge = page.locator('db-annotation wa-badge').first();
     await badge.click();
     const replyInput = annotationPanel(page).locator('textarea[data-role="reply"]');
     await expect(replyInput).toBeVisible();
     await replyInput.fill('A reply');
     await replyInput.press('Enter');
 
-    await page.locator('bridge-annotation-item wa-button[title="Close"]').click();
+    await page.locator('db-annotation wa-button[title="Close"]').click();
     await expect(annotationPanel(page)).toHaveCount(0);
 
     await badge.hover();
-    const preview = page.locator('bridge-annotation-item .badge-preview');
+    const preview = page.locator('db-annotation .badge-preview');
     await expect(preview).toBeVisible();
     await expect(preview.locator('.badge-preview-meta')).toHaveText('1 reply');
   });
@@ -435,20 +435,20 @@ test.describe('Badge hover preview', () => {
   test('preview is hidden while panel is open', async ({ page }) => {
     await createAnnotation(page, 'h1', 'Open panel test');
 
-    const badge = page.locator('bridge-annotation-item wa-badge').first();
+    const badge = page.locator('db-annotation wa-badge').first();
     await badge.click();
     await expect(annotationPanel(page)).toBeVisible();
 
-    await expect(page.locator('bridge-annotation-item .badge-preview')).toHaveCount(0);
+    await expect(page.locator('db-annotation .badge-preview')).toHaveCount(0);
   });
 
   test('preview text wraps to at most 3 lines', async ({ page }) => {
     const long = 'The quick brown fox jumps over the lazy dog. '.repeat(4).trim();
     await createAnnotation(page, 'h1', long);
 
-    const badge = page.locator('bridge-annotation-item wa-badge').first();
+    const badge = page.locator('db-annotation wa-badge').first();
     await badge.hover();
-    const previewText = page.locator('bridge-annotation-item .badge-preview-text').first();
+    const previewText = page.locator('db-annotation .badge-preview-text').first();
     await expect(previewText).toBeVisible();
 
     // 12px font × 1.4 line-height × 3 lines ≈ 50px; allow a small margin
@@ -461,9 +461,9 @@ test.describe('Panel scrolling & textarea autogrow', () => {
   test('panel scrolls when replies overflow its max-height', async ({ page }) => {
     await createAnnotation(page, 'h1', 'Overflow test');
 
-    const badge = page.locator('bridge-annotation-item wa-badge').first();
+    const badge = page.locator('db-annotation wa-badge').first();
     await badge.click();
-    const p = page.locator('bridge-annotation-item .panel:not([hidden])');
+    const p = page.locator('db-annotation .panel:not([hidden])');
 
     // Add enough replies to overflow the panel
     for (let i = 1; i <= 8; i++) {
@@ -483,9 +483,9 @@ test.describe('Panel scrolling & textarea autogrow', () => {
   test('reply textarea remains accessible when panel overflows', async ({ page }) => {
     await createAnnotation(page, 'h1', 'Scroll position test');
 
-    const badge = page.locator('bridge-annotation-item wa-badge').first();
+    const badge = page.locator('db-annotation wa-badge').first();
     await badge.click();
-    const p = page.locator('bridge-annotation-item .panel:not([hidden])');
+    const p = page.locator('db-annotation .panel:not([hidden])');
 
     for (let i = 1; i <= 8; i++) {
       const reply = p.locator('textarea[data-role="reply"]');
@@ -505,7 +505,7 @@ test.describe('Panel scrolling & textarea autogrow', () => {
 
   test('textarea grows taller as content is typed', async ({ page }) => {
     await page.locator('h1').first().click({ modifiers: ['Alt', 'Shift'] });
-    const p = page.locator('bridge-annotation-item .panel:not([hidden])');
+    const p = page.locator('db-annotation .panel:not([hidden])');
     const textarea = p.locator('textarea[data-role="composer"]');
     await expect(textarea).toBeVisible();
 
@@ -520,7 +520,7 @@ test.describe('Panel scrolling & textarea autogrow', () => {
 
   test('textarea has no internal scrollbar (overflow is hidden or field-sizing)', async ({ page }) => {
     await page.locator('h1').first().click({ modifiers: ['Alt', 'Shift'] });
-    const p = page.locator('bridge-annotation-item .panel:not([hidden])');
+    const p = page.locator('db-annotation .panel:not([hidden])');
     const textarea = p.locator('textarea[data-role="composer"]');
     await expect(textarea).toBeVisible();
 
@@ -537,7 +537,7 @@ test.describe('Panel scrolling & textarea autogrow', () => {
 test.describe('Compact UI (redesign)', () => {
   test('annotation panel uses Inter font', async ({ page }) => {
     await page.locator('h1').first().click({ modifiers: ['Alt', 'Shift'] });
-    const p = page.locator('bridge-annotation-item .panel:not([hidden])');
+    const p = page.locator('db-annotation .panel:not([hidden])');
     const fontFamily = await p.evaluate((el) => getComputedStyle(el).fontFamily);
     // WA uses system font stack; verify it's a sans-serif stack
     expect(fontFamily.toLowerCase()).toMatch(/sans-serif|system-ui|ui-sans-serif/);
@@ -545,44 +545,44 @@ test.describe('Compact UI (redesign)', () => {
 
   test('create mode: no Cancel button present', async ({ page }) => {
     await page.locator('h1').first().click({ modifiers: ['Alt', 'Shift'] });
-    const p = page.locator('bridge-annotation-item .panel:not([hidden])');
+    const p = page.locator('db-annotation .panel:not([hidden])');
     await expect(p.locator('.btn-cancel, button:has-text("Cancel")')).toHaveCount(0);
   });
 
   test('create mode: send button is always visible', async ({ page }) => {
     await page.locator('h1').first().click({ modifiers: ['Alt', 'Shift'] });
-    const p = page.locator('bridge-annotation-item .panel:not([hidden])');
+    const p = page.locator('db-annotation .panel:not([hidden])');
     await expect(p.locator('wa-button[title="Send"]')).toBeVisible();
   });
 
   test('create mode: send button is disabled when textarea is empty', async ({ page }) => {
     await page.locator('h1').first().click({ modifiers: ['Alt', 'Shift'] });
-    const p = page.locator('bridge-annotation-item .panel:not([hidden])');
+    const p = page.locator('db-annotation .panel:not([hidden])');
     await expect(p.locator('wa-button[title="Send"]')).toHaveAttribute('disabled', '');
   });
 
   test('create mode: send button becomes enabled when text is typed', async ({ page }) => {
     await page.locator('h1').first().click({ modifiers: ['Alt', 'Shift'] });
-    const p = page.locator('bridge-annotation-item .panel:not([hidden])');
+    const p = page.locator('db-annotation .panel:not([hidden])');
     await p.locator('textarea[data-role="composer"]').fill('hello');
     await expect(p.locator('wa-button[title="Send"]')).toBeEnabled();
   });
 
   test('create mode: no body padding (no .body element rendered)', async ({ page }) => {
     await page.locator('h1').first().click({ modifiers: ['Alt', 'Shift'] });
-    const p = page.locator('bridge-annotation-item .panel:not([hidden])');
+    const p = page.locator('db-annotation .panel:not([hidden])');
     await expect(p.locator('.body')).toHaveCount(0);
   });
 
   test('create mode: no chips bar shown (paths hidden)', async ({ page }) => {
     await page.locator('h1').first().click({ modifiers: ['Alt', 'Shift'] });
-    const p = page.locator('bridge-annotation-item .panel:not([hidden])');
+    const p = page.locator('db-annotation .panel:not([hidden])');
     await expect(p.locator('.chips-bar')).toHaveCount(0);
   });
 
   test('create mode: composer has rounded inner card', async ({ page }) => {
     await page.locator('h1').first().click({ modifiers: ['Alt', 'Shift'] });
-    const p = page.locator('bridge-annotation-item .panel:not([hidden])');
+    const p = page.locator('db-annotation .panel:not([hidden])');
     const inner = p.locator('.composer-inner');
     await expect(inner).toBeVisible();
     const radius = await inner.evaluate((el) => getComputedStyle(el).borderRadius);
@@ -592,7 +592,7 @@ test.describe('Compact UI (redesign)', () => {
 
   test('view mode: header has Close button, no Cancel button', async ({ page }) => {
     await createAnnotation(page, 'h1', 'Header test');
-    const badge = page.locator('bridge-annotation-item wa-badge').first();
+    const badge = page.locator('db-annotation wa-badge').first();
     await badge.click();
     const p = annotationPanel(page);
     await expect(p.locator('wa-button[title="Close"]')).toBeVisible();
@@ -601,7 +601,7 @@ test.describe('Compact UI (redesign)', () => {
 
   test('view mode: paths hidden by default', async ({ page }) => {
     await createAnnotation(page, 'h1', 'Paths hidden test');
-    const badge = page.locator('bridge-annotation-item wa-badge').first();
+    const badge = page.locator('db-annotation wa-badge').first();
     await badge.click();
     const p = annotationPanel(page);
     await expect(p.locator('.chips-bar')).toHaveCount(0);
@@ -609,7 +609,7 @@ test.describe('Compact UI (redesign)', () => {
 
   test('view mode: "Show paths" in menu reveals chips bar', async ({ page }) => {
     await createAnnotation(page, 'h1', 'Show paths test');
-    const badge = page.locator('bridge-annotation-item wa-badge').first();
+    const badge = page.locator('db-annotation wa-badge').first();
     await badge.click();
     const p = annotationPanel(page);
 
@@ -622,7 +622,7 @@ test.describe('Compact UI (redesign)', () => {
 
   test('view mode: "Hide paths" in menu hides chips bar again', async ({ page }) => {
     await createAnnotation(page, 'h1', 'Toggle paths test');
-    const badge = page.locator('bridge-annotation-item wa-badge').first();
+    const badge = page.locator('db-annotation wa-badge').first();
     await badge.click();
     const p = annotationPanel(page);
 
@@ -638,7 +638,7 @@ test.describe('Compact UI (redesign)', () => {
   test('chips-bar is horizontally scrollable when selectors overflow', async ({ page }) => {
     // Add multiple selectors so the chips bar overflows
     await page.locator('h1').first().click({ modifiers: ['Alt', 'Shift'] });
-    const draft = page.locator('bridge-annotation-item .panel:not([hidden])');
+    const draft = page.locator('db-annotation .panel:not([hidden])');
     await page.locator('p').first().click({ modifiers: ['Alt', 'Shift'] });
     await page.locator('nav').first().click({ modifiers: ['Alt', 'Shift'] }).catch(() => { });
 
@@ -647,7 +647,7 @@ test.describe('Compact UI (redesign)', () => {
     await textarea.press('Enter');
     await expect(annotationPanel(page)).toHaveCount(0);
 
-    const badge = page.locator('bridge-annotation-item wa-badge').first();
+    const badge = page.locator('db-annotation wa-badge').first();
     await badge.click();
     const p = annotationPanel(page);
     await p.locator('wa-button[title="More options"]').click();
@@ -661,12 +661,12 @@ test.describe('Compact UI (redesign)', () => {
 
   test('chip font is monospace', async ({ page }) => {
     await page.locator('h1').first().click({ modifiers: ['Alt', 'Shift'] });
-    const draft = page.locator('bridge-annotation-item .panel:not([hidden])');
+    const draft = page.locator('db-annotation .panel:not([hidden])');
     const textarea = draft.locator('textarea[data-role="composer"]');
     await textarea.fill('Chip font test');
     await textarea.press('Enter');
 
-    const badge = page.locator('bridge-annotation-item wa-badge').first();
+    const badge = page.locator('db-annotation wa-badge').first();
     await badge.click();
     const p = annotationPanel(page);
     await p.locator('wa-button[title="More options"]').click();
@@ -716,7 +716,7 @@ test.describe('Multi-select while draft is open', () => {
   test('clicking an already-annotated element while draft is open adds it to draft', async ({ page }) => {
     // Create a saved annotation on h1
     await createAnnotation(page, 'h1', 'Existing annotation');
-    await expect(page.locator('bridge-annotation-item wa-badge')).toHaveCount(1);
+    await expect(page.locator('db-annotation wa-badge')).toHaveCount(1);
 
     // Start a new draft on p
     await page.locator('p').first().click({ modifiers: ['Alt', 'Shift'] });
@@ -727,7 +727,7 @@ test.describe('Multi-select while draft is open', () => {
     await page.locator('h1').first().click({ modifiers: ['Alt', 'Shift'] });
 
     // Still just one open panel (the draft), not the existing annotation's panel
-    await expect(page.locator('bridge-annotation-item .panel:not([hidden])')).toHaveCount(1);
+    await expect(page.locator('db-annotation .panel:not([hidden])')).toHaveCount(1);
 
     // Save and verify via API that the new annotation has 2 selectors (p + h1)
     const textarea = draft.locator('textarea[data-role="composer"]');
@@ -767,7 +767,7 @@ async function injectAnnotation(
 
 /** Open an annotation's panel by clicking its badge. */
 async function openAnnotationPanel(page: Page): Promise<void> {
-  const badge = page.locator('bridge-annotation-item wa-badge').first();
+  const badge = page.locator('db-annotation wa-badge').first();
   await badge.waitFor({ state: 'visible' });
   await badge.click();
 }
@@ -777,7 +777,7 @@ test.describe('Tweaks in annotations', () => {
     await injectAnnotation(page, { id: 'test-no-tweaks', comment: 'No tweaks here', linkedTweaks: [] });
     await page.reload();
     await openAnnotationPanel(page);
-    const tweaksSection = page.locator('bridge-annotation-item .tweaks-section');
+    const tweaksSection = page.locator('db-annotation .tweaks-section');
     await expect(tweaksSection).toHaveCount(0);
   });
 
@@ -789,7 +789,7 @@ test.describe('Tweaks in annotations', () => {
     });
     await page.reload();
     await openAnnotationPanel(page);
-    const tweaksSection = page.locator('bridge-annotation-item .tweaks-section');
+    const tweaksSection = page.locator('db-annotation .tweaks-section');
     await expect(tweaksSection).toBeVisible();
   });
 
@@ -804,7 +804,7 @@ test.describe('Tweaks in annotations', () => {
     });
     await page.reload();
     await openAnnotationPanel(page);
-    const tweaksSection = page.locator('bridge-annotation-item .tweaks-section');
+    const tweaksSection = page.locator('db-annotation .tweaks-section');
     await expect(tweaksSection).toBeVisible();
     await expect(tweaksSection.locator('.tweak-label').nth(0)).toHaveText('Primary Color');
     await expect(tweaksSection.locator('.tweak-value').nth(0)).toHaveText('#ff6600');
@@ -820,7 +820,7 @@ test.describe('Tweaks in annotations', () => {
     });
     await page.reload();
     await openAnnotationPanel(page);
-    const tweaksSection = page.locator('bridge-annotation-item .tweaks-section');
+    const tweaksSection = page.locator('db-annotation .tweaks-section');
     await expect(tweaksSection.locator('wa-button[title="Accept this tweak"]')).toBeVisible();
     await expect(tweaksSection.locator('wa-button[title="Dismiss this tweak"]')).toBeVisible();
   });
@@ -833,7 +833,7 @@ test.describe('Tweaks in annotations', () => {
     });
     await page.reload();
     await openAnnotationPanel(page);
-    await expect(page.locator('bridge-annotation-item wa-button:has-text("Accept all")')).toBeVisible();
+    await expect(page.locator('db-annotation wa-button:has-text("Accept all")')).toBeVisible();
   });
 
   test('annotation persists to disk as JSON file after injection', async ({ page }) => {
@@ -843,7 +843,7 @@ test.describe('Tweaks in annotations', () => {
     expect(res.status()).toBe(200);
     // Reload page and confirm annotation survives (loaded from disk)
     await page.reload();
-    await expect(page.locator('bridge-annotation-item')).toBeAttached();
+    await expect(page.locator('db-annotation')).toBeAttached();
     const res2 = await page.request.get(`${API_BASE}/annotations/persist-json-test`);
     expect(res2.status()).toBe(200);
     const ann = await res2.json() as { comment: string; };
@@ -861,7 +861,7 @@ test.describe('Tweaks in annotations', () => {
     });
     await page.reload();
     await openAnnotationPanel(page);
-    const tweaksSection = page.locator('bridge-annotation-item .tweaks-section');
+    const tweaksSection = page.locator('db-annotation .tweaks-section');
     await expect(tweaksSection.locator('.tweak-row')).toHaveCount(2);
     // Dismiss via REST API (the server broadcasts annotations:sync → UI re-renders)
     const res = await page.request.delete(`${API_BASE}/annotations/dismiss-ui-test/tweaks/ui-tweak-1`);

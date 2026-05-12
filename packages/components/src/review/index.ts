@@ -6,4 +6,4 @@ import '@awesome.me/webawesome/dist/components/dropdown-item/dropdown-item.js';
 import '@awesome.me/webawesome/dist/components/relative-time/relative-time.js';
 import '@awesome.me/webawesome/dist/components/switch/switch.js';
 import '@awesome.me/webawesome/dist/components/tag/tag.js';
-export { BridgeReviewPage } from './bridge-review-page.js';
+export { DbReview } from './db-review.js';

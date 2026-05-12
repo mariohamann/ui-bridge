@@ -1,7 +1,7 @@
 /**
- * Inspector — annotation state + badge rendering via bridge-annotation-item.
+ * Inspector — annotation state + badge rendering via db-annotation.
  *
- * Each saved annotation gets one persistent <bridge-annotation-item> element.
+ * Each saved annotation gets one persistent <db-annotation> element.
  * Items are reconciled by ID — never destroyed and recreated wholesale.
  * A draft item is created immediately on Alt+Shift+click; it becomes a saved
  * item when the user submits a comment, or is removed on cancel.
@@ -10,7 +10,7 @@
 import { sendMessage, onMessage } from './ws-client.js';
 import { finder, idName } from '@medv/finder';
 import type { Annotation } from '@design-bridge/core';
-import type { BridgeAnnotationItem } from '@design-bridge/components';
+import type { DbAnnotation } from '@design-bridge/components';
 import { onIntent, updateAnnotations } from '@design-bridge/components';
 
 // ─── Selector helper ──────────────────────────────────────────────────────────
@@ -80,13 +80,13 @@ export function clearAnnotations(): void {
 // ─── Item container ───────────────────────────────────────────────────────────
 
 let itemContainer: HTMLElement | null = null;
-const itemEls = new Map<string, BridgeAnnotationItem>();
-let draftItem: BridgeAnnotationItem | null = null;
+const itemEls = new Map<string, DbAnnotation>();
+let draftItem: DbAnnotation | null = null;
 
 /** ID of the annotation we want to focus on the next click, when the current panel has a dirty draft. */
 let pendingFocusId: string | null = null;
 
-export function getItemById(id: string): BridgeAnnotationItem | undefined {
+export function getItemById(id: string): DbAnnotation | undefined {
   return itemEls.get(id);
 }
 
@@ -98,13 +98,13 @@ function closeAllPanels(): void {
 }
 
 /** Open a saved panel, closing any other open panel first. */
-function openItemPanel(item: BridgeAnnotationItem): void {
+function openItemPanel(item: DbAnnotation): void {
   closeAllPanels();
   pendingFocusId = null;
   item.openPanel();
 }
 
-export function getOpenItem(): BridgeAnnotationItem | null {
+export function getOpenItem(): DbAnnotation | null {
   if (draftItem) return draftItem;
   for (const item of itemEls.values()) {
     if (item.isOpen) return item;
@@ -169,7 +169,7 @@ function reconcileItems(): void {
   annList.forEach((ann, i) => {
     let item = itemEls.get(ann.id);
     if (!item) {
-      item = document.createElement('bridge-annotation-item') as BridgeAnnotationItem;
+      item = document.createElement('db-annotation') as DbAnnotation;
       itemContainer!.appendChild(item);
       itemEls.set(ann.id, item);
     }
@@ -183,7 +183,7 @@ function reconcileItems(): void {
 let lastInspectedEl: Element | null = null;
 
 function isOwnUI(el: Element): boolean {
-  return !!el.closest('bridge-annotation-item');
+  return !!el.closest('db-annotation');
 }
 
 function onPointerMoveForInspect(e: MouseEvent): void {
@@ -234,7 +234,7 @@ function onTrackCode(e: Event): void {
     draftItem.setDraftSource({ file: detail.path, line: detail.line, column: detail.column });
   } else {
     // Create a new draft item immediately
-    const item = document.createElement('bridge-annotation-item') as BridgeAnnotationItem;
+    const item = document.createElement('db-annotation') as DbAnnotation;
     itemContainer.appendChild(item);
     draftItem = item;
     item.initDraft(el, buildSelector(el));

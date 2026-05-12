@@ -1,7 +1,14 @@
 import { LitElement, html, css } from 'lit';
-import { customElement, state } from 'lit/decorators.js';
+import { customElement, property } from 'lit/decorators.js';
+import { SignalWatcher } from '@lit-labs/signals';
 import type { Annotation } from '@design-bridge/core';
+import { annotationsSignal } from '../state/annotations-store.js';
+import { dispatchIntent } from '../state/intents.js';
 import { designBridgeHostTokenStyles } from '../styles/tokens.js';
+
+// Cast away the private mixin type — runtime signal-watching is preserved,
+// TypeScript sees plain LitElement and avoids the TS4020/TS4023 mixin errors.
+const _DbReviewBase = SignalWatcher(LitElement) as unknown as typeof LitElement;
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -29,13 +36,18 @@ function stableRanks(annotations: Annotation[]): Map<string, number> {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-@customElement('bridge-review-page')
-export class BridgeReviewPage extends LitElement {
-  @state() private _annotations: Annotation[] = [];
-  @state() private _showResolved = false;
-  @state() private _connected = false;
-
-  private _ws: WebSocket | null = null;
+/**
+ * db-review — full-page annotation list.
+ *
+ * Transport-free: reads annotations from the shared signal store.
+ * All user actions dispatch ComponentIntents to be handled by the entry point
+ * (client/review/index.ts) which translates them to WebSocket messages.
+ */
+@customElement('db-review')
+export class DbReview extends _DbReviewBase {
+  /** Reflects the WebSocket connection status — set by the entry point. */
+  @property({ type: Boolean }) connected = false;
+  @property({ type: Boolean, attribute: 'show-resolved' }) showResolved = false;
 
   static styles = [
     designBridgeHostTokenStyles,
@@ -102,72 +114,27 @@ export class BridgeReviewPage extends LitElement {
   connectedCallback(): void {
     super.connectedCallback();
     this.classList.add('wa-dark');
-    this._connect();
-    this._fetchInitial();
   }
 
-  disconnectedCallback(): void {
-    super.disconnectedCallback();
-    this._ws?.close();
+  private _resolve(ann: Annotation): void {
+    dispatchIntent({ type: 'annotation:save', annotation: { ...ann, resolvedAt: Date.now(), timestamp: Date.now() } });
   }
 
-  private _connect(): void {
-    const url = `ws://localhost:${location.port}/design-bridge`;
-    this._ws = new WebSocket(url);
-    this._ws.onopen = () => { this._connected = true; };
-    this._ws.onclose = () => { this._connected = false; setTimeout(() => this._connect(), 1500); };
-    this._ws.onmessage = (e) => {
-      try {
-        const m = JSON.parse(e.data as string);
-        if (m.type === 'annotations:sync') { this._annotations = m.payload; }
-      } catch { /* noop */ }
-    };
+  private _unresolve(ann: Annotation): void {
+    const { resolvedAt: _removed, ...rest } = ann as Annotation & { resolvedAt?: number; };
+    dispatchIntent({ type: 'annotation:save', annotation: { ...rest, timestamp: Date.now() } });
   }
 
-  private async _fetchInitial(): Promise<void> {
-    try {
-      const res = await fetch(`${location.origin}/api/annotations`);
-      const data = await res.json() as { annotations: Annotation[]; };
-      if (data.annotations) this._annotations = data.annotations;
-    } catch { /* noop */ }
+  private _delete(id: string): void {
+    dispatchIntent({ type: 'annotation:delete', id });
   }
 
-  private _sendFocus(id: string): void {
-    if (this._ws?.readyState === 1) {
-      this._ws.send(JSON.stringify({ type: 'annotation:focus', payload: { id } }));
-    }
+  private _focus(id: string): void {
+    dispatchIntent({ type: 'annotation:open', id });
   }
 
-  private _resolve(id: string): void {
-    const ann = this._annotations.find((a) => a.id === id);
-    if (!ann) return;
-    this._post('/api/annotations', { ...ann, resolvedAt: Date.now(), timestamp: Date.now() });
-  }
-
-  private _unresolve(id: string): void {
-    const ann = this._annotations.find((a) => a.id === id);
-    if (!ann) return;
-    const u = { ...ann, timestamp: Date.now() } as Annotation & { resolvedAt?: number; };
-    delete u.resolvedAt;
-    this._post('/api/annotations', u);
-  }
-
-  private _discard(id: string): void {
-    fetch(`${location.origin}/api/annotations/${id}`, { method: 'DELETE' }).catch(() => { });
-  }
-
-  private _copyLink(id: string): void {
-    const ann = this._annotations.find((a) => a.id === id);
-    if (!ann) return;
+  private _copyLink(ann: Annotation): void {
     navigator.clipboard.writeText(ann.pageUrl || location.href).catch(() => { });
-  }
-
-  private _post(path: string, body: unknown): void {
-    fetch(`${location.origin}${path}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    }).catch(() => { });
   }
 
   private _renderRow(ann: Annotation, rank: Map<string, number>) {
@@ -179,7 +146,7 @@ export class BridgeReviewPage extends LitElement {
 
     return html`
       <div class="row${resolved ? ' resolved' : ''}"
-        @click=${(e: Event) => { if (!(e.target as Element).closest('wa-dropdown')) this._sendFocus(ann.id); }}>
+        @click=${(e: Event) => { if (!(e.target as Element).closest('wa-dropdown')) this._focus(ann.id); }}>
 
         <!-- Index badge -->
         <wa-badge
@@ -208,10 +175,10 @@ export class BridgeReviewPage extends LitElement {
         <!-- Per-row actions dropdown -->
         <wa-dropdown size="s" class="row-menu" @click=${(e: Event) => e.stopPropagation()} @wa-select=${(e: CustomEvent) => {
         const val = e.detail.item.value;
-        if (val === 'resolve') this._resolve(ann.id);
-        else if (val === 'unresolve') this._unresolve(ann.id);
-        else if (val === 'copy') this._copyLink(ann.id);
-        else if (val === 'delete') this._discard(ann.id);
+        if (val === 'resolve') this._resolve(ann);
+        else if (val === 'unresolve') this._unresolve(ann);
+        else if (val === 'copy') this._copyLink(ann);
+        else if (val === 'delete') this._delete(ann.id);
       }}>
           <wa-button slot="trigger" appearance="plain" size="s" title="More">···</wa-button>
           ${!resolved
@@ -226,30 +193,31 @@ export class BridgeReviewPage extends LitElement {
   }
 
   render() {
-    const sorted = [...this._annotations].sort(
+    const annotations = annotationsSignal.get();
+    const sorted = [...annotations].sort(
       (a, b) =>
       ((b.createdAt || b.timestamp || 0) -
         (a.createdAt || a.timestamp || 0))
     );
-    const visible = this._showResolved ? sorted : sorted.filter((a) => !a.resolvedAt);
-    const openCount = this._annotations.filter((a) => !a.resolvedAt).length;
-    const rank = stableRanks(this._annotations);
+    const visible = this.showResolved ? sorted : sorted.filter((a) => !a.resolvedAt);
+    const openCount = annotations.filter((a) => !a.resolvedAt).length;
+    const rank = stableRanks(annotations);
 
     return html`
       <div class="bar">
         <span class="bar-title"><strong>Design Bridge</strong> — Annotations</span>
         <wa-badge pill variant=${openCount ? 'warning' : 'neutral'} appearance="filled">${openCount}</wa-badge>
-        <span class="dot${this._connected ? ' ok' : ''}"></span>
+        <span class="dot${this.connected ? ' ok' : ''}"></span>
         <span class="toggle-label">Show resolved</span>
         <wa-switch size="s"
-          ?checked=${this._showResolved}
-          @wa-change=${(e: Event) => { this._showResolved = (e.target as HTMLInputElement).checked; }}
+          ?checked=${this.showResolved}
+          @wa-change=${(e: Event) => { this.showResolved = (e.target as HTMLInputElement).checked; }}
         ></wa-switch>
       </div>
       <div class="list">
         ${visible.length === 0 ? html`
           <div class="empty">
-            ${this._annotations.length === 0
+            ${annotations.length === 0
           ? html`No annotations yet.<br><span style="color:var(--wa-color-text-quiet)">Hold Alt+Shift and click any element in your app.</span>`
           : 'All annotations resolved.'}
           </div>
@@ -260,5 +228,5 @@ export class BridgeReviewPage extends LitElement {
 }
 
 declare global {
-  interface HTMLElementTagNameMap { 'bridge-review-page': BridgeReviewPage; }
+  interface HTMLElementTagNameMap { 'db-review': DbReview; }
 }

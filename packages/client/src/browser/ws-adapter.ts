@@ -8,7 +8,7 @@
  * Direction B: Browser → Server
  *   onIntent() → translate ComponentIntent → BrowserMessage → sendMessage()
  *
- * Nothing in the UI layer (bridge-annotation-item) should import
+ * Nothing in the UI layer (db-annotation) should import
  * sendMessage or onMessage directly — they express what they want via intents.
  */
 

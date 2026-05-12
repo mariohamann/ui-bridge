@@ -5,10 +5,12 @@ const RECONNECT_BASE_MS = 500;
 const RECONNECT_MAX_MS = 10_000;
 
 type MessageHandler = (msg: ServerMessage) => void;
+type ConnectionHandler = (connected: boolean) => void;
 
 let ws: WebSocket | null = null;
 let reconnectDelay = RECONNECT_BASE_MS;
 const handlers = new Set<MessageHandler>();
+const connectionHandlers = new Set<ConnectionHandler>();
 const buffered: ServerMessage[] = [];
 
 function connect(): void {
@@ -20,6 +22,7 @@ function connect(): void {
 
   ws.addEventListener('open', () => {
     reconnectDelay = RECONNECT_BASE_MS;
+    for (const h of connectionHandlers) h(true);
     console.debug('[design-bridge] WebSocket connected');
   });
 
@@ -38,6 +41,7 @@ function connect(): void {
   });
 
   ws.addEventListener('close', () => {
+    for (const h of connectionHandlers) h(false);
     console.debug(`[design-bridge] WS closed – reconnecting in ${reconnectDelay}ms`);
     setTimeout(() => {
       reconnectDelay = Math.min(reconnectDelay * 2, RECONNECT_MAX_MS);
@@ -61,6 +65,11 @@ export function onMessage(handler: MessageHandler): () => void {
   for (const msg of buffered) handler(msg);
   buffered.length = 0;
   return () => handlers.delete(handler);
+}
+
+export function onConnectionChange(handler: ConnectionHandler): () => void {
+  connectionHandlers.add(handler);
+  return () => connectionHandlers.delete(handler);
 }
 
 connect();
