@@ -13,14 +13,6 @@
       "import": "./dist/styles/tokens.js",
       "types": "./dist/styles/tokens.d.ts"
     },
-    "./styles/base-controls": {
-      "import": "./dist/styles/base-controls.js",
-      "types": "./dist/styles/base-controls.d.ts"
-    },
-    "./styles/panel-layout": {
-      "import": "./dist/styles/panel-layout.js",
-      "types": "./dist/styles/panel-layout.d.ts"
-    },
     "./state/knobs-store": {
       "import": "./dist/state/knobs-store.js",
       "types": "./dist/state/knobs-store.d.ts"
@@ -29,30 +21,39 @@
       "import": "./dist/state/annotations-store.js",
       "types": "./dist/state/annotations-store.d.ts"
     },
-    "./state/panel-ui-store": {
-      "import": "./dist/state/panel-ui-store.js",
-      "types": "./dist/state/panel-ui-store.d.ts"
-    },
     "./state/intents": {
       "import": "./dist/state/intents.js",
       "types": "./dist/state/intents.d.ts"
     },
     "./review": {
-      "import": "./dist/review/bridge-review-page.js",
-      "types": "./dist/review/bridge-review-page.d.ts"
+      "import": "./dist/review/index.js",
+      "types": "./dist/review/index.d.ts"
+    },
+    "./annotation": {
+      "import": "./dist/annotation/index.js",
+      "types": "./dist/annotation/index.d.ts"
+    },
+    "./annotation/utils": {
+      "import": "./dist/annotation/annotation-item-utils.js",
+      "types": "./dist/annotation/annotation-item-utils.d.ts"
     }
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "test": "node --test tests/stores.test.mjs"
+    "test": "node --test tests/stores.test.mjs",
+    "postinstall": "cp -r node_modules/@awesome.me/webawesome/dist/skills/webawesome ../../.agents/skills/webawesome"
   },
   "dependencies": {
+    "@awesome.me/webawesome": "^3.6.0",
     "@design-bridge/core": "workspace:*",
+    "@floating-ui/dom": "^1.7.6",
+    "autosize": "^6.0.1",
     "@lit-labs/signals": "^0.2.0",
     "lit": "^3.3.0",
     "signal-polyfill": "^0.2.2"
   },
   "devDependencies": {
+    "@types/autosize": "^4.0.3",
     "typescript": "~6.0.2"
   }
 }

@@ -8,6 +8,8 @@
  * No WebSocket or browser-API imports here — this module is transport-agnostic.
  */
 
+import type { Annotation } from '@design-bridge/core';
+
 // ── Intent types ──────────────────────────────────────────────────────────────
 
 export type TweakChangeIntent = { type: 'tweak:change'; marker: string; value: string; };
@@ -21,6 +23,10 @@ export type TweakDismissOneIntent = { type: 'tweak:dismiss-one'; annotationId: s
 export type AnnotationDeleteIntent = { type: 'annotation:delete'; id: string; };
 export type AnnotationClearIntent = { type: 'annotation:clear'; };
 export type AnnotationOpenIntent = { type: 'annotation:open'; id: string; };
+export type AnnotationSaveIntent = { type: 'annotation:save'; annotation: Annotation; };
+export type AnnotationCancelIntent = { type: 'annotation:cancel'; id: string; };
+export type AnnotationResolveIntent = { type: 'annotation:resolve'; id: string; };
+export type AnnotationBadgeClickIntent = { type: 'annotation:badge-click'; id: string; };
 
 export type PanelTabIntent = { type: 'panel:set-tab'; tab: 'tweaks' | 'annotations'; };
 export type PanelCollapseIntent = { type: 'panel:set-collapsed'; collapsed: boolean; };
@@ -36,6 +42,10 @@ export type ComponentIntent =
   | AnnotationDeleteIntent
   | AnnotationClearIntent
   | AnnotationOpenIntent
+  | AnnotationSaveIntent
+  | AnnotationCancelIntent
+  | AnnotationResolveIntent
+  | AnnotationBadgeClickIntent
   | PanelTabIntent
   | PanelCollapseIntent;
 

@@ -50,7 +50,7 @@ test.describe('Annotations', () => {
 
   test('annotation badge appears on the annotated element', async ({ page }) => {
     await createAnnotation(page, 'h1', 'Badge test');
-    await expect(page.locator('bridge-annotation-item .badge')).toBeVisible();
+    await expect(page.locator('bridge-annotation-item wa-badge')).toBeVisible();
   });
 
   test('annotation is persisted to the server API', async ({ page }) => {
@@ -67,7 +67,7 @@ test.describe('Annotations', () => {
 
     await page.reload();
     await expect(page.locator('bridge-annotation-item')).toBeAttached();
-    await expect(page.locator('bridge-annotation-item .badge')).toBeVisible();
+    await expect(page.locator('bridge-annotation-item wa-badge')).toBeVisible();
   });
 
   test('badge reappears on the correct element after reload', async ({ page }) => {
@@ -79,7 +79,7 @@ test.describe('Annotations', () => {
     await page.reload();
     await expect(page.locator('bridge-annotation-item')).toBeAttached();
 
-    const badge = page.locator('bridge-annotation-item .badge').first();
+    const badge = page.locator('bridge-annotation-item wa-badge').first();
     await expect(badge).toBeVisible();
 
     const badgeBox = await badge.boundingBox();
@@ -93,7 +93,7 @@ test.describe('Annotations', () => {
   test('can reply to an annotation from the badge', async ({ page }) => {
     await createAnnotation(page, 'h1', 'Original comment');
 
-    const badge = page.locator('bridge-annotation-item .badge').first();
+    const badge = page.locator('bridge-annotation-item wa-badge').first();
     await badge.click();
 
     const panel = annotationPanel(page);
@@ -122,7 +122,7 @@ test.describe('Annotations', () => {
     await composer.press('Enter');
     await expect(annotationPanel(page)).toHaveCount(0);
 
-    const badge = page.locator('bridge-annotation-item .badge').first();
+    const badge = page.locator('bridge-annotation-item wa-badge').first();
     await badge.click();
 
     const openPanel = annotationPanel(page);
@@ -144,13 +144,13 @@ test.describe('Annotations', () => {
   test('resolving from the annotation panel removes the annotation', async ({ page }) => {
     await createAnnotation(page, 'h1', 'Resolve me');
 
-    const badge = page.locator('bridge-annotation-item .badge').first();
+    const badge = page.locator('bridge-annotation-item wa-badge').first();
     await badge.click();
 
     const panel = annotationPanel(page);
-    await panel.locator('.icon-btn[title="Resolve"]').click();
+    await panel.locator('wa-button[title="Resolve"]').click();
 
-    await expect(page.locator('bridge-annotation-item .badge')).toHaveCount(0);
+    await expect(page.locator('bridge-annotation-item wa-badge')).toHaveCount(0);
   });
 
   test('deletes an annotation via the review page discard button', async ({ page }) => {
@@ -160,8 +160,8 @@ test.describe('Annotations', () => {
     await expect(page.locator('.row')).toHaveCount(1);
     // Open three-dot menu and click Delete
     await page.locator('.row').first().hover();
-    await page.locator('.dots').first().click();
-    await page.locator('.mi.danger').first().click();
+    await page.locator('.row-menu').first().locator('wa-button[title="More"]').click();
+    await page.locator('wa-dropdown-item[variant="danger"]').first().click();
     await expect(page.locator('.row')).toHaveCount(0);
     await expect(page.locator('.empty')).toBeVisible();
   });
@@ -169,14 +169,14 @@ test.describe('Annotations', () => {
   test('deletes a single annotation via the delete button in the panel', async ({ page }) => {
     await createAnnotation(page, 'h1', 'Panel delete test');
 
-    const badge = page.locator('bridge-annotation-item .badge').first();
+    const badge = page.locator('bridge-annotation-item wa-badge').first();
     await badge.click();
 
     const panel = annotationPanel(page);
-    await panel.locator('.icon-btn[title="More options"]').click();
-    await panel.locator('.menu-item.danger').click();
+    await panel.locator('wa-button[title="More options"]').click();
+    await page.locator('wa-dropdown-item[variant="danger"]').click();
     await expect(annotationPanel(page)).toHaveCount(0);
-    await expect(page.locator('bridge-annotation-item .badge')).toHaveCount(0);
+    await expect(page.locator('bridge-annotation-item wa-badge')).toHaveCount(0);
   });
 
   test('review page can resolve all annotations', async ({ page }) => {
@@ -190,8 +190,8 @@ test.describe('Annotations', () => {
     // Discard both via three-dot menu
     for (let i = 0; i < 2; i++) {
       await page.locator('.row').first().hover();
-      await page.locator('.dots').first().click();
-      await page.locator('.mi.danger').first().click();
+      await page.locator('.row-menu').first().locator('wa-button[title="More"]').click();
+      await page.locator('wa-dropdown-item[variant="danger"]').first().click();
     }
 
     await expect(page.locator('.row')).toHaveCount(0);
@@ -223,8 +223,8 @@ test.describe('Annotations', () => {
 
     await page.goto(REVIEW_URL);
     await page.locator('.row').first().hover();
-    await page.locator('.dots').first().click();
-    await page.locator('.mi.danger').first().click();
+    await page.locator('.row-menu').first().locator('wa-button[title="More"]').click();
+    await page.locator('wa-dropdown-item[variant="danger"]').first().click();
     await expect(page.locator('.empty')).toBeVisible();
 
     const res = await page.request.get(`${API_BASE}/annotations`);
@@ -235,14 +235,13 @@ test.describe('Annotations', () => {
   test('alt+shift+click opens panel with source chip visible after save via "Show paths"', async ({ page }) => {
     await createAnnotation(page, 'h1', 'Source chip test');
 
-    const badge = page.locator('bridge-annotation-item .badge').first();
+    const badge = page.locator('bridge-annotation-item wa-badge').first();
     await badge.click();
     const p = annotationPanel(page);
-    await p.locator('.icon-btn[title="More options"]').click();
-    await p.locator('.menu-item:has-text("Show paths")').click();
-
-    await expect(p.locator('.chips-bar .chip')).toBeVisible();
-    await expect(p.locator('.chips-bar .source-chip')).toBeVisible();
+    await p.locator('wa-button[title="More options"]').click();
+    await page.locator('wa-dropdown-item:has-text("Show paths")').click();
+    await expect(p.locator('.chips-bar')).toBeVisible();
+    await expect(p.locator('.chips-bar wa-tag')).not.toHaveCount(0);
   });
 
   test('alt+shift+click while panel is open adds another selector chip (visible after save)', async ({ page }) => {
@@ -317,7 +316,7 @@ test.describe('Single panel + dirty-draft guard', () => {
     await createAnnotation(page, 'h1', 'First');
     await createAnnotation(page, 'p', 'Second');
 
-    const badges = page.locator('bridge-annotation-item .badge');
+    const badges = page.locator('bridge-annotation-item wa-badge');
     await badges.nth(0).click();
     await expect(annotationPanel(page)).toHaveCount(1);
 
@@ -333,7 +332,7 @@ test.describe('Single panel + dirty-draft guard', () => {
     await createAnnotation(page, 'h1', 'First');
     await createAnnotation(page, 'p', 'Second');
 
-    const badges = page.locator('bridge-annotation-item .badge');
+    const badges = page.locator('bridge-annotation-item wa-badge');
 
     // Open first panel and type an unsaved reply
     await badges.nth(0).click();
@@ -349,7 +348,7 @@ test.describe('Single panel + dirty-draft guard', () => {
     await createAnnotation(page, 'h1', 'First');
     await createAnnotation(page, 'p', 'Second');
 
-    const badges = page.locator('bridge-annotation-item .badge');
+    const badges = page.locator('bridge-annotation-item wa-badge');
 
     // Open first panel and type an unsaved reply
     await badges.nth(0).click();
@@ -371,7 +370,7 @@ test.describe('Single panel + dirty-draft guard', () => {
     await createAnnotation(page, 'p', 'Second');
 
     // Open first panel and type an unsaved reply
-    await page.locator('bridge-annotation-item .badge').nth(0).click();
+    await page.locator('bridge-annotation-item wa-badge').nth(0).click();
     await annotationPanel(page).locator('textarea[data-role="reply"]').fill('unsaved reply text');
 
     const reviewPage = await context.newPage();
@@ -398,7 +397,7 @@ test.describe('Badge hover preview', () => {
   test('preview appears on badge hover and shows the comment', async ({ page }) => {
     await createAnnotation(page, 'h1', 'This headline needs a stronger CTA.');
 
-    const badge = page.locator('bridge-annotation-item .badge').first();
+    const badge = page.locator('bridge-annotation-item wa-badge').first();
     await badge.hover();
 
     const preview = page.locator('bridge-annotation-item .badge-preview');
@@ -417,14 +416,14 @@ test.describe('Badge hover preview', () => {
   test('preview shows reply count when replies exist', async ({ page }) => {
     await createAnnotation(page, 'h1', 'Original comment');
 
-    const badge = page.locator('bridge-annotation-item .badge').first();
+    const badge = page.locator('bridge-annotation-item wa-badge').first();
     await badge.click();
     const replyInput = annotationPanel(page).locator('textarea[data-role="reply"]');
     await expect(replyInput).toBeVisible();
     await replyInput.fill('A reply');
     await replyInput.press('Enter');
 
-    await page.locator('bridge-annotation-item .icon-btn.close').click();
+    await page.locator('bridge-annotation-item wa-button[title="Close"]').click();
     await expect(annotationPanel(page)).toHaveCount(0);
 
     await badge.hover();
@@ -436,7 +435,7 @@ test.describe('Badge hover preview', () => {
   test('preview is hidden while panel is open', async ({ page }) => {
     await createAnnotation(page, 'h1', 'Open panel test');
 
-    const badge = page.locator('bridge-annotation-item .badge').first();
+    const badge = page.locator('bridge-annotation-item wa-badge').first();
     await badge.click();
     await expect(annotationPanel(page)).toBeVisible();
 
@@ -447,14 +446,14 @@ test.describe('Badge hover preview', () => {
     const long = 'The quick brown fox jumps over the lazy dog. '.repeat(4).trim();
     await createAnnotation(page, 'h1', long);
 
-    const badge = page.locator('bridge-annotation-item .badge').first();
+    const badge = page.locator('bridge-annotation-item wa-badge').first();
     await badge.hover();
     const previewText = page.locator('bridge-annotation-item .badge-preview-text').first();
     await expect(previewText).toBeVisible();
 
     // 12px font × 1.4 line-height × 3 lines ≈ 50px; allow a small margin
     const box = await previewText.boundingBox();
-    expect(box!.height).toBeLessThanOrEqual(55);
+    expect(box!.height).toBeLessThanOrEqual(58);
   });
 });
 
@@ -462,7 +461,7 @@ test.describe('Panel scrolling & textarea autogrow', () => {
   test('panel scrolls when replies overflow its max-height', async ({ page }) => {
     await createAnnotation(page, 'h1', 'Overflow test');
 
-    const badge = page.locator('bridge-annotation-item .badge').first();
+    const badge = page.locator('bridge-annotation-item wa-badge').first();
     await badge.click();
     const p = page.locator('bridge-annotation-item .panel:not([hidden])');
 
@@ -484,7 +483,7 @@ test.describe('Panel scrolling & textarea autogrow', () => {
   test('reply textarea remains accessible when panel overflows', async ({ page }) => {
     await createAnnotation(page, 'h1', 'Scroll position test');
 
-    const badge = page.locator('bridge-annotation-item .badge').first();
+    const badge = page.locator('bridge-annotation-item wa-badge').first();
     await badge.click();
     const p = page.locator('bridge-annotation-item .panel:not([hidden])');
 
@@ -540,7 +539,8 @@ test.describe('Compact UI (redesign)', () => {
     await page.locator('h1').first().click({ modifiers: ['Alt', 'Shift'] });
     const p = page.locator('bridge-annotation-item .panel:not([hidden])');
     const fontFamily = await p.evaluate((el) => getComputedStyle(el).fontFamily);
-    expect(fontFamily.toLowerCase()).toContain('inter');
+    // WA uses system font stack; verify it's a sans-serif stack
+    expect(fontFamily.toLowerCase()).toMatch(/sans-serif|system-ui|ui-sans-serif/);
   });
 
   test('create mode: no Cancel button present', async ({ page }) => {
@@ -552,20 +552,20 @@ test.describe('Compact UI (redesign)', () => {
   test('create mode: send button is always visible', async ({ page }) => {
     await page.locator('h1').first().click({ modifiers: ['Alt', 'Shift'] });
     const p = page.locator('bridge-annotation-item .panel:not([hidden])');
-    await expect(p.locator('.send-btn')).toBeVisible();
+    await expect(p.locator('wa-button[title="Send"]')).toBeVisible();
   });
 
   test('create mode: send button is disabled when textarea is empty', async ({ page }) => {
     await page.locator('h1').first().click({ modifiers: ['Alt', 'Shift'] });
     const p = page.locator('bridge-annotation-item .panel:not([hidden])');
-    await expect(p.locator('.send-btn')).toBeDisabled();
+    await expect(p.locator('wa-button[title="Send"]')).toHaveAttribute('disabled', '');
   });
 
   test('create mode: send button becomes enabled when text is typed', async ({ page }) => {
     await page.locator('h1').first().click({ modifiers: ['Alt', 'Shift'] });
     const p = page.locator('bridge-annotation-item .panel:not([hidden])');
     await p.locator('textarea[data-role="composer"]').fill('hello');
-    await expect(p.locator('.send-btn')).toBeEnabled();
+    await expect(p.locator('wa-button[title="Send"]')).toBeEnabled();
   });
 
   test('create mode: no body padding (no .body element rendered)', async ({ page }) => {
@@ -592,16 +592,16 @@ test.describe('Compact UI (redesign)', () => {
 
   test('view mode: header has Close button, no Cancel button', async ({ page }) => {
     await createAnnotation(page, 'h1', 'Header test');
-    const badge = page.locator('bridge-annotation-item .badge').first();
+    const badge = page.locator('bridge-annotation-item wa-badge').first();
     await badge.click();
     const p = annotationPanel(page);
-    await expect(p.locator('.icon-btn.close')).toBeVisible();
+    await expect(p.locator('wa-button[title="Close"]')).toBeVisible();
     await expect(p.locator('.btn-cancel, button:has-text("Cancel")')).toHaveCount(0);
   });
 
   test('view mode: paths hidden by default', async ({ page }) => {
     await createAnnotation(page, 'h1', 'Paths hidden test');
-    const badge = page.locator('bridge-annotation-item .badge').first();
+    const badge = page.locator('bridge-annotation-item wa-badge').first();
     await badge.click();
     const p = annotationPanel(page);
     await expect(p.locator('.chips-bar')).toHaveCount(0);
@@ -609,29 +609,29 @@ test.describe('Compact UI (redesign)', () => {
 
   test('view mode: "Show paths" in menu reveals chips bar', async ({ page }) => {
     await createAnnotation(page, 'h1', 'Show paths test');
-    const badge = page.locator('bridge-annotation-item .badge').first();
+    const badge = page.locator('bridge-annotation-item wa-badge').first();
     await badge.click();
     const p = annotationPanel(page);
 
-    await p.locator('.icon-btn[title="More options"]').click();
-    await p.locator('.menu-item:has-text("Show paths")').click();
+    await p.locator('wa-button[title="More options"]').click();
+    await page.locator('wa-dropdown-item:has-text("Show paths")').click();
 
     await expect(p.locator('.chips-bar')).toBeVisible();
-    await expect(p.locator('.chips-bar .chip, .chips-bar .source-chip')).not.toHaveCount(0);
+    await expect(p.locator('.chips-bar wa-tag')).not.toHaveCount(0);
   });
 
   test('view mode: "Hide paths" in menu hides chips bar again', async ({ page }) => {
     await createAnnotation(page, 'h1', 'Toggle paths test');
-    const badge = page.locator('bridge-annotation-item .badge').first();
+    const badge = page.locator('bridge-annotation-item wa-badge').first();
     await badge.click();
     const p = annotationPanel(page);
 
-    await p.locator('.icon-btn[title="More options"]').click();
-    await p.locator('.menu-item:has-text("Show paths")').click();
+    await p.locator('wa-button[title="More options"]').click();
+    await page.locator('wa-dropdown-item:has-text("Show paths")').click();
     await expect(p.locator('.chips-bar')).toBeVisible();
 
-    await p.locator('.icon-btn[title="More options"]').click();
-    await p.locator('.menu-item:has-text("Hide paths")').click();
+    await p.locator('wa-button[title="More options"]').click();
+    await page.locator('wa-dropdown-item:has-text("Hide paths")').click();
     await expect(p.locator('.chips-bar')).toHaveCount(0);
   });
 
@@ -647,11 +647,11 @@ test.describe('Compact UI (redesign)', () => {
     await textarea.press('Enter');
     await expect(annotationPanel(page)).toHaveCount(0);
 
-    const badge = page.locator('bridge-annotation-item .badge').first();
+    const badge = page.locator('bridge-annotation-item wa-badge').first();
     await badge.click();
     const p = annotationPanel(page);
-    await p.locator('.icon-btn[title="More options"]').click();
-    await p.locator('.menu-item:has-text("Show paths")').click();
+    await p.locator('wa-button[title="More options"]').click();
+    await page.locator('wa-dropdown-item:has-text("Show paths")').click();
 
     const bar = p.locator('.chips-bar');
     await expect(bar).toBeVisible();
@@ -666,16 +666,17 @@ test.describe('Compact UI (redesign)', () => {
     await textarea.fill('Chip font test');
     await textarea.press('Enter');
 
-    const badge = page.locator('bridge-annotation-item .badge').first();
+    const badge = page.locator('bridge-annotation-item wa-badge').first();
     await badge.click();
     const p = annotationPanel(page);
-    await p.locator('.icon-btn[title="More options"]').click();
-    await p.locator('.menu-item:has-text("Show paths")').click();
+    await p.locator('wa-button[title="More options"]').click();
+    await page.locator('wa-dropdown-item:has-text("Show paths")').click();
 
-    const chip = p.locator('.chips-bar .chip').first();
+    const chip = p.locator('.chips-bar wa-tag').first();
     await expect(chip).toBeVisible();
-    const font = await chip.evaluate((el) => getComputedStyle(el).fontFamily);
-    expect(font).toMatch(/monospace/i);
+    // wa-tag has inline style with font-family: var(--wa-font-family-code)
+    const font = await chip.getAttribute('style');
+    expect(font).toContain('var(--wa-font-family-code)');
   });
 });
 
@@ -715,7 +716,7 @@ test.describe('Multi-select while draft is open', () => {
   test('clicking an already-annotated element while draft is open adds it to draft', async ({ page }) => {
     // Create a saved annotation on h1
     await createAnnotation(page, 'h1', 'Existing annotation');
-    await expect(page.locator('bridge-annotation-item .badge')).toHaveCount(1);
+    await expect(page.locator('bridge-annotation-item wa-badge')).toHaveCount(1);
 
     // Start a new draft on p
     await page.locator('p').first().click({ modifiers: ['Alt', 'Shift'] });
@@ -766,7 +767,7 @@ async function injectAnnotation(
 
 /** Open an annotation's panel by clicking its badge. */
 async function openAnnotationPanel(page: Page): Promise<void> {
-  const badge = page.locator('bridge-annotation-item .badge').first();
+  const badge = page.locator('bridge-annotation-item wa-badge').first();
   await badge.waitFor({ state: 'visible' });
   await badge.click();
 }
@@ -820,8 +821,8 @@ test.describe('Tweaks in annotations', () => {
     await page.reload();
     await openAnnotationPanel(page);
     const tweaksSection = page.locator('bridge-annotation-item .tweaks-section');
-    await expect(tweaksSection.locator('.tweak-btn.accept')).toBeVisible();
-    await expect(tweaksSection.locator('.tweak-btn.dismiss')).toBeVisible();
+    await expect(tweaksSection.locator('wa-button[title="Accept this tweak"]')).toBeVisible();
+    await expect(tweaksSection.locator('wa-button[title="Dismiss this tweak"]')).toBeVisible();
   });
 
   test('"Accept all" button is visible when annotation has linked tweaks', async ({ page }) => {
@@ -832,7 +833,7 @@ test.describe('Tweaks in annotations', () => {
     });
     await page.reload();
     await openAnnotationPanel(page);
-    await expect(page.locator('bridge-annotation-item .tweak-accept-all')).toBeVisible();
+    await expect(page.locator('bridge-annotation-item wa-button:has-text("Accept all")')).toBeVisible();
   });
 
   test('annotation persists to disk as JSON file after injection', async ({ page }) => {

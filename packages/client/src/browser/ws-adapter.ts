@@ -8,7 +8,7 @@
  * Direction B: Browser → Server
  *   onIntent() → translate ComponentIntent → BrowserMessage → sendMessage()
  *
- * Nothing in the UI layer (bridge-panel, bridge-annotation-item) should import
+ * Nothing in the UI layer (bridge-annotation-item) should import
  * sendMessage or onMessage directly — they express what they want via intents.
  */
 
@@ -64,7 +64,6 @@ onIntent((intent) => {
       break;
     // annotation:delete / clear are handled locally by inspector.ts which also
     // calls sendMessage. Panel dispatches these through the annotation store.
-    // annotation:open is handled by bridge-panel directly via getItemById().
     default:
       break;
   }

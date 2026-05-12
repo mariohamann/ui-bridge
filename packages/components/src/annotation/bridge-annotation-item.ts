@@ -4,8 +4,8 @@ import { computePosition, autoUpdate, flip, shift, offset } from '@floating-ui/d
 import autosize from 'autosize';
 import type { Annotation, AnnotationReply, AnnotationSource, AnnotationTweakLink } from '@design-bridge/core';
 import { annotationItemStyles } from './annotation-item-styles.js';
-import { uid, buildAnnotationSelector, shortLabel, relativeTime, formatTweakReply } from './annotation-item-utils.js';
-import { annotationBus } from './annotation-bus.js';
+import { uid, shortLabel, formatTweakReply } from './annotation-item-utils.js';
+import { dispatchIntent } from '../state/intents.js';
 
 const HIGHLIGHT_ATTR = 'data-db-related';
 
@@ -42,7 +42,6 @@ export class BridgeAnnotationItem extends LitElement {
   @state() private _pendingLabels: string[] = [];
   @state() private _pendingSource: AnnotationSource | null = null;
   @state() private _createdAt = 0;
-  @state() private _showMenu = false;
   @state() private _showPaths = false;
 
   // ── badge + panel + preview position ────────────────────────────────────
@@ -58,27 +57,30 @@ export class BridgeAnnotationItem extends LitElement {
   private _cleanupPreview: (() => void) | null = null;
 
   private _anchorEl: Element | null = null;
+  private _pendingElements: Set<Element> = new Set();
 
   // ────────────────────────────────────────────────────────────────────────
-  // Public API (called by inspector.ts / bridge-panel.ts)
+  // Public API (called by inspector.ts)
   // ────────────────────────────────────────────────────────────────────────
 
   /**
    * Initialise as a draft item anchored to a DOM element.
    * Called immediately on Alt+Shift+click — before any annotation is saved.
+   * The caller (inspector) must provide a pre-computed CSS selector string.
    */
-  initDraft(el: Element): void {
+  initDraft(el: Element, selector: string): void {
     this._anchorEl = el;
     this._pendingId = uid();
-    this._pendingSelectors = [buildAnnotationSelector(el)];
+    this._pendingSelectors = [selector];
     this._pendingLabels = [shortLabel(el)];
+    this._pendingElements = new Set([el]);
     this._pendingSource = null;
     this._draft = '';
     this._replyDraft = '';
     this._createdAt = Date.now();
     this._mode = 'create';
     this._open = true;
-    this._showMenu = false;
+
     this._repositionBadge();
     this._highlightRelated();
     this._focusTextarea();
@@ -91,12 +93,13 @@ export class BridgeAnnotationItem extends LitElement {
     }
   }
 
-  /** Add another selector to an open draft. */
-  addDraftSelector(el: Element): void {
+  /** Add another selector to an open draft. Caller provides the pre-computed selector. */
+  addDraftSelector(el: Element, selector: string): void {
     if (this._mode !== 'create') return;
-    const sel = buildAnnotationSelector(el);
-    if (!this._pendingSelectors.includes(sel)) {
-      this._pendingSelectors = [...this._pendingSelectors, sel];
+    // Deduplicate by element reference (selector strings can differ between calls)
+    if (!this._pendingElements.has(el) && !this._pendingSelectors.includes(selector)) {
+      this._pendingElements.add(el);
+      this._pendingSelectors = [...this._pendingSelectors, selector];
       this._pendingLabels = [...this._pendingLabels, shortLabel(el)];
     }
     // Update anchor to the latest element so badge tracks it
@@ -120,7 +123,6 @@ export class BridgeAnnotationItem extends LitElement {
   /** Close without discarding the annotation. */
   closePanel(): void {
     this._open = false;
-    this._showMenu = false;
   }
 
   /** Close and discard any unsaved draft text. */
@@ -159,7 +161,7 @@ export class BridgeAnnotationItem extends LitElement {
     }
     const updated = this._buildAnnotation({ replies, linkedTweaks });
     this.annotation = updated;
-    annotationBus.emit('annotation-save', updated);
+    dispatchIntent({ type: 'annotation:save', annotation: updated });
   }
 
   get isOpen(): boolean { return this._open; }
@@ -182,6 +184,7 @@ export class BridgeAnnotationItem extends LitElement {
 
   connectedCallback(): void {
     super.connectedCallback();
+    this.classList.add('wa-dark');
     document.addEventListener('pointerdown', this._onDocPointerDown, true);
     window.addEventListener('scroll', this._repositionBadge, { passive: true, capture: true });
     window.addEventListener('resize', this._repositionBadge, { passive: true });
@@ -312,7 +315,9 @@ export class BridgeAnnotationItem extends LitElement {
   };
 
   private _onBadgeMouseLeave = (): void => {
-    this._clearHighlight();
+    // Only clear highlights when not in draft mode — in create mode the highlights
+    // represent selected elements and must persist until the draft is saved/cancelled.
+    if (this._mode !== 'create') this._clearHighlight();
     this._hovered = false;
     this._cleanupPreview?.();
     this._cleanupPreview = null;
@@ -345,9 +350,7 @@ export class BridgeAnnotationItem extends LitElement {
   private _onBadgeClick(e: MouseEvent): void {
     e.stopPropagation();
     if (this._mode === 'view') {
-      // Always route through focusAnnotation so single-panel + dirty-guard logic runs.
-      // focusAnnotation will toggle the panel closed if it was already open.
-      annotationBus.emit('annotation-badge-click', { id: this.annotation!.id });
+      dispatchIntent({ type: 'annotation:badge-click', id: this.annotation!.id });
     }
     // In create mode the panel is already open; clicking badge does nothing extra
   }
@@ -358,15 +361,11 @@ export class BridgeAnnotationItem extends LitElement {
     // Alt+Shift click is an inspect-mode multi-select, not a dismiss action
     if (e.altKey && e.shiftKey) return;
     if (this._mode === 'view') {
-      // If the user has started typing, wobble instead of closing so they don't
-      // lose their draft. The inspector's focusAnnotation() will handle the
-      // two-click confirmation when switching to another annotation.
       if (this.hasDirtyDraft) {
         this.wobble();
         return;
       }
       this._open = false;
-      this._showMenu = false;
     }
     // In create mode, outside click = cancel
     if (this._mode === 'create') {
@@ -377,7 +376,6 @@ export class BridgeAnnotationItem extends LitElement {
   private _onKeyDown = (e: KeyboardEvent): void => {
     if (e.key === 'Escape') {
       e.stopPropagation();
-      if (this._showMenu) { this._showMenu = false; return; }
       if (this._mode === 'create') { this._cancelDraft(); return; }
       this._open = false;
     }
@@ -429,6 +427,8 @@ export class BridgeAnnotationItem extends LitElement {
   }
 
   private _removeChip(index: number): void {
+    const elArr = [...this._pendingElements];
+    if (elArr[index]) this._pendingElements.delete(elArr[index]);
     this._pendingSelectors = this._pendingSelectors.filter((_, i) => i !== index);
     this._pendingLabels = this._pendingLabels.filter((_, i) => i !== index);
     if (this._pendingSelectors.length === 0 && !this._pendingSource) this._cancelDraft();
@@ -450,7 +450,7 @@ export class BridgeAnnotationItem extends LitElement {
     this._mode = 'view';
     this._draft = '';
     this._open = false;
-    annotationBus.emit('annotation-save', ann);
+    dispatchIntent({ type: 'annotation:save', annotation: ann });
   }
 
   private _saveReply(): void {
@@ -467,20 +467,19 @@ export class BridgeAnnotationItem extends LitElement {
     });
     this.annotation = updated;
     this._replyDraft = '';
-    annotationBus.emit('annotation-save', updated);
+    dispatchIntent({ type: 'annotation:save', annotation: updated });
   }
 
   private _cancelDraft(): void {
     this._clearHighlight();
-    annotationBus.emit('annotation-cancel', { id: this._pendingId });
+    dispatchIntent({ type: 'annotation:cancel', id: this._pendingId });
     // inspector.ts will remove this element from the DOM
   }
 
   private _delete(): void {
     if (this.annotation) {
-      annotationBus.emit('annotation-delete', { id: this.annotation.id });
+      dispatchIntent({ type: 'annotation:delete', id: this.annotation.id });
     }
-    this._showMenu = false;
     this._open = false;
   }
 
@@ -490,30 +489,28 @@ export class BridgeAnnotationItem extends LitElement {
       ? wsUrl.replace(/^ws:\/\//, 'http://').replace(/\/design-bridge$/, '/')
       : 'http://localhost:7378/';
     navigator.clipboard.writeText(url).catch(() => { });
-    this._showMenu = false;
   }
 
   private _resolve(): void {
-    this._showMenu = false;
     if (!this.annotation) return;
-    annotationBus.emit('annotation-delete', { id: this.annotation.id });
+    dispatchIntent({ type: 'annotation:delete', id: this.annotation.id });
     this._open = false;
   }
 
   private _acceptAllTweaks(): void {
     if (!this.annotation) return;
-    annotationBus.emit('annotation-accept-tweaks', { annotationId: this.annotation.id });
+    dispatchIntent({ type: 'tweak:accept-annotation', annotationId: this.annotation.id });
     this._open = false;
   }
 
   private _acceptOneTweak(marker: string): void {
     if (!this.annotation) return;
-    annotationBus.emit('tweak-accept', { annotationId: this.annotation.id, marker });
+    dispatchIntent({ type: 'tweak:accept-one', annotationId: this.annotation.id, marker });
   }
 
   private _dismissTweak(marker: string): void {
     if (!this.annotation) return;
-    annotationBus.emit('tweak-dismiss', { annotationId: this.annotation.id, marker });
+    dispatchIntent({ type: 'tweak:dismiss-one', annotationId: this.annotation.id, marker });
   }
 
   // ────────────────────────────────────────────────────────────────────────
@@ -527,14 +524,14 @@ export class BridgeAnnotationItem extends LitElement {
       <div class="tweaks-section">
         <div class="tweaks-section-header">
           <span class="tweaks-section-title">Tweaks</span>
-          <button class="tweak-accept-all" @click=${this._acceptAllTweaks} title="Accept all tweaks and resolve annotation">Accept all ✓</button>
+          <wa-button appearance="outlined" variant="success" size="s" @click=${this._acceptAllTweaks} title="Accept all tweaks and resolve annotation">Accept all ✓</wa-button>
         </div>
         ${tweaks.map((t) => html`
           <div class="tweak-row">
             <span class="tweak-label">${t.label ?? t.marker}</span>
             <span class="tweak-value">${t.lastValue}</span>
-            <button class="tweak-btn accept" @click=${() => this._acceptOneTweak(t.marker)} title="Accept this tweak">✓</button>
-            <button class="tweak-btn dismiss" @click=${() => this._dismissTweak(t.marker)} title="Dismiss this tweak">✕</button>
+            <wa-button appearance="plain" size="s" title="Accept this tweak" @click=${() => this._acceptOneTweak(t.marker)}>✓</wa-button>
+            <wa-button appearance="plain" size="s" title="Dismiss this tweak" @click=${() => this._dismissTweak(t.marker)}>✕</wa-button>
           </div>
         `)}
       </div>
@@ -546,31 +543,33 @@ export class BridgeAnnotationItem extends LitElement {
     return html`
       <div class="header">
         <span class="header-title">Comment</span>
-        <div class="menu-wrap">
-          <button class="icon-btn" @click=${() => { this._showMenu = !this._showMenu; }} title="More options">···</button>
-          ${this._showMenu ? html`
-            <div class="overflow-menu">
-              <button class="menu-item" @click=${() => { this._showPaths = !this._showPaths; this._showMenu = false; }}>${this._showPaths ? 'Hide paths' : 'Show paths'}</button>
-              <button class="menu-item" @click=${this._copyReviewLink}>Copy link to annotation list</button>
-              <button class="menu-item danger" @click=${this._delete}>Delete</button>
-            </div>
-          ` : ''}
-        </div>
-        <button class="icon-btn resolve" @click=${this._resolve} title="Resolve">✓</button>
-        <button class="icon-btn close" @click=${() => { this._open = false; }} title="Close">✕</button>
+        <wa-dropdown size="s" @wa-select=${(e: CustomEvent) => {
+        const val = e.detail.item.value;
+        if (val === 'paths') { this._showPaths = !this._showPaths; }
+        else if (val === 'copy-link') { this._copyReviewLink(); }
+        else if (val === 'delete') { this._delete(); }
+      }}>
+          <wa-button slot="trigger" appearance="plain" size="s" title="More options">···</wa-button>
+          <wa-dropdown-item value="paths">${this._showPaths ? 'Hide paths' : 'Show paths'}</wa-dropdown-item>
+          <wa-dropdown-item value="copy-link">Copy link to annotation list</wa-dropdown-item>
+          <wa-divider></wa-divider>
+          <wa-dropdown-item value="delete" variant="danger">Delete</wa-dropdown-item>
+        </wa-dropdown>
+        <wa-button appearance="plain" size="s" title="Resolve" @click=${this._resolve}>✓</wa-button>
+        <wa-button appearance="plain" size="s" title="Close" @click=${() => { this._open = false; }}>✕</wa-button>
       </div>
     `;
   }
 
   private _renderSendBtn(enabled: boolean, onClick: () => void): TemplateResult {
-    return html`<button class="send-btn" ?disabled=${!enabled} @click=${enabled ? onClick : undefined} title="Send">↑</button>`;
+    return html`<wa-button appearance="filled" variant="brand" size="s" ?disabled=${!enabled} @click=${enabled ? onClick : undefined} title="Send">↑</wa-button>`;
   }
 
   private _renderReplies(): TemplateResult {
     if (!this.annotation) return html``;
     return html`${this._normalizeReplies(this.annotation).map((r) => html`
       <div class="comment-text">${r.text}</div>
-      <div class="timestamp">${relativeTime(r.createdAt)}</div>
+      <wa-relative-time sync .date=${new Date(r.createdAt)} style="font-size:var(--wa-font-size-xs);color:var(--wa-color-text-quiet);display:block;margin-bottom:var(--wa-space-s);"></wa-relative-time>
     `)}`;
   }
 
@@ -582,27 +581,36 @@ export class BridgeAnnotationItem extends LitElement {
     return html`
       <div class="chips-bar">
         ${selectors.map((sel, i) => html`
-          <span class="chip" title=${sel}>
+          <wa-tag
+            variant="warning"
+            appearance="outlined"
+            size="s"
+            title=${sel}
+            style="font-family:var(--wa-font-family-code);max-width:160px;overflow:hidden;text-overflow:ellipsis;"
+            ?with-remove=${editable}
+            @wa-remove=${editable ? (e: Event) => { e.stopPropagation(); this._removeChip(i); } : undefined}
+          >
             ${sel}
-            ${editable ? html`<button @click=${() => this._removeChip(i)}>×</button>` : ''}
-          </span>
+          </wa-tag>
         `)}
         ${source ? html`
-          <div class="source-chip" title="${source.file}:${source.line}:${source.column}">
-            📍 <span class="source-chip-label">${source.file}:${source.line}:${source.column}</span>
-          </div>
+          <wa-tag
+            variant="brand"
+            appearance="outlined"
+            size="s"
+            title="${source.file}:${source.line}:${source.column}"
+            style="font-family:var(--wa-font-family-code);max-width:200px;overflow:hidden;text-overflow:ellipsis;"
+          >📍 ${source.file}:${source.line}:${source.column}</wa-tag>
         ` : ''}
       </div>
     `;
   }
 
   private _renderBadgePreview(): TemplateResult {
-    // Only show preview for saved annotations when the panel is closed
     if (!this.annotation || this._open) return html``;
     const comment = this.annotation.comment ?? '';
     const replies = this._normalizeReplies(this.annotation);
     const tweakCount = replies.filter((r) => r.type === 'tweak').length;
-    // Subtract 1 for the root comment itself (shown as the preview text)
     const replyCount = replies.filter((r) => r.type !== 'tweak').length - 1;
     const parts: string[] = [];
     if (replyCount > 0) parts.push(`${replyCount} repl${replyCount === 1 ? 'y' : 'ies'}`);
@@ -625,16 +633,21 @@ export class BridgeAnnotationItem extends LitElement {
     const canSendNew = this._draft.trim().length > 0;
     const canSendReply = this._replyDraft.trim().length > 0;
 
+    const badgeVariant = isResolved ? 'success' : 'warning';
+
     return html`
       <!-- Badge dot -->
-      <div
+      <wa-badge
+        variant=${badgeVariant}
+        appearance="filled"
+        pill="true"
         class="badge${isResolved ? ' resolved' : isDraft ? ' draft' : ''}"
-        style="top:${this._badgeTop}px;left:${this._badgeLeft}px"
+        style="position:fixed;top:${this._badgeTop}px;left:${this._badgeLeft}px"
         title=${this.annotation?.comment ?? this._pendingLabels.join(', ')}
         @mouseenter=${this._onBadgeMouseEnter}
         @mouseleave=${this._onBadgeMouseLeave}
         @click=${this._onBadgeClick}
-      >${label}</div>
+      >${label}</wa-badge>
 
       <!-- Badge hover preview (floating-ui positioned) -->
       ${this._renderBadgePreview()}

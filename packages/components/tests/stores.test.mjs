@@ -12,8 +12,6 @@ import assert from 'node:assert/strict';
 import {
   knobsSignal, updateKnobs, getKnobByMarker,
   annotationsSignal, updateAnnotations,
-  activeTabSignal, collapsedSignal, snapSignal,
-  setActiveTab, setCollapsed, setSnap, hydrateFromPersisted,
   dispatchIntent, onIntent,
 } from '../dist/index.js';
 
@@ -90,53 +88,6 @@ describe('annotations store', () => {
     updateAnnotations([makeAnnotation('new1'), makeAnnotation('new2')]);
     const ids = annotationsSignal.get().map((a) => a.id);
     assert.deepEqual(ids, ['new1', 'new2']);
-  });
-});
-
-// ── panel-ui store ────────────────────────────────────────────────────────────
-
-describe('panel-ui store', () => {
-  beforeEach(() => {
-    setActiveTab('tweaks');
-    setCollapsed(false);
-    setSnap(null);
-  });
-
-  test('activeTab defaults to tweaks', () => {
-    assert.equal(activeTabSignal.get(), 'tweaks');
-  });
-
-  test('setActiveTab switches to annotations', () => {
-    setActiveTab('annotations');
-    assert.equal(activeTabSignal.get(), 'annotations');
-  });
-
-  test('setCollapsed toggles collapsed state', () => {
-    assert.equal(collapsedSignal.get(), false);
-    setCollapsed(true);
-    assert.equal(collapsedSignal.get(), true);
-    setCollapsed(false);
-    assert.equal(collapsedSignal.get(), false);
-  });
-
-  test('setSnap stores snap position', () => {
-    setSnap('left');
-    assert.equal(snapSignal.get(), 'left');
-    setSnap(null);
-    assert.equal(snapSignal.get(), null);
-  });
-
-  test('hydrateFromPersisted sets all fields', () => {
-    hydrateFromPersisted({ activeTab: 'annotations', collapsed: true, snap: 'right' });
-    assert.equal(activeTabSignal.get(), 'annotations');
-    assert.equal(collapsedSignal.get(), true);
-    assert.equal(snapSignal.get(), 'right');
-  });
-
-  test('hydrateFromPersisted with empty object leaves current values unchanged', () => {
-    setActiveTab('annotations');
-    hydrateFromPersisted({});
-    assert.equal(activeTabSignal.get(), 'annotations');
   });
 });
 

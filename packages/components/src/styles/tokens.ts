@@ -1,22 +1,10 @@
-import { css } from 'lit';
+import { css, unsafeCSS } from 'lit';
+import waCss from '@awesome.me/webawesome/dist/styles/webawesome.css?shadow';
 
-// Shared design tokens for panel/annotation components.
-export const designBridgeHostTokenStyles = css`
-  :host {
-    --db-bg: #1e1e2e;
-    --db-surface: #313244;
-    --db-border: #45475a;
-    --db-text: #cdd6f4;
-    --db-muted: #6c7086;
-    --db-subtext: #a6adc8;
-    --db-amber: #f59e0b;
-    --db-amber-dim: rgba(245, 158, 11, 0.12);
-    --db-blue: #89b4fa;
-    --db-red: #f38ba8;
-    --db-green: #a6e3a1;
-    --db-font-mono: ui-monospace, monospace;
-    --db-font: 'Inter', system-ui, -apple-system, sans-serif;
-    --db-radius: 4px;
-    --db-panel-radius: 8px;
-  }
-`;
+// Injects the full Web Awesome stylesheet (tokens, dark palette, font-face) into
+// the component's own shadow DOM. This keeps all WA styles scoped to our UI and
+// prevents any bleed onto the host page.
+export const designBridgeHostTokenStyles = [
+  unsafeCSS(waCss),
+  css`:host { color-scheme: dark; }`,
+];

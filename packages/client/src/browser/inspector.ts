@@ -10,9 +10,8 @@
 import { sendMessage, onMessage } from './ws-client.js';
 import { finder, idName } from '@medv/finder';
 import type { Annotation } from '@design-bridge/core';
-import type { BridgeAnnotationItem } from '../client/panel/bridge-annotation-item.js';
-import { annotationBus } from '../client/panel/annotation-bus.js';
-import { updateAnnotations } from '@design-bridge/components';
+import type { BridgeAnnotationItem } from '@design-bridge/components';
+import { onIntent, updateAnnotations } from '@design-bridge/components';
 
 // ─── Selector helper ──────────────────────────────────────────────────────────
 
@@ -184,7 +183,7 @@ function reconcileItems(): void {
 let lastInspectedEl: Element | null = null;
 
 function isOwnUI(el: Element): boolean {
-  return !!el.closest('bridge-panel, bridge-annotation-item');
+  return !!el.closest('bridge-annotation-item');
 }
 
 function onPointerMoveForInspect(e: MouseEvent): void {
@@ -212,7 +211,7 @@ function onPointerDownForInspect(e: PointerEvent): void {
   );
   if (!target) return;
   lastInspectedEl = target;
-  draftItem.addDraftSelector(target);
+  draftItem.addDraftSelector(target, buildSelector(target));
 }
 
 function onTrackCode(e: Event): void {
@@ -230,48 +229,20 @@ function onTrackCode(e: Event): void {
     // Open the existing saved item (only when not in draft/multi-select mode)
     openItemPanel(getItemById(existing.id)!);
   } else if (draftItem) {
-    // Draft already open: add another selector + update source
-    draftItem.addDraftSelector(el);
+    // Draft already open: add selector (deduped by element ref) + update source.
+    draftItem.addDraftSelector(el, buildSelector(el));
     draftItem.setDraftSource({ file: detail.path, line: detail.line, column: detail.column });
   } else {
     // Create a new draft item immediately
     const item = document.createElement('bridge-annotation-item') as BridgeAnnotationItem;
     itemContainer.appendChild(item);
     draftItem = item;
-    item.initDraft(el);
+    item.initDraft(el, buildSelector(el));
     item.setDraftSource({ file: detail.path, line: detail.line, column: detail.column });
   }
 }
 
 // ─── Event wiring ────────────────────────────────────────────────────────────
-
-function onAnnotationSave(e: CustomEvent<Annotation>): void {
-  const ann = e.detail;
-  if (draftItem) {
-    // Promote draft to saved item
-    itemEls.set(ann.id, draftItem);
-    draftItem = null;
-  }
-  upsertAnnotation(ann);
-}
-
-function onAnnotationCancel(): void {
-  draftItem?.remove();
-  draftItem = null;
-}
-
-function onAnnotationDelete(e: CustomEvent<{ id: string; }>): void {
-  const { id } = e.detail;
-  deleteAnnotation(id);
-}
-
-function onAnnotationResolve(e: CustomEvent<{ id: string; tweakMarkers: string[]; }>): void {
-  const { id, tweakMarkers } = e.detail;
-  deleteAnnotation(id);
-  for (const marker of [...new Set(tweakMarkers)]) {
-    sendMessage({ type: 'tweak:reset', payload: { marker } });
-  }
-}
 
 // ─── Cross-tab BroadcastChannel ──────────────────────────────────────────────
 
@@ -316,14 +287,19 @@ export function initInspector(): void {
   document.addEventListener('pointerdown', onPointerDownForInspect as EventListener, { capture: true });
   window.addEventListener('code-inspector:trackCode', onTrackCode);
 
-  annotationBus.on('annotation-save', onAnnotationSave);
-  annotationBus.on('annotation-cancel', onAnnotationCancel as (e: CustomEvent<{ id: string; }>) => void);
-  annotationBus.on('annotation-delete', onAnnotationDelete);
-  annotationBus.on('annotation-resolve', onAnnotationResolve as (e: CustomEvent<{ id: string; tweakMarkers: string[]; }>) => void);
-
-  // Badge clicks are routed through the bus so focusAnnotation handles single-panel + dirty-guard
-  annotationBus.on('annotation-badge-click', (e: CustomEvent<{ id: string; }>) => {
-    focusAnnotation(e.detail.id);
+  onIntent((intent) => {
+    if (intent.type === 'annotation:save') {
+      const ann = intent.annotation;
+      if (draftItem) { itemEls.set(ann.id, draftItem); draftItem = null; }
+      upsertAnnotation(ann);
+    } else if (intent.type === 'annotation:cancel') {
+      draftItem?.remove();
+      draftItem = null;
+    } else if (intent.type === 'annotation:delete') {
+      deleteAnnotation(intent.id);
+    } else if (intent.type === 'annotation:badge-click') {
+      focusAnnotation(intent.id);
+    }
   });
 
   reconcileItems();
