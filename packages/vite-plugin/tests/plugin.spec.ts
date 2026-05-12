@@ -8,7 +8,9 @@ import { test, expect } from '@playwright/test';
 
 test('injects the Design Bridge client script into the page via the Vite plugin', async ({ page }) => {
   await page.goto('/');
-  await expect(page.locator('bridge-annotation-item')).toHaveCount(0); // no annotations yet
+  // Confirm the custom element is registered (component mounted by the injected client script)
+  const isDefined = await page.evaluate(() => !!customElements.get('db-annotation'));
+  expect(isDefined).toBe(true);
   // Confirm __DB_WS_URL__ was injected by the plugin
   const wsUrl = await page.evaluate(() => (window as any).__DB_WS_URL__);
   expect(typeof wsUrl).toBe('string');

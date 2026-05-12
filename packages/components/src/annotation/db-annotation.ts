@@ -3,8 +3,8 @@ import { customElement, property, state } from 'lit/decorators.js';
 import { computePosition, autoUpdate, flip, shift, offset } from '@floating-ui/dom';
 import autosize from 'autosize';
 import type { Annotation, AnnotationReply, AnnotationSource, AnnotationTweakLink } from '@design-bridge/core';
-import { annotationItemStyles } from './annotation-item-styles.js';
-import { uid, shortLabel, formatTweakReply } from './annotation-item-utils.js';
+import { annotationItemStyles } from './db-annotation-styles.js';
+import { uid, shortLabel, formatTweakReply } from './db-annotation-utils.js';
 import { dispatchIntent } from '../state/intents.js';
 
 const HIGHLIGHT_ATTR = 'data-db-related';

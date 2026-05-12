@@ -465,8 +465,8 @@ test.describe('Panel scrolling & textarea autogrow', () => {
     await badge.click();
     const p = page.locator('db-annotation .panel:not([hidden])');
 
-    // Add enough replies to overflow the panel
-    for (let i = 1; i <= 8; i++) {
+    // Add enough replies to overflow the panel (max-height is ~88dvh so we need many)
+    for (let i = 1; i <= 20; i++) {
       const reply = p.locator('textarea[data-role="reply"]');
       await reply.scrollIntoViewIfNeeded();
       await expect(reply).toBeVisible();
@@ -476,7 +476,7 @@ test.describe('Panel scrolling & textarea autogrow', () => {
     }
 
     // Panel should be scrollable: scrollHeight > clientHeight
-    const isScrollable = await p.evaluate((el) => el.scrollHeight > el.clientHeight);
+    const isScrollable = await p.locator('.panel-scroll').evaluate((el) => el.scrollHeight > el.clientHeight);
     expect(isScrollable).toBe(true);
   });
 

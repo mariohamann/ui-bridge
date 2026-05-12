@@ -34,13 +34,13 @@
       "types": "./dist/annotation/index.d.ts"
     },
     "./annotation/utils": {
-      "import": "./dist/annotation/annotation-item-utils.js",
-      "types": "./dist/annotation/annotation-item-utils.d.ts"
+      "import": "./dist/annotation/db-annotation-utils.js",
+      "types": "./dist/annotation/db-annotation-utils.d.ts"
     }
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "test": "node --test tests/stores.test.mjs",
+    "test": "node --loader ./tests/css-loader.mjs --test tests/stores.test.mjs",
     "postinstall": "cp -r node_modules/@awesome.me/webawesome/dist/skills/webawesome ../../.agents/skills"
   },
   "dependencies": {
