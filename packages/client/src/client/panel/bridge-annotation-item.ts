@@ -36,6 +36,7 @@ export class BridgeAnnotationItem extends LitElement {
   @state() private _open = false;
   @state() private _draft = '';
   @state() private _replyDraft = '';
+  @state() private _wobbling = false;
   @state() private _pendingId = '';
   @state() private _pendingSelectors: string[] = [];
   @state() private _pendingLabels: string[] = [];
@@ -103,11 +104,39 @@ export class BridgeAnnotationItem extends LitElement {
     this._highlightRelated();
   }
 
-  /** Open the panel (called from panel list row click). */
+  /** Whether the user has unsaved text in the composer or reply box. */
+  get hasDirtyDraft(): boolean {
+    return this._draft.trim().length > 0 || this._replyDraft.trim().length > 0;
+  }
+
+  /** Open the panel (called from inspector). */
   openPanel(): void {
     this._open = true;
+    this._wobbling = false;
     this._repositionBadge();
     this._focusTextarea();
+  }
+
+  /** Close without discarding the annotation. */
+  closePanel(): void {
+    this._open = false;
+    this._showMenu = false;
+  }
+
+  /** Close and discard any unsaved draft text. */
+  discardDraftAndClose(): void {
+    this._replyDraft = '';
+    this._draft = '';
+    this.closePanel();
+  }
+
+  /** Play a short wobble to signal the panel cannot be dismissed yet. */
+  wobble(): void {
+    this._wobbling = false;
+    // Force reflow so re-triggering the animation works
+    void this.shadowRoot?.querySelector('.panel')?.getBoundingClientRect();
+    this._wobbling = true;
+    setTimeout(() => { this._wobbling = false; }, 420);
   }
 
   /** Register a tweak change as a reply on this annotation. */
@@ -316,8 +345,9 @@ export class BridgeAnnotationItem extends LitElement {
   private _onBadgeClick(e: MouseEvent): void {
     e.stopPropagation();
     if (this._mode === 'view') {
-      this._open = !this._open;
-      if (this._open) this._focusTextarea();
+      // Always route through focusAnnotation so single-panel + dirty-guard logic runs.
+      // focusAnnotation will toggle the panel closed if it was already open.
+      annotationBus.emit('annotation-badge-click', { id: this.annotation!.id });
     }
     // In create mode the panel is already open; clicking badge does nothing extra
   }
@@ -328,6 +358,13 @@ export class BridgeAnnotationItem extends LitElement {
     // Alt+Shift click is an inspect-mode multi-select, not a dismiss action
     if (e.altKey && e.shiftKey) return;
     if (this._mode === 'view') {
+      // If the user has started typing, wobble instead of closing so they don't
+      // lose their draft. The inspector's focusAnnotation() will handle the
+      // two-click confirmation when switching to another annotation.
+      if (this.hasDirtyDraft) {
+        this.wobble();
+        return;
+      }
       this._open = false;
       this._showMenu = false;
     }
@@ -411,6 +448,7 @@ export class BridgeAnnotationItem extends LitElement {
     });
     this.annotation = ann;   // immediately switch to view mode
     this._mode = 'view';
+    this._draft = '';
     this._open = false;
     annotationBus.emit('annotation-save', ann);
   }
@@ -446,9 +484,20 @@ export class BridgeAnnotationItem extends LitElement {
     this._open = false;
   }
 
+  private _copyReviewLink(): void {
+    const wsUrl = (window as unknown as Record<string, unknown>).__DB_WS_URL__ as string | undefined;
+    const url = wsUrl
+      ? wsUrl.replace(/^ws:\/\//, 'http://').replace(/\/design-bridge$/, '/')
+      : 'http://localhost:7378/';
+    navigator.clipboard.writeText(url).catch(() => { });
+    this._showMenu = false;
+  }
+
   private _resolve(): void {
     this._showMenu = false;
-    this._acceptAllTweaks();
+    if (!this.annotation) return;
+    annotationBus.emit('annotation-delete', { id: this.annotation.id });
+    this._open = false;
   }
 
   private _acceptAllTweaks(): void {
@@ -502,6 +551,7 @@ export class BridgeAnnotationItem extends LitElement {
           ${this._showMenu ? html`
             <div class="overflow-menu">
               <button class="menu-item" @click=${() => { this._showPaths = !this._showPaths; this._showMenu = false; }}>${this._showPaths ? 'Hide paths' : 'Show paths'}</button>
+              <button class="menu-item" @click=${this._copyReviewLink}>Copy link to annotation list</button>
               <button class="menu-item danger" @click=${this._delete}>Delete</button>
             </div>
           ` : ''}
@@ -591,7 +641,7 @@ export class BridgeAnnotationItem extends LitElement {
 
       <!-- Thread panel -->
       <div
-        class="panel"
+        class="panel ${this._wobbling ? 'wobble' : ''}"
         style="top:${this._panelTop}px;left:${this._panelLeft}px"
         ?hidden=${!this._open}
         @keydown=${this._onKeyDown}

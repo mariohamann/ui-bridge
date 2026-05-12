@@ -101,6 +101,17 @@ export const annotationItemStyles = css`
   }
   .panel[hidden] { display: none !important; }
 
+  @keyframes db-wobble {
+    0%   { transform: translateX(0); }
+    15%  { transform: translateX(-6px) rotate(-1deg); }
+    30%  { transform: translateX(5px) rotate(1deg); }
+    45%  { transform: translateX(-4px) rotate(-.5deg); }
+    60%  { transform: translateX(3px) rotate(.5deg); }
+    75%  { transform: translateX(-2px); }
+    100% { transform: translateX(0); }
+  }
+  .panel.wobble { animation: db-wobble .4s ease; }
+
   /* ── Header ─────────────────────────────── */
   .header {
     display: flex;

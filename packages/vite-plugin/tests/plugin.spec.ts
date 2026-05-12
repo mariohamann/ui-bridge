@@ -6,9 +6,13 @@
 
 import { test, expect } from '@playwright/test';
 
-test('injects <bridge-panel> into the page via the Vite plugin', async ({ page }) => {
+test('injects the Design Bridge client script into the page via the Vite plugin', async ({ page }) => {
   await page.goto('/');
-  await expect(page.locator('bridge-panel')).toBeAttached();
+  await expect(page.locator('bridge-annotation-item')).toHaveCount(0); // no annotations yet
+  // Confirm __DB_WS_URL__ was injected by the plugin
+  const wsUrl = await page.evaluate(() => (window as any).__DB_WS_URL__);
+  expect(typeof wsUrl).toBe('string');
+  expect(wsUrl).toContain('ws://');
 });
 
 test('serves the client bundle at /__design-bridge/client.js', async ({ page }) => {

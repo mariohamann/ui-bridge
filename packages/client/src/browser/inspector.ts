@@ -81,8 +81,25 @@ let itemContainer: HTMLElement | null = null;
 const itemEls = new Map<string, BridgeAnnotationItem>();
 let draftItem: BridgeAnnotationItem | null = null;
 
+/** ID of the annotation we want to focus on the next click, when the current panel has a dirty draft. */
+let pendingFocusId: string | null = null;
+
 export function getItemById(id: string): BridgeAnnotationItem | undefined {
   return itemEls.get(id);
+}
+
+/** Close all open saved panels (does not affect draft). */
+function closeAllPanels(): void {
+  for (const item of itemEls.values()) {
+    if (item.isOpen) item.closePanel();
+  }
+}
+
+/** Open a saved panel, closing any other open panel first. */
+function openItemPanel(item: BridgeAnnotationItem): void {
+  closeAllPanels();
+  pendingFocusId = null;
+  item.openPanel();
 }
 
 export function getOpenItem(): BridgeAnnotationItem | null {
@@ -91,6 +108,47 @@ export function getOpenItem(): BridgeAnnotationItem | null {
     if (item.isOpen) return item;
   }
   return null;
+}
+
+/**
+ * Focus a saved annotation panel from an external trigger (review page click,
+ * deep-link, etc.). Implements the dirty-draft guard:
+ *  - If the currently open panel has unsaved text → wobble it and remember the
+ *    requested id; the caller must call focusAnnotation(id) again to confirm.
+ *  - On confirm (same id requested twice) → discard the draft and open the new panel.
+ */
+export function focusAnnotation(id: string): boolean {
+  const target = itemEls.get(id);
+  if (!target) return false;
+
+  const currentOpen = getOpenItem();
+
+  // Clicking the badge of the already-open panel → toggle it closed
+  if (currentOpen === target) {
+    target.closePanel();
+    pendingFocusId = null;
+    return false;
+  }
+
+  if (currentOpen) {
+    // Check for dirty draft on the currently open panel
+    if (currentOpen.hasDirtyDraft) {
+      if (pendingFocusId !== id) {
+        // First attempt: wobble the current panel and register the pending focus
+        pendingFocusId = id;
+        currentOpen.wobble();
+        return false;
+      }
+      // Second attempt with the same id: discard the draft, fall through to open
+      currentOpen.discardDraftAndClose();
+    } else {
+      currentOpen.closePanel();
+    }
+  }
+
+  pendingFocusId = null;
+  target.openPanel();
+  return true;
 }
 
 function reconcileItems(): void {
@@ -167,7 +225,7 @@ function onTrackCode(e: Event): void {
 
   if (existing && !draftItem) {
     // Open the existing saved item (only when not in draft/multi-select mode)
-    getItemById(existing.id)?.openPanel();
+    openItemPanel(getItemById(existing.id)!);
   } else if (draftItem) {
     // Draft already open: add another selector + update source
     draftItem.addDraftSelector(el);
@@ -226,6 +284,20 @@ onMessage((msg) => {
     syncAnnotations(msg.payload);
   } else if (msg.type === 'inspect:pick') {
     if (draftItem) draftItem.setDraftSource(msg.payload);
+  } else if (msg.type === 'annotation:focus') {
+    const opened = focusAnnotation(msg.payload.id);
+    // Scroll annotated element into view only when the panel actually opened
+    if (opened) {
+      const ann = annotations.get(msg.payload.id);
+      if (ann) {
+        for (const sel of ann.selectors) {
+          try {
+            const el = document.querySelector(sel);
+            if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); break; }
+          } catch { /* noop */ }
+        }
+      }
+    }
   }
 });
 
@@ -246,5 +318,26 @@ export function initInspector(): void {
   annotationBus.on('annotation-delete', onAnnotationDelete);
   annotationBus.on('annotation-resolve', onAnnotationResolve as (e: CustomEvent<{ id: string; tweakMarkers: string[]; }>) => void);
 
+  // Badge clicks are routed through the bus so focusAnnotation handles single-panel + dirty-guard
+  annotationBus.on('annotation-badge-click', (e: CustomEvent<{ id: string; }>) => {
+    focusAnnotation(e.detail.id);
+  });
+
   reconcileItems();
+
+  // Deep-link: ?db-annotation=<id> opens the annotation panel on load
+  const targetId = new URLSearchParams(location.search).get('db-annotation');
+  if (targetId) {
+    const tryOpen = (): boolean => {
+      const item = itemEls.get(targetId);
+      if (item) { focusAnnotation(targetId); return true; }
+      return false;
+    };
+    if (!tryOpen()) {
+      // Wait for the first annotations:sync to arrive and items to be reconciled
+      const unsub = onAnnotationsChange(() => {
+        if (tryOpen()) unsub();
+      });
+    }
+  }
 }

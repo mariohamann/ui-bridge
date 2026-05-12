@@ -1,13 +1,10 @@
-// Register all custom elements (side-effect imports)
-import './bridge-panel.js';
+// Register annotation item custom element (side-effect import)
 import './bridge-annotation-item.js';
 
 /**
- * Mount the Design Bridge panel into the host page DOM.
+ * No-op — the floating panel has been removed.
  * Annotation items are created dynamically by inspector.ts.
  */
 export function initPanel(): void {
-  if (!document.querySelector('bridge-panel')) {
-    document.body.appendChild(document.createElement('bridge-panel'));
-  }
+  // intentionally empty
 }

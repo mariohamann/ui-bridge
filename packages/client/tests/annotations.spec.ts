@@ -5,24 +5,11 @@
 import { test, expect, type Page, type Locator } from '@playwright/test';
 
 const API_BASE = 'http://localhost:7378/api';
-
-function panel(page: Page): Locator {
-  return page.locator('bridge-panel');
-}
-
-function inPanel(page: Page, selector: string): Locator {
-  return panel(page).locator(selector);
-}
+const REVIEW_URL = 'http://localhost:7378/';
 
 /** The draft or open annotation item's panel (shadow DOM piercing). */
 function annotationPanel(page: Page): Locator {
   return page.locator('bridge-annotation-item .panel:not([hidden])');
-}
-
-async function openAnnotationsTab(page: Page): Promise<void> {
-  const tab = inPanel(page, 'button[role="tab"]:has-text("Annotations")');
-  await tab.waitFor({ state: 'visible' });
-  await tab.click();
 }
 
 async function createAnnotation(page: Page, selector: string, comment: string): Promise<void> {
@@ -39,7 +26,8 @@ async function createAnnotation(page: Page, selector: string, comment: string): 
 test.beforeEach(async ({ page }) => {
   await page.request.delete(`${API_BASE}/annotations`);
   await page.goto('/');
-  await expect(panel(page)).toBeAttached();
+  // Wait for the Design Bridge client to initialise (inspector is ready)
+  await page.waitForFunction(() => typeof (window as any).__DB_WS_URL__ === 'string');
 });
 
 test.afterEach(async ({ page }) => {
@@ -47,26 +35,17 @@ test.afterEach(async ({ page }) => {
 });
 
 test.describe('Annotations', () => {
-  test('bridge-panel is injected into the page', async ({ page }) => {
-    await expect(panel(page)).toBeAttached();
-  });
-
-  test('Annotations tab is visible inside the panel', async ({ page }) => {
-    const tab = inPanel(page, 'button[role="tab"]:has-text("Annotations")');
-    await expect(tab).toBeVisible();
-  });
-
-  test('shows empty state when no annotations exist', async ({ page }) => {
-    await openAnnotationsTab(page);
-    await expect(inPanel(page, '.db-empty')).toBeVisible();
+  test('review page shows empty state when no annotations exist', async ({ page }) => {
+    await page.goto(REVIEW_URL);
+    await expect(page.locator('.empty')).toBeVisible();
   });
 
   test('creates an annotation by clicking a page element with Alt+Shift', async ({ page }) => {
     await createAnnotation(page, 'h1', 'This headline needs a stronger CTA.');
 
-    await openAnnotationsTab(page);
-    await expect(inPanel(page, '.db-ann-row')).toBeVisible();
-    await expect(inPanel(page, '.db-ann-comment')).toHaveText('This headline needs a stronger CTA.');
+    const res = await page.request.get(`${API_BASE}/annotations`);
+    const body = await res.json() as { annotations: { comment: string; }[]; };
+    expect(body.annotations.some((a) => a.comment === 'This headline needs a stronger CTA.')).toBe(true);
   });
 
   test('annotation badge appears on the annotated element', async ({ page }) => {
@@ -87,9 +66,8 @@ test.describe('Annotations', () => {
     await createAnnotation(page, 'h1', 'Survives reload');
 
     await page.reload();
-    await expect(panel(page)).toBeAttached();
-    await openAnnotationsTab(page);
-    await expect(inPanel(page, '.db-ann-comment')).toHaveText('Survives reload');
+    await expect(page.locator('bridge-annotation-item')).toBeAttached();
+    await expect(page.locator('bridge-annotation-item .badge')).toBeVisible();
   });
 
   test('badge reappears on the correct element after reload', async ({ page }) => {
@@ -99,7 +77,6 @@ test.describe('Annotations', () => {
     expect(h1Box).not.toBeNull();
 
     await page.reload();
-    await expect(panel(page)).toBeAttached();
     await expect(page.locator('bridge-annotation-item')).toBeAttached();
 
     const badge = page.locator('bridge-annotation-item .badge').first();
@@ -111,8 +88,6 @@ test.describe('Annotations', () => {
     expect(Math.abs(badgeBox!.y - h1Box!.y)).toBeLessThan(200);
     expect(badgeBox!.x).toBeGreaterThanOrEqual(0);
 
-    await openAnnotationsTab(page);
-    await expect(inPanel(page, '.db-ann-comment')).toHaveText('Pinned to h1');
   });
 
   test('can reply to an annotation from the badge', async ({ page }) => {
@@ -127,8 +102,12 @@ test.describe('Annotations', () => {
     await replyInput.fill('Reply from badge');
     await replyInput.press('Enter');
 
-    await openAnnotationsTab(page);
-    await expect(inPanel(page, '.db-ann-comment')).toHaveText('Original comment');
+    // Verify reply was saved to the server
+    await expect.poll(async () => {
+      const res = await page.request.get(`${API_BASE}/annotations`);
+      const body = await res.json() as { annotations: { replies?: { text: string; }[]; }[]; };
+      return body.annotations.some((a) => a.replies?.some((r) => r.text === 'Reply from badge'));
+    }).toBe(true);
   });
 
   test('focuses textarea when creating and when opening from badge', async ({ page }) => {
@@ -172,54 +151,81 @@ test.describe('Annotations', () => {
     await panel.locator('.icon-btn[title="Resolve"]').click();
 
     await expect(page.locator('bridge-annotation-item .badge')).toHaveCount(0);
-    await openAnnotationsTab(page);
-    await expect(inPanel(page, '.db-empty')).toBeVisible();
   });
 
-  test('deletes a single annotation via the delete button in the list', async ({ page }) => {
+  test('deletes an annotation via the review page discard button', async ({ page }) => {
     await createAnnotation(page, 'h1', 'To be deleted');
 
-    await openAnnotationsTab(page);
-    await inPanel(page, '.db-icon-btn--del').first().click();
-
-    await expect(inPanel(page, '.db-ann-row')).not.toBeVisible();
-    await expect(inPanel(page, '.db-empty')).toBeVisible();
+    await page.goto(REVIEW_URL);
+    await expect(page.locator('.row')).toHaveCount(1);
+    // Open three-dot menu and click Delete
+    await page.locator('.row').first().hover();
+    await page.locator('.dots').first().click();
+    await page.locator('.mi.danger').first().click();
+    await expect(page.locator('.row')).toHaveCount(0);
+    await expect(page.locator('.empty')).toBeVisible();
   });
 
   test('deletes a single annotation via the delete button in the panel', async ({ page }) => {
     await createAnnotation(page, 'h1', 'Panel delete test');
 
-    await openAnnotationsTab(page);
-    await inPanel(page, '.db-ann-row').first().click();
+    const badge = page.locator('bridge-annotation-item .badge').first();
+    await badge.click();
 
     const panel = annotationPanel(page);
     await panel.locator('.icon-btn[title="More options"]').click();
     await panel.locator('.menu-item.danger').click();
     await expect(annotationPanel(page)).toHaveCount(0);
-
-    await expect(inPanel(page, '.db-empty')).toBeVisible();
+    await expect(page.locator('bridge-annotation-item .badge')).toHaveCount(0);
   });
 
-  test('"Clear all" removes every annotation', async ({ page }) => {
+  test('review page can resolve all annotations', async ({ page }) => {
     for (const selector of ['h1', 'p']) {
       await createAnnotation(page, selector, `Comment on ${selector}`);
     }
 
-    await openAnnotationsTab(page);
-    await expect(inPanel(page, '.db-ann-row')).toHaveCount(2);
+    await page.goto(REVIEW_URL);
+    await expect(page.locator('.row')).toHaveCount(2);
 
-    await inPanel(page, 'button:has-text("Clear all"), .db-btn--danger').click();
+    // Discard both via three-dot menu
+    for (let i = 0; i < 2; i++) {
+      await page.locator('.row').first().hover();
+      await page.locator('.dots').first().click();
+      await page.locator('.mi.danger').first().click();
+    }
 
-    await expect(inPanel(page, '.db-empty')).toBeVisible();
-    await expect(inPanel(page, '.db-ann-row')).toHaveCount(0);
+    await expect(page.locator('.row')).toHaveCount(0);
+    await expect(page.locator('.empty')).toBeVisible();
   });
 
-  test('clear all is reflected in the server API', async ({ page }) => {
+  test('clicking a row in the review page opens the annotation panel in the app', async ({ page, context }) => {
+    await createAnnotation(page, 'h1', 'Focus via review page');
+
+    // Open the review page in a second tab while the app stays open
+    const reviewPage = await context.newPage();
+    await reviewPage.goto(REVIEW_URL);
+
+    // Wait for the row to appear and for the review page WS to connect (dot turns green)
+    await expect(reviewPage.locator('.row')).toHaveCount(1);
+    await expect(reviewPage.locator('.dot.ok')).toBeVisible();
+
+    // Click the row body — this sends annotation:focus via WS
+    await reviewPage.locator('.row .body').first().click();
+
+    // The app page should open the annotation panel for that annotation
+    await expect(annotationPanel(page)).toBeVisible();
+
+    await reviewPage.close();
+  });
+
+  test('discard on review page is reflected in the server API', async ({ page }) => {
     await createAnnotation(page, 'h1', 'API clear test');
 
-    await openAnnotationsTab(page);
-    await inPanel(page, 'button:has-text("Clear all"), .db-btn--danger').click();
-    await expect(inPanel(page, '.db-empty')).toBeVisible();
+    await page.goto(REVIEW_URL);
+    await page.locator('.row').first().hover();
+    await page.locator('.dots').first().click();
+    await page.locator('.mi.danger').first().click();
+    await expect(page.locator('.empty')).toBeVisible();
 
     const res = await page.request.get(`${API_BASE}/annotations`);
     const body = await res.json() as { annotations: unknown[]; };
@@ -298,9 +304,92 @@ test.describe('Annotations', () => {
     await input.press('Enter');
     await expect(annotationPanel(page)).toHaveCount(0);
 
-    await openAnnotationsTab(page);
-    await expect(inPanel(page, '.db-ann-extra')).toBeVisible();
-    await expect(inPanel(page, '.db-ann-extra')).toHaveText('+1');
+    // Verify 2 selectors stored via API
+    const res = await page.request.get(`${API_BASE}/annotations`);
+    const body = await res.json() as { annotations: { selectors: string[]; }[]; };
+    const ann = body.annotations.find((a) => a.selectors.length === 2);
+    expect(ann).toBeDefined();
+  });
+});
+
+test.describe('Single panel + dirty-draft guard', () => {
+  test('opening a second panel closes the first', async ({ page }) => {
+    await createAnnotation(page, 'h1', 'First');
+    await createAnnotation(page, 'p', 'Second');
+
+    const badges = page.locator('bridge-annotation-item .badge');
+    await badges.nth(0).click();
+    await expect(annotationPanel(page)).toHaveCount(1);
+
+    // Clicking the second badge should close the first and open the second
+    await badges.nth(1).click();
+    await expect(annotationPanel(page)).toHaveCount(1);
+
+    // Confirm the open panel belongs to the second annotation (contains "Second")
+    await expect(annotationPanel(page).locator('.comment-text')).toContainText('Second');
+  });
+
+  test('clicking another badge while reply is dirty: first click wobbles, does not close', async ({ page }) => {
+    await createAnnotation(page, 'h1', 'First');
+    await createAnnotation(page, 'p', 'Second');
+
+    const badges = page.locator('bridge-annotation-item .badge');
+
+    // Open first panel and type an unsaved reply
+    await badges.nth(0).click();
+    await annotationPanel(page).locator('textarea[data-role="reply"]').fill('unsaved reply text');
+
+    // Click the second badge — panel should remain open (first click only wobbles)
+    await badges.nth(1).click();
+    await expect(annotationPanel(page)).toHaveCount(1);
+    await expect(annotationPanel(page).locator('.comment-text')).toContainText('First');
+  });
+
+  test('clicking another badge twice while reply is dirty: second click switches panel', async ({ page }) => {
+    await createAnnotation(page, 'h1', 'First');
+    await createAnnotation(page, 'p', 'Second');
+
+    const badges = page.locator('bridge-annotation-item .badge');
+
+    // Open first panel and type an unsaved reply
+    await badges.nth(0).click();
+    await annotationPanel(page).locator('textarea[data-role="reply"]').fill('unsaved reply text');
+
+    // First click on second badge — should wobble, stay open
+    await badges.nth(1).click();
+    await expect(annotationPanel(page)).toHaveCount(1);
+    await expect(annotationPanel(page).locator('.comment-text')).toContainText('First');
+
+    // Second click on second badge — should now switch
+    await badges.nth(1).click();
+    await expect(annotationPanel(page)).toHaveCount(1);
+    await expect(annotationPanel(page).locator('.comment-text')).toContainText('Second');
+  });
+
+  test('review page row click: dirty reply wobbles on first click, switches on second', async ({ page, context }) => {
+    await createAnnotation(page, 'h1', 'First');
+    await createAnnotation(page, 'p', 'Second');
+
+    // Open first panel and type an unsaved reply
+    await page.locator('bridge-annotation-item .badge').nth(0).click();
+    await annotationPanel(page).locator('textarea[data-role="reply"]').fill('unsaved reply text');
+
+    const reviewPage = await context.newPage();
+    await reviewPage.goto(REVIEW_URL);
+    await expect(reviewPage.locator('.row')).toHaveCount(2);
+    await expect(reviewPage.locator('.dot.ok')).toBeVisible();
+
+    // Click the second row — first time, should NOT switch (dirty guard)
+    await reviewPage.locator('.row').nth(1).locator('.body').click();
+    await expect(annotationPanel(page)).toHaveCount(1);
+    await expect(annotationPanel(page).locator('.comment-text')).toContainText('First');
+
+    // Click the second row again — should now switch
+    await reviewPage.locator('.row').nth(1).locator('.body').click();
+    await expect(annotationPanel(page)).toHaveCount(1);
+    await expect(annotationPanel(page).locator('.comment-text')).toContainText('Second');
+
+    await reviewPage.close();
   });
 });
 
@@ -674,20 +763,18 @@ async function injectAnnotation(
   expect(res.status()).toBe(200);
 }
 
-/** Open an annotation's panel by clicking its row in the annotations tab list. */
-async function openAnnotationPanel(page: Page, comment: string): Promise<void> {
-  await openAnnotationsTab(page);
-  const row = inPanel(page, `.db-ann-row`);
-  await expect(row.filter({ hasText: comment })).toBeVisible();
-  await row.filter({ hasText: comment }).click();
+/** Open an annotation's panel by clicking its badge. */
+async function openAnnotationPanel(page: Page): Promise<void> {
+  const badge = page.locator('bridge-annotation-item .badge').first();
+  await badge.waitFor({ state: 'visible' });
+  await badge.click();
 }
 
 test.describe('Tweaks in annotations', () => {
   test('tweaks section is not visible when annotation has no linkedTweaks', async ({ page }) => {
     await injectAnnotation(page, { id: 'test-no-tweaks', comment: 'No tweaks here', linkedTweaks: [] });
     await page.reload();
-    await expect(panel(page)).toBeAttached();
-    await openAnnotationPanel(page, 'No tweaks here');
+    await openAnnotationPanel(page);
     const tweaksSection = page.locator('bridge-annotation-item .tweaks-section');
     await expect(tweaksSection).toHaveCount(0);
   });
@@ -699,8 +786,7 @@ test.describe('Tweaks in annotations', () => {
       linkedTweaks: [{ marker: 'font-size', label: 'Font Size', lastValue: '18px', linkedAt: Date.now() }],
     });
     await page.reload();
-    await expect(panel(page)).toBeAttached();
-    await openAnnotationPanel(page, 'Has a tweak');
+    await openAnnotationPanel(page);
     const tweaksSection = page.locator('bridge-annotation-item .tweaks-section');
     await expect(tweaksSection).toBeVisible();
   });
@@ -715,8 +801,7 @@ test.describe('Tweaks in annotations', () => {
       ],
     });
     await page.reload();
-    await expect(panel(page)).toBeAttached();
-    await openAnnotationPanel(page, 'Tweak content check');
+    await openAnnotationPanel(page);
     const tweaksSection = page.locator('bridge-annotation-item .tweaks-section');
     await expect(tweaksSection).toBeVisible();
     await expect(tweaksSection.locator('.tweak-label').nth(0)).toHaveText('Primary Color');
@@ -732,8 +817,7 @@ test.describe('Tweaks in annotations', () => {
       linkedTweaks: [{ marker: 'spacing', label: 'Spacing', lastValue: '8px', linkedAt: Date.now() }],
     });
     await page.reload();
-    await expect(panel(page)).toBeAttached();
-    await openAnnotationPanel(page, 'Tweak buttons');
+    await openAnnotationPanel(page);
     const tweaksSection = page.locator('bridge-annotation-item .tweaks-section');
     await expect(tweaksSection.locator('.tweak-btn.accept')).toBeVisible();
     await expect(tweaksSection.locator('.tweak-btn.dismiss')).toBeVisible();
@@ -746,8 +830,7 @@ test.describe('Tweaks in annotations', () => {
       linkedTweaks: [{ marker: 'spacing', label: 'Spacing', lastValue: '8px', linkedAt: Date.now() }],
     });
     await page.reload();
-    await expect(panel(page)).toBeAttached();
-    await openAnnotationPanel(page, 'Accept all button');
+    await openAnnotationPanel(page);
     await expect(page.locator('bridge-annotation-item .tweak-accept-all')).toBeVisible();
   });
 
@@ -758,7 +841,7 @@ test.describe('Tweaks in annotations', () => {
     expect(res.status()).toBe(200);
     // Reload page and confirm annotation survives (loaded from disk)
     await page.reload();
-    await expect(panel(page)).toBeAttached();
+    await expect(page.locator('bridge-annotation-item')).toBeAttached();
     const res2 = await page.request.get(`${API_BASE}/annotations/persist-json-test`);
     expect(res2.status()).toBe(200);
     const ann = await res2.json() as { comment: string; };
@@ -775,8 +858,7 @@ test.describe('Tweaks in annotations', () => {
       ],
     });
     await page.reload();
-    await expect(panel(page)).toBeAttached();
-    await openAnnotationPanel(page, 'Dismiss via API + UI check');
+    await openAnnotationPanel(page);
     const tweaksSection = page.locator('bridge-annotation-item .tweaks-section');
     await expect(tweaksSection.locator('.tweak-row')).toHaveCount(2);
     // Dismiss via REST API (the server broadcasts annotations:sync → UI re-renders)

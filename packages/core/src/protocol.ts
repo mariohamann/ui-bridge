@@ -106,6 +106,11 @@ export interface AnnotationClearMsg {
   type: 'annotation:clear';
 }
 
+export interface AnnotationFocusMsg {
+  type: 'annotation:focus';
+  payload: { id: string; };
+}
+
 export type BrowserMessage =
   | TweakChangeMsg
   | TweakFinalizeMsg
@@ -117,7 +122,8 @@ export type BrowserMessage =
   | TweakDismissMsg
   | AnnotationUpsertMsg
   | AnnotationDeleteMsg
-  | AnnotationClearMsg;
+  | AnnotationClearMsg
+  | AnnotationFocusMsg;
 
 // ─── Server → Browser ────────────────────────────────────────────────────────
 
@@ -136,4 +142,9 @@ export interface InspectPickMsg {
   payload: AnnotationSource;
 }
 
-export type ServerMessage = TweakSchemaMsg | AnnotationsSyncMsg | InspectPickMsg;
+export interface AnnotationFocusBroadcastMsg {
+  type: 'annotation:focus';
+  payload: { id: string; };
+}
+
+export type ServerMessage = TweakSchemaMsg | AnnotationsSyncMsg | InspectPickMsg | AnnotationFocusBroadcastMsg;
