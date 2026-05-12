@@ -29,9 +29,9 @@ const ANNOTATION_ITEM_LOCAL_STYLES = css`
   .badge-preview {
     position: fixed;
     pointer-events: none;
-    background: var(--wa-color-neutral-05);
+    background: var(--wa-color-surface-raised);
     color: var(--wa-color-text-normal);
-    border: 1px solid var(--wa-color-neutral-20);
+    border: 1px solid var(--wa-color-surface-border);
     border-radius: var(--wa-border-radius-l);
     padding: var(--wa-space-xs) var(--wa-space-s);
     font: var(--wa-font-size-s)/1.4 var(--wa-font-family-body);
@@ -61,15 +61,20 @@ const ANNOTATION_ITEM_LOCAL_STYLES = css`
     position: fixed;
     pointer-events: auto;
     z-index: 2147483646;
-    background: var(--wa-color-neutral-05);
+    background: var(--wa-color-surface-raised);
     color: var(--wa-color-text-normal);
-    border-radius: var(--wa-border-radius-xl);
+    border-radius: var(--wa-border-radius-l);
+    border: 1px solid var(--wa-color-surface-border);
     padding: 0;
     width: min(320px, 90vw);
-    max-height: calc(100dvh - 32px);
-    overflow-y: auto;
+    overflow: hidden;
     box-shadow: 0 8px 24px rgba(0,0,0,.6);
     font: var(--wa-font-size-s)/1.5 var(--wa-font-family-body);
+  }
+  .panel-scroll {
+    max-height: calc(100dvh - 32px);
+    overflow-y: auto;
+    overflow-x: hidden;
   }
   .panel[hidden] { display: none !important; }
 
@@ -107,7 +112,7 @@ const ANNOTATION_ITEM_LOCAL_STYLES = css`
     padding: 0 var(--wa-space-s) var(--wa-space-xs);
     overflow-x: auto;
     scrollbar-width: none;
-    border-bottom: 1px solid var(--wa-color-neutral-20);
+    border-bottom: 1px solid var(--wa-color-surface-border);
   }
   .chips-bar::-webkit-scrollbar { display: none; }
 
@@ -143,7 +148,7 @@ const ANNOTATION_ITEM_LOCAL_STYLES = css`
   /* ── Composer ─────────────────────────────── */
   .composer { padding: var(--wa-space-s); }
   .composer-inner {
-    background: var(--wa-color-neutral-10);
+    background: var(--wa-color-surface-lowered);
     border-radius: var(--wa-border-radius-l);
     overflow: hidden;
   }
@@ -155,7 +160,7 @@ const ANNOTATION_ITEM_LOCAL_STYLES = css`
   }
 
   /* ── Tweaks section ────────────────────────── */
-  .tweaks-section { border-top: 1px solid var(--wa-color-neutral-20); padding: var(--wa-space-xs) var(--wa-space-s) var(--wa-space-3xs); }
+  .tweaks-section { border-top: 1px solid var(--wa-color-surface-border); padding: var(--wa-space-xs) var(--wa-space-s) var(--wa-space-3xs); }
   .tweaks-section-header {
     display: flex;
     align-items: center;
@@ -188,8 +193,8 @@ const ANNOTATION_ITEM_LOCAL_STYLES = css`
   .tweak-value {
     font-family: var(--wa-font-family-code);
     font-size: var(--wa-font-size-xs);
-    color: var(--wa-color-warning-50);
-    background: color-mix(in srgb, var(--wa-color-warning-50) 12%, transparent);
+    color: var(--wa-color-brand);
+    background: var(--wa-color-brand-fill-quiet);
     border-radius: var(--wa-border-radius-s);
     padding: 1px var(--wa-space-2xs);
     white-space: nowrap;

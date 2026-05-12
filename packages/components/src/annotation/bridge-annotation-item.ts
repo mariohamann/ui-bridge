@@ -12,7 +12,7 @@ const HIGHLIGHT_ATTR = 'data-db-related';
 type ItemMode = 'create' | 'view';
 
 /**
- * db-annotation — one web component per annotation.
+ * bridge-annotation-item — one web component per annotation.
  *
  * Contains both the badge dot and the comment thread panel in a single shadow
  * DOM. The host element is `position:fixed; width:0; height:0` so it takes no
@@ -22,8 +22,8 @@ type ItemMode = 'create' | 'view';
  *  - create: annotation === null, opened immediately on Alt+Shift+click
  *  - view:   annotation is set, panel opens/closes on badge click
  */
-@customElement('db-annotation')
-export class DbAnnotation extends LitElement {
+@customElement('bridge-annotation-item')
+export class BridgeAnnotationItem extends LitElement {
   static styles = annotationItemStyles;
 
   /** The saved annotation. null = draft (unsaved, panel auto-opens). */
@@ -697,5 +697,5 @@ export class DbAnnotation extends LitElement {
 }
 
 declare global {
-  interface HTMLElementTagNameMap { 'db-annotation': DbAnnotation; }
+  interface HTMLElementTagNameMap { 'bridge-annotation-item': BridgeAnnotationItem; }
 }

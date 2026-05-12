@@ -41,7 +41,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "test": "node --test tests/stores.test.mjs",
-    "postinstall": "cp -r node_modules/@awesome.me/webawesome/dist/skills/webawesome ../../.agents/skills/webawesome"
+    "postinstall": "cp -r node_modules/@awesome.me/webawesome/dist/skills/webawesome ../../.agents/skills"
   },
   "dependencies": {
     "@awesome.me/webawesome": "^3.6.0",
