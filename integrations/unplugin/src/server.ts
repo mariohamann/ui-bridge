@@ -13,7 +13,7 @@ export async function getServerPort(port: number): Promise<number | null> {
       signal: AbortSignal.timeout(600),
     });
     if (!resp.ok) return null;
-    const body = (await resp.json()) as { port?: number; };
+    const body = (await resp.json()) as { port?: number };
     return body.port ?? port;
   } catch {
     return null;
@@ -27,7 +27,7 @@ export async function getServerPort(port: number): Promise<number | null> {
 export function spawnServer(
   rootDir: string,
   preferredPort: number,
-): { child: ChildProcess; ready: Promise<number>; } {
+): { child: ChildProcess; ready: Promise<number> } {
   const serverEntry = _require.resolve('@design-bridge/server');
   const child = spawn(process.execPath, [serverEntry, '--root', rootDir], {
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -65,7 +65,7 @@ export function spawnServer(
 export async function ensureServer(
   rootDir: string,
   preferredPort: number,
-): Promise<{ port: number; child: ChildProcess | null; }> {
+): Promise<{ port: number; child: ChildProcess | null }> {
   const existingPort = await getServerPort(preferredPort);
   if (existingPort !== null) {
     console.log(`[design-bridge] using existing server at http://localhost:${existingPort}`);

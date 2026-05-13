@@ -3,6 +3,14 @@ import { fileURLToPath } from 'url';
 import path from 'path';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const skipBuild = process.env.SKIP_BUILD === 'true';
+const protocolDir = path.resolve(__dirname, '../../core/protocol');
+const clientDir = __dirname;
+const viteDemoDir = path.resolve(__dirname, '../../demos/vite');
+
+const webServerCommand = skipBuild
+  ? `cd ${viteDemoDir} && pnpm exec vite`
+  : `cd ${protocolDir} && node_modules/.bin/tsc -p tsconfig.json && cd ${clientDir} && node build.mjs && cd ${viteDemoDir} && pnpm exec vite`;
 
 export default defineConfig({
   testDir: './tests',
@@ -25,12 +33,13 @@ export default defineConfig({
   ],
 
   webServer: {
-    // Build first, then serve. integrations/unplugin tests share the same server
-    // (reuseExistingServer is true locally) so we only need one to build+start.
-    command: `cd ${path.resolve(__dirname, '../../demos/vite')} && pnpm dev`,
-    cwd: path.resolve(__dirname, '../../demos/vite'),
+    // When SKIP_BUILD=true (set by root `pnpm test`), packages are already built
+    // so we just start the Vite dev server. Otherwise, build protocol + client first.
+    // reuseExistingServer lets unplugin tests and client tests share the same server locally.
+    command: webServerCommand,
+    cwd: viteDemoDir,
     url: 'http://localhost:5173',
-    reuseExistingServer: true,
-    timeout: 30_000,
+    reuseExistingServer: !process.env.CI,
+    timeout: 60_000,
   },
 });

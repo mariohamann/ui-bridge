@@ -55,7 +55,7 @@ function kill(proc) {
     setTimeout(() => {
       try {
         proc.kill('SIGKILL');
-      } catch { }
+      } catch {}
     }, 3000);
   });
 }

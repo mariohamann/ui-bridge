@@ -3,7 +3,12 @@ import { fileURLToPath } from 'url';
 import path from 'path';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const skipBuild = process.env.SKIP_BUILD === 'true';
+const protocolDir = path.resolve(__dirname, '../../core/protocol');
 const demoDir = path.resolve(__dirname, '../../demos/nuxt');
+const buildPrefix = skipBuild
+  ? ''
+  : `cd ${protocolDir} && node_modules/.bin/tsc -p tsconfig.json && cd ${__dirname} && node build.mjs && `;
 
 // Dedicate a port so parallel test-suite runs never clash on the default 7378.
 process.env.DESIGN_BRIDGE_PORT ??= '7382';
@@ -30,7 +35,8 @@ export default defineConfig({
 
   webServer: {
     // Build this package, then start the Nuxt demo on a non-conflicting port
-    command: `cd ${path.resolve(__dirname, '../../core/protocol')} && node_modules/.bin/tsc -p tsconfig.json && cd ${__dirname} && node build.mjs && cd ${demoDir} && PORT=3002 pnpm exec nuxt dev`,
+    // When SKIP_BUILD=true (set by root `pnpm test`), packages are already built.
+    command: `${buildPrefix}cd ${demoDir} && PORT=3002 pnpm exec nuxt dev`,
     cwd: demoDir,
     url: 'http://localhost:3002',
     reuseExistingServer: !process.env.CI,

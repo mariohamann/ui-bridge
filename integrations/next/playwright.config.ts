@@ -3,7 +3,12 @@ import { fileURLToPath } from 'url';
 import path from 'path';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const skipBuild = process.env.SKIP_BUILD === 'true';
+const protocolDir = path.resolve(__dirname, '../../core/protocol');
 const demoDir = path.resolve(__dirname, '../../demos/next');
+const buildPrefix = skipBuild
+  ? ''
+  : `cd ${protocolDir} && node_modules/.bin/tsc -p tsconfig.json && cd ${__dirname} && node build.mjs && `;
 
 // Dedicate a port so parallel test-suite runs never clash on the default 7378.
 process.env.DESIGN_BRIDGE_PORT ??= '7380';
@@ -30,7 +35,8 @@ export default defineConfig({
 
   webServer: {
     // Build this package, then start the Next.js demo on a non-conflicting port
-    command: `cd ${path.resolve(__dirname, '../../core/protocol')} && node_modules/.bin/tsc -p tsconfig.json && cd ${__dirname} && node build.mjs && cd ${demoDir} && PORT=3001 pnpm exec next dev --turbo`,
+    // When SKIP_BUILD=true (set by root `pnpm test`), packages are already built.
+    command: `${buildPrefix}cd ${demoDir} && PORT=3001 pnpm exec next dev --turbo`,
     cwd: demoDir,
     url: 'http://localhost:3001',
     reuseExistingServer: !process.env.CI,
