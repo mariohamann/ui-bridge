@@ -8,6 +8,8 @@
   },
   "scripts": {
     "dev": "node dev.mjs",
+    "docs:dev": "pnpm --filter @design-bridge/docs dev",
+    "docs:build": "pnpm --filter @design-bridge/docs build",
     "build": "pnpm --filter @design-bridge/core build && pnpm --filter @design-bridge/components build && pnpm --filter @design-bridge/client build && pnpm --filter @design-bridge/vite-plugin build",
     "test": "pnpm --filter @design-bridge/components test && pnpm --filter @design-bridge/server test && pnpm --filter @design-bridge/client test && pnpm --filter @design-bridge/vite-plugin test"
   }

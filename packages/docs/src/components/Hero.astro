@@ -1,0 +1,111 @@
+---
+import BrowserFrame from "./BrowserFrame.astro"
+---
+
+<section
+  id="hero"
+  class="relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-6 py-20 text-center"
+>
+  <!-- Background glow -->
+  <div
+    class="pointer-events-none absolute left-1/2 top-1/3 h-[400px] w-[600px] -translate-x-1/2 -translate-y-1/2 rounded-full"
+    style="background: radial-gradient(ellipse, rgba(124,109,250,.12) 0%, transparent 70%);"
+  >
+  </div>
+
+  <div id="hero-content" class="relative z-10 max-w-[680px]">
+    <!-- Pill -->
+    <div class="pill mb-8">
+      <span class="pill-dot"></span>
+      OPEN SOURCE · MIT
+    </div>
+
+    <h1
+      class="mb-6 text-[clamp(40px,6vw,72px)] font-semibold leading-[1.1] tracking-tight"
+    >
+      Design Bridge
+    </h1>
+
+    <p
+      class="mx-auto mb-12 max-w-[540px] text-[clamp(16px,2vw,22px)] leading-relaxed text-db-muted"
+    >
+      The missing layer between your browser and your agent.
+    </p>
+
+    <!-- Install command -->
+    <div
+      class="mb-10 inline-flex items-center gap-3 rounded-lg border border-db-border bg-db-inset px-5 py-3.5 font-mono text-sm"
+    >
+      <span class="select-none text-db-muted">$</span>
+      <span class="text-db-text">npm install @design-bridge/vite-plugin</span>
+      <button
+        onclick="navigator.clipboard.writeText('npm install @design-bridge/vite-plugin');this.textContent='✓';setTimeout(()=>this.textContent='Copy',1500)"
+        class="rounded border border-db-border bg-db-surface px-2.5 py-1 text-[11px] text-db-muted cursor-pointer hover:text-db-text transition-colors"
+        >Copy</button
+      >
+    </div>
+
+    <div class="flex flex-wrap justify-center gap-4">
+      <a href="#get-started" class="btn-primary">Get Started ↓</a>
+      <a
+        href="https://github.com/your-org/design-bridge"
+        target="_blank"
+        class="btn-ghost">GitHub ↗</a
+      >
+    </div>
+  </div>
+
+  <!-- Hero browser preview -->
+  <div
+    id="hero-browser"
+    class="mt-20 w-full max-w-[860px]"
+    style="opacity:0;transform:translateY(30px);"
+  >
+    <BrowserFrame>
+      <div class="relative h-[300px] bg-db-bg">
+        <!-- Fake app cards -->
+        <div class="grid grid-cols-2 gap-3.5 p-5">
+          <div class="rounded-lg border border-db-border bg-db-surface p-4">
+            <div class="mb-2.5 h-[7px] w-[70px] rounded bg-db-card"></div>
+            <div class="mb-1.5 h-[5px] w-[110px] rounded bg-db-border"></div>
+            <div class="mb-3.5 h-[5px] w-[80px] rounded bg-db-border"></div>
+            <div
+              class="inline-block rounded-md bg-db-accent px-3 py-1.5 text-[10px] text-white"
+            >
+              Action
+            </div>
+          </div>
+          <div class="rounded-lg border border-db-border bg-db-surface p-4">
+            <div class="mb-2.5 h-[7px] w-[50px] rounded bg-db-card"></div>
+            <div class="mb-1.5 h-[5px] w-[90px] rounded bg-db-border"></div>
+            <div class="mb-3.5 h-[5px] w-[60px] rounded bg-db-border"></div>
+            <div
+              class="inline-block rounded-md border border-db-border px-3 py-1.5 text-[10px] text-db-muted"
+            >
+              Browse
+            </div>
+          </div>
+        </div>
+
+        <!-- DB panel -->
+        <div class="db-panel-mock">
+          <div class="db-panel-header">
+            <div class="db-panel-dot"></div>
+            DESIGN BRIDGE
+          </div>
+          <div class="space-y-1.5 p-2.5">
+            <p class="mb-2 text-[10px] text-db-muted">
+              2 open annotations · 1 tweak
+            </p>
+            <div class="db-panel-item">
+              <span class="text-db-accent">●</span> Button padding too tight
+            </div>
+            <div class="db-panel-item">
+              <span class="text-db-green">●</span> Heading resolved
+            </div>
+          </div>
+        </div>
+      </div>
+    </BrowserFrame>
+  </div>
+</section>

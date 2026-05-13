@@ -1,0 +1,19 @@
+---
+import Base from "../layouts/Base.astro"
+import Hero from "../components/Hero.astro"
+import GetStarted from "../components/GetStarted.astro"
+import StorySection from "../components/StorySection.astro"
+import Footer from "../components/Footer.astro"
+---
+
+<Base>
+  <Hero />
+  <GetStarted />
+  <StorySection />
+  <Footer />
+</Base>
+
+<script>
+  import "../scripts/scrollytelling.ts"
+  import "../scripts/knobs-demo.ts"
+</script>
