@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
-    "dev": "webpack serve",
+    "dev": "node ../../scripts/dev-demo.mjs --integration=unplugin --server=webpack serve --demo=demos/webpack",
     "build": "webpack --mode production"
   },
   "dependencies": {

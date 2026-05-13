@@ -66,7 +66,8 @@ function findFreePort(start, maxAttempts = 10) {
       probe.once('listening', () => {
         probe.close(() => resolve(port));
       });
-      probe.listen(port, '127.0.0.1');
+      // Probe on 0.0.0.0 (all interfaces) so we detect ports occupied on :: as well.
+      probe.listen(port);
     }
     tryPort(start);
   });
@@ -408,7 +409,9 @@ tweaks.watchScripts(() => broadcast({ type: 'tweak:schema', payload: tweaks.buil
 
 actualPort = await findFreePort(PREFERRED_PORT);
 if (actualPort !== PREFERRED_PORT) {
-  console.log(`[design-bridge] port ${PREFERRED_PORT} in use, using :${actualPort} instead`);
+  console.log(
+    `[design-bridge] port ${PREFERRED_PORT} in use, using http://localhost:${actualPort} instead`,
+  );
 }
 
 httpServer.listen(actualPort, () => {

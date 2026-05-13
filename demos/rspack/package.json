@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
-    "dev": "rspack serve",
+    "dev": "node ../../scripts/dev-demo.mjs --integration=unplugin --server=rspack serve --demo=demos/rspack",
     "build": "rspack build"
   },
   "dependencies": {

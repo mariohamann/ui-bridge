@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbo",
+    "dev": "node ../../scripts/dev-demo.mjs --integration=next --server=next dev --turbo --demo=demos/next",
     "build": "next build",
     "start": "next start"
   },

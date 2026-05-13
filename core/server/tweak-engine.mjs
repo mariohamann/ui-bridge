@@ -16,8 +16,8 @@ import fg from 'fast-glob';
  * @returns engine API
  */
 export function createTweakEngine(rootDir) {
-  const SCRIPTS_DIR = resolve(rootDir, 'tweaks', 'scripts');
-  const CACHE_DIR = resolve(rootDir, 'tweaks', '.cache');
+  const SCRIPTS_DIR = resolve(rootDir, '.design-bridge', 'tweaks');
+  const CACHE_DIR = resolve(rootDir, '.design-bridge', '.cache');
 
   /** @type {Array<{ meta: object; defaultValue: any; scriptPath: string }>} */
   let scripts = [];

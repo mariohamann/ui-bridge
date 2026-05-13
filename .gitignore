@@ -1,7 +1,7 @@
 **/node_modules
 **/test-results
 **/dist
-**/tweaks
+**/.design-bridge
 **/playwright-report
 **/.DS_Store
 .agents/skills/webawesome

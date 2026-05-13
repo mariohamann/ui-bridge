@@ -32,7 +32,7 @@ export interface DesignBridgeNextOptions {
  * }
  * ```
  */
-export function DesignBridgeScript({ port }: { port?: number } = {}): React.JSX.Element {
+export function DesignBridgeScript({ port }: { port?: number; } = {}): React.JSX.Element {
   // Use createElement to avoid requiring JSX transform in this package's build.
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { createElement, Fragment } = _require('react') as typeof import('react');
@@ -49,13 +49,14 @@ export function DesignBridgeScript({ port }: { port?: number } = {}): React.JSX.
   );
 }
 
-async function getServerPort(port: number): Promise<number | null> {
+async function getServerPort(port: number, expectedRoot: string): Promise<number | null> {
   try {
     const resp = await fetch(`http://localhost:${port}/health`, {
       signal: AbortSignal.timeout(600),
     });
     if (!resp.ok) return null;
-    const body = (await resp.json()) as { port?: number };
+    const body = (await resp.json()) as { port?: number; root?: string; };
+    if (body.root && body.root !== expectedRoot) return null;
     return body.port ?? port;
   } catch {
     return null;
@@ -65,7 +66,7 @@ async function getServerPort(port: number): Promise<number | null> {
 function spawnServer(
   rootDir: string,
   preferredPort: number,
-): { child: ChildProcess; ready: Promise<number> } {
+): { child: ChildProcess; ready: Promise<number>; } {
   const serverEntry = _require.resolve('@design-bridge/server');
   const child = spawn(process.execPath, [serverEntry, '--root', rootDir], {
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -114,9 +115,9 @@ export function withDesignBridge(
 
   if (isDev) {
     // Spawn server eagerly (fire-and-forget; reuses existing if already running)
-    getServerPort(preferredPort).then((existing) => {
+    getServerPort(preferredPort, process.cwd()).then((existing) => {
       if (existing !== null) {
-        console.log(`[design-bridge] using existing server on :${existing}`);
+        console.log(`[design-bridge] using existing server at http://localhost:${existing}`);
         return;
       }
       spawnServer(process.cwd(), preferredPort);

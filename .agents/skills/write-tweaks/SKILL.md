@@ -5,7 +5,7 @@ description: How to write Design Bridge tweak scripts (.mjs) for live UI experim
 
 # How to Write Design Bridge Tweaks
 
-Tweaks are small `.mjs` scripts in `tweaks/scripts/`. Each file becomes one knob in the Tweakpane UI. The dev server auto-discovers them on startup and whenever the folder changes.
+Tweaks are small `.mjs` scripts in `.design-bridge/tweaks/`. Each file becomes one knob in the Tweakpane UI. The dev server auto-discovers them on startup and whenever the folder changes.
 
 The folder is gitignored — tweaks are local, experimental, and disposable.
 
@@ -16,7 +16,7 @@ The folder is gitignored — tweaks are local, experimental, and disposable.
 ## File anatomy
 
 ```js
-// tweaks/scripts/my-tweak.mjs
+// .design-bridge/tweaks/my-tweak.mjs
 
 export const meta = {
   id: 'my-tweak', // unique, kebab-case, used as the knob identifier
@@ -177,4 +177,4 @@ Prefer targeting `.vue` or `.css` files over `.html` entry files to keep the pag
 
 - **Reset knob** — restores the file to its original and sets the knob back to the default value from `meta.value`
 - **Reset All** — resets every knob
-- **Apply** — keeps all file changes as-is and deletes the entire `tweaks/` folder
+- **Apply** — keeps all file changes as-is and deletes the entire `.design-bridge/` folder

@@ -1,10 +1,10 @@
 {
-  "name": "design-bridge-demo-vite-vue",
+  "name": "design-bridge-demo-vite",
   "version": "0.0.1",
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "node ../../scripts/dev-demo.mjs --integration=unplugin --server=vite --demo=demos/vite",
     "build": "vite build",
     "preview": "vite preview"
   },

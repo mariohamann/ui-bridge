@@ -13,7 +13,7 @@ The project is a pnpm monorepo with packages split across `core/`, `integrations
 | Package                     | Role                                                                                                                                                                                                                                                          |
 | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `@design-bridge/protocol`   | Shared TypeScript types and WebSocket protocol definitions (knobs, annotations, messages).                                                                                                                                                                    |
-| `@design-bridge/server`     | Node.js server (`server/index.mjs`). Hosts the WebSocket endpoint, runs the tweak engine, and manages the annotation store. Annotations are persisted as individual JSON files in `tweaks/annotations/`.                                                      |
+| `@design-bridge/server`     | Node.js server (`server/index.mjs`). Hosts the WebSocket endpoint, runs the tweak engine, and manages the annotation store. Annotations are persisted as individual JSON files in `.design-bridge/annotations/`.                                              |
 | `@design-bridge/components` | Lit web components (`db-annotation`, `db-review`) and the shared signal/intent bus. Transport-agnostic: components read from signal stores and dispatch typed `ComponentIntent`s.                                                                             |
 | `@design-bridge/client`     | Browser entry points. `src/browser/index.ts` boots the inspector and wires the WebSocket adapter (`ws-adapter.ts`), which translates between WebSocket messages and the signal/intent bus. `src/review/index.ts` is the entry for the standalone review page. |
 
@@ -28,9 +28,9 @@ The project is a pnpm monorepo with packages split across `core/`, `integrations
 
 ### Capabilities
 
-**Tweaks** — live UI knobs backed by `.mjs` scripts in `tweaks/scripts/`. Each script exports a `meta` object (defining the knob: label, type, default value) and an `apply(value, ctx)` function that rewrites source files on the fly using regex-based `ctx.replaceInFile()`. A snapshot/replay model ensures every knob change starts from the original file, so tweaks compose safely without corrupting source. When the user commits a value (`tweak:finalize`), the change is written permanently; reset restores from the snapshot.
+**Tweaks** — live UI knobs backed by `.mjs` scripts in `.design-bridge/tweaks/`. Each script exports a `meta` object (defining the knob: label, type, default value) and an `apply(value, ctx)` function that rewrites source files on the fly using regex-based `ctx.replaceInFile()`. A snapshot/replay model ensures every knob change starts from the original file, so tweaks compose safely without corrupting source. When the user commits a value (`tweak:finalize`), the change is written permanently; reset restores from the snapshot.
 
-**Annotations** — the user can enter inspect mode (Alt+click), click any DOM element in the browser, and attach a comment. Annotations are stored with a stable CSS selector (via `@medv/finder`), a comment, and optionally a source location (file:line:col from code-inspector). They are persisted as per-annotation JSON files in `tweaks/annotations/` and synced across clients via WebSocket (`annotations:sync` messages). A standalone `/review` page (`db-review` component) lists all annotations with reply threads, resolve/delete actions, and tweak links. Annotations serve as async design feedback left directly on the running UI — the agent reads and acts on them.
+**Annotations** — the user can enter inspect mode (Alt+click), click any DOM element in the browser, and attach a comment. Annotations are stored with a stable CSS selector (via `@medv/finder`), a comment, and optionally a source location (file:line:col from code-inspector). They are persisted as per-annotation JSON files in `.design-bridge/annotations/` and synced across clients via WebSocket (`annotations:sync` messages). A standalone `/review` page (`db-review` component) lists all annotations with reply threads, resolve/delete actions, and tweak links. Annotations serve as async design feedback left directly on the running UI — the agent reads and acts on them.
 
 ### Signal / intent bus
 
@@ -95,7 +95,7 @@ pnpm --filter @design-bridge/unplugin test -- tests/rspack.spec.ts
 pnpm --filter @design-bridge/client test -- tests/annotations.spec.ts
 ```
 
-**Server tests** spin up a dedicated server instance on port 7379 (`DESIGN_BRIDGE_PORT=7379`, `reuseExistingServer: false`) so they never interfere with the dev server on 7378.
+**Server tests** spin up a dedicated server instance on port 7379 — the default (`DESIGN_BRIDGE_PORT=7378`, `reuseExistingServer: false`). Each other suite has its own port: unplugin/client → 7378, next → 7380, astro → 7381, nuxt → 7382.
 
 **`core/client` tests** require the Vite dev server (port 5173). The webServer config starts it automatically with `reuseExistingServer: true` — if `integrations/unplugin` tests are already running and have started the server, `core/client` will reuse it.
 

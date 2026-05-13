@@ -30,7 +30,8 @@ function occupyPort(port: number): Promise<[NetServer, () => Promise<void>]> {
   return new Promise((resolve, reject) => {
     const srv = createNetServer();
     srv.once('error', reject);
-    srv.listen(port, '127.0.0.1', () => {
+    // Listen without a host so Node picks :: (same as httpServer.listen(port) in the server).
+    srv.listen(port, () => {
       resolve([srv, () => new Promise<void>((res) => srv.close(() => res()))]);
     });
   });

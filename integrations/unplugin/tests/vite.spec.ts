@@ -2,7 +2,7 @@
  * Integration tests for @design-bridge/unplugin — Vite variant.
  *
  * These tests verify that the unplugin wires up correctly in the Vite
- * dev server (demos/vite-vue):
+ * dev server (demos/vite):
  *
  *  1. The WS URL global is injected into the page.
  *  2. The client bundle is served by the Vite middleware and boots.
@@ -47,7 +47,7 @@ test('serves the client bundle at /__design-bridge/client.js', async ({ request 
 test('Design Bridge server health endpoint is reachable', async ({ request }) => {
   const res = await request.get(`http://localhost:${DB_PORT}/health`);
   expect(res.status()).toBe(200);
-  const body = (await res.json()) as { port: number };
+  const body = (await res.json()) as { port: number; };
   expect(typeof body.port).toBe('number');
 });
 
@@ -68,6 +68,6 @@ test('annotation round-trip: created on the page is persisted to the server', as
   await expect(panel).toHaveCount(0);
 
   const res = await page.request.get(`${API_BASE}/annotations`);
-  const body = (await res.json()) as { annotations: { comment: string }[] };
+  const body = (await res.json()) as { annotations: { comment: string; }[]; };
   expect(body.annotations.some((a) => a.comment === 'unplugin integration check')).toBe(true);
 });

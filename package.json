@@ -11,11 +11,14 @@
     "docs:dev": "pnpm --filter @design-bridge/docs dev",
     "docs:build": "pnpm --filter @design-bridge/docs build",
     "build": "pnpm -r build",
+    "build:core": "pnpm --filter \"./core/**\" build",
+    "build:integrations": "pnpm --filter \"./integrations/**\" build",
+    "build:demos": "pnpm --filter \"./demos/**\" build",
     "typecheck": "pnpm -r --parallel typecheck",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "verify": "pnpm format:check && pnpm typecheck && pnpm test",
-    "test": "pnpm -r test"
+    "test": "pnpm build:core && pnpm build:integrations && pnpm -r --workspace-concurrency=1 run test "
   },
   "devDependencies": {
     "prettier": "^3.8.3"

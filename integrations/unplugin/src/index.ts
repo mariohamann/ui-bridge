@@ -17,15 +17,17 @@ export interface DesignBridgeOptions {
 }
 
 /**
- * Ping the server's /health endpoint. Returns the actual port, or null if unreachable.
+ * Ping the server's /health endpoint. Returns { port, root } if reachable and root matches,
+ * or null if unreachable or the running server belongs to a different project root.
  */
-async function getServerPort(port: number): Promise<number | null> {
+async function getServerPort(port: number, expectedRoot: string): Promise<number | null> {
   try {
     const resp = await fetch(`http://localhost:${port}/health`, {
       signal: AbortSignal.timeout(600),
     });
     if (!resp.ok) return null;
-    const body = (await resp.json()) as { port?: number };
+    const body = (await resp.json()) as { port?: number; root?: string; };
+    if (body.root && body.root !== expectedRoot) return null;
     return body.port ?? port;
   } catch {
     return null;
@@ -38,7 +40,7 @@ async function getServerPort(port: number): Promise<number | null> {
 function spawnServer(
   rootDir: string,
   preferredPort: number,
-): { child: ChildProcess; ready: Promise<number> } {
+): { child: ChildProcess; ready: Promise<number>; } {
   const serverEntry = _require.resolve('@design-bridge/server');
   const child = spawn(process.execPath, [serverEntry, '--root', rootDir], {
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -94,10 +96,10 @@ const unpluginFactory = createUnplugin((options: DesignBridgeOptions = {}) => {
 
   async function ensureServer() {
     if (serverReady) return;
-    const existingPort = await getServerPort(preferredPort);
+    const existingPort = await getServerPort(preferredPort, rootDir);
     if (existingPort !== null) {
       resolvedPort = existingPort;
-      console.log(`[design-bridge] using existing server on :${resolvedPort}`);
+      console.log(`[design-bridge] using existing server at http://localhost:${resolvedPort}`);
     } else {
       const { child: c, ready } = spawnServer(rootDir, preferredPort);
       child = c;
@@ -112,15 +114,15 @@ const unpluginFactory = createUnplugin((options: DesignBridgeOptions = {}) => {
     // ── vite-specific hooks ─────────────────────────────────────────────────
     vite: {
       config() {
-        return { server: { watch: { ignored: ['**/tweaks/.cache/**'] } } };
+        return { server: { watch: { ignored: ['**/.design-bridge/.cache/**'] } } };
       },
 
-      async configResolved(config: { root: string }) {
+      async configResolved(config: { root: string; }) {
         rootDir = config.root;
       },
 
       configureServer(server: {
-        httpServer: { once: (event: string, cb: () => void) => void } | null;
+        httpServer: { once: (event: string, cb: () => void) => void; } | null;
         middlewares: {
           use: (
             path: string,
@@ -159,7 +161,7 @@ const unpluginFactory = createUnplugin((options: DesignBridgeOptions = {}) => {
 
       transformIndexHtml: {
         order: 'pre' as const,
-        handler(_html: string, ctx: { server?: unknown }) {
+        handler(_html: string, ctx: { server?: unknown; }) {
           if (!ctx.server) return;
           const wsUrl = `ws://localhost:${resolvedPort}/design-bridge`;
           const CLIENT_URL = '/__design-bridge/client.js';
@@ -259,7 +261,7 @@ export function designBridgeTurbopack(options: DesignBridgeOptions = {}): Record
   // Merge our inject loader into every rule entry that code-inspector produces
   const merged: Record<string, unknown> = {};
   for (const [glob, rule] of Object.entries(codeInspectorRules)) {
-    const existing = (rule as { loaders: unknown[] }).loaders ?? [];
+    const existing = (rule as { loaders: unknown[]; }).loaders ?? [];
     merged[glob] = {
       loaders: [...existing, { loader: loaderPath, options: { port } }],
     };

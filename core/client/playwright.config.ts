@@ -27,8 +27,8 @@ export default defineConfig({
   webServer: {
     // Build first, then serve. integrations/unplugin tests share the same server
     // (reuseExistingServer is true locally) so we only need one to build+start.
-    command: `cd ${path.resolve(__dirname, '../../demos/vite-vue')} && pnpm dev`,
-    cwd: path.resolve(__dirname, '../../demos/vite-vue'),
+    command: `cd ${path.resolve(__dirname, '../../demos/vite')} && pnpm dev`,
+    cwd: path.resolve(__dirname, '../../demos/vite'),
     url: 'http://localhost:5173',
     reuseExistingServer: true,
     timeout: 30_000,

@@ -36,4 +36,4 @@ Key rules at a glance:
 - Write your regex against the **original** source (the replay model restores it before each run)
 - Target source files (e.g. components, stylesheets) over generated or compiled output to avoid full-page reloads
 
-Tweaks live in `tweaks/scripts/` and are gitignored — they are local, experimental, and disposable.
+Tweaks live in `.design-bridge/tweaks/` and are gitignored — they are local, experimental, and disposable.

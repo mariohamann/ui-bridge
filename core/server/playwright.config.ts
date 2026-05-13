@@ -8,7 +8,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 // The server creates dirs lazily, so we just need to point it somewhere clean.
 const TEST_ROOT = resolve(__dirname, '.test-root');
 
-/** Port for the test-only server instance — avoids clashing with the dev server on 7378. */
+/** Port for the test-only server instance — dedicated to avoid clashing with dev servers on 7378. */
 const TEST_PORT = 7379;
 
 export default defineConfig({

@@ -210,7 +210,7 @@ importers:
         specifier: ^2.0.0
         version: 2.1.1
 
-  demos/vite-vue:
+  demos/vite:
     dependencies:
       '@design-bridge/demo-styles':
         specifier: workspace:*

@@ -12,7 +12,7 @@ import { resolve } from 'node:path';
  * @returns store API
  */
 export function createAnnotationStore(rootDir) {
-  const ANNOTATIONS_DIR = resolve(rootDir, 'tweaks', 'annotations');
+  const ANNOTATIONS_DIR = resolve(rootDir, '.design-bridge', 'annotations');
 
   /** @type {Map<string, object>} */
   const annotations = new Map();

@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
-    "dev": "nuxt dev",
+    "dev": "node ../../scripts/dev-demo.mjs --integration=nuxt --server=nuxt dev --demo=demos/nuxt",
     "build": "nuxt build",
     "generate": "nuxt generate",
     "preview": "nuxt preview"

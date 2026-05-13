@@ -7,7 +7,7 @@
     "node": ">=22.12.0"
   },
   "scripts": {
-    "dev": "astro dev",
+    "dev": "node ../../scripts/dev-demo.mjs --integration=astro --server=astro dev --demo=demos/astro",
     "build": "astro build",
     "preview": "astro preview",
     "astro": "astro"
