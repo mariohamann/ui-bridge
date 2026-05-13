@@ -6,15 +6,25 @@ Design Bridge is a local developer tool that bridges design experimentation and 
 
 ### Package structure
 
-The project is a pnpm monorepo under `packages/`:
+The project is a pnpm monorepo with packages split across `core/`, `integrations/`, `demos/`, and `docs/`.
+
+**Core packages** (`core/`):
 
 | Package | Role |
 |---|---|
-| `@design-bridge/core` | Shared TypeScript types and WebSocket protocol definitions (knobs, annotations, messages). |
+| `@design-bridge/protocol` | Shared TypeScript types and WebSocket protocol definitions (knobs, annotations, messages). |
 | `@design-bridge/server` | Node.js server (`server/index.mjs`). Hosts the WebSocket endpoint, runs the tweak engine, and manages the annotation store. Annotations are persisted as individual JSON files in `tweaks/annotations/`. |
-| `@design-bridge/vite-plugin` | Vite plugin that spawns the server as a subprocess and injects the client bundle into the dev server. |
 | `@design-bridge/components` | Lit web components (`db-annotation`, `db-review`) and the shared signal/intent bus. Transport-agnostic: components read from signal stores and dispatch typed `ComponentIntent`s. |
 | `@design-bridge/client` | Browser entry points. `src/browser/index.ts` boots the inspector and wires the WebSocket adapter (`ws-adapter.ts`), which translates between WebSocket messages and the signal/intent bus. `src/review/index.ts` is the entry for the standalone review page. |
+
+**Integration packages** (`integrations/`):
+
+| Package | Role |
+|---|---|
+| `@design-bridge/unplugin` | Universal plugin built with `unplugin`. Exposes `.vite()`, `.webpack()`, and `.rspack()` — spawns the server and injects the client bundle. |
+| `@design-bridge/astro` | Astro integration. Wraps the unplugin and registers it with the Astro Vite pipeline. |
+| `@design-bridge/next` | Next.js integration. Exports `withDesignBridge(nextConfig)` and a `DesignBridgeScript` React Server Component for injecting the client in `app/layout.tsx`. |
+| `@design-bridge/nuxt` | Nuxt 3 module. Injects the client scripts via `nuxt.options.app.head.script`. |
 
 ### Capabilities
 
@@ -28,14 +38,17 @@ UI components in `@design-bridge/components` are transport-agnostic. They read s
 
 ## Running Tests
 
-Tests are spread across four packages, each with a different runner:
+Tests are spread across packages in `core/` and `integrations/`, each with a different runner:
 
 | Package | Runner | What it tests |
 |---|---|---|
 | `@design-bridge/components` | Node.js built-in test runner (`node --test`) | Signal stores and intent bus — no browser, no server |
 | `@design-bridge/server` | Playwright (API-only, no browser) | HTTP + WebSocket API of the standalone server |
 | `@design-bridge/client` | Playwright (Chromium) | Annotation UI end-to-end against the Vite dev server |
-| `@design-bridge/vite-plugin` | Playwright (Chromium) | Plugin integration against the Vite dev server |
+| `@design-bridge/unplugin` | Playwright (Chromium) | Vite, webpack, and rspack plugin integration |
+| `@design-bridge/astro` | Playwright (Chromium) | Astro integration against the Astro demo |
+| `@design-bridge/next` | Playwright (Chromium) | Next.js integration against the Next.js demo |
+| `@design-bridge/nuxt` | Playwright (Chromium) | Nuxt 3 integration against the Nuxt demo |
 
 **Run all test suites from the repo root:**
 
@@ -43,26 +56,50 @@ Tests are spread across four packages, each with a different runner:
 pnpm test
 ```
 
-This runs each package's test script in order: `components` → `server` → `client` → `vite-plugin`.
-
 **Run a single package's tests:**
 
 ```bash
 pnpm --filter @design-bridge/client test
 pnpm --filter @design-bridge/server test
 pnpm --filter @design-bridge/components test
-pnpm --filter @design-bridge/vite-plugin test
+pnpm --filter @design-bridge/unplugin test
+pnpm --filter @design-bridge/astro test
+pnpm --filter @design-bridge/next test
+pnpm --filter @design-bridge/nuxt test
 ```
 
-**Target a single Playwright test by name** (for `client` or `vite-plugin`):
+**Target a single Playwright test by title** — pass `-g` after `--` to filter by name substring (case-insensitive):
 
 ```bash
-pnpm --filter @design-bridge/client test -- -g "test name here"
+# Any Playwright-based package
+pnpm --filter @design-bridge/client test -- -g "annotation panel"
+
+# unplugin: also select a specific bundler project with --project
+pnpm --filter @design-bridge/unplugin test -- --project=rspack
+pnpm --filter @design-bridge/unplugin test -- --project=rspack -g "injects __DB_WS_URL__"
+```
+
+**Target a single Node.js test** (components package uses `node --test`):
+
+The `pnpm test --` passthrough does not reach node's own flags, so invoke node directly:
+
+```bash
+cd core/components
+node --loader ./tests/css-loader.mjs --test --test-name-pattern "annotations store" tests/stores.test.mjs
+```
+
+**Run only tests in a specific file:**
+
+```bash
+pnpm --filter @design-bridge/unplugin test -- tests/rspack.spec.ts
+pnpm --filter @design-bridge/client test -- tests/annotations.spec.ts
 ```
 
 **Server tests** spin up a dedicated server instance on port 7379 (`DESIGN_BRIDGE_PORT=7379`, `reuseExistingServer: false`) so they never interfere with the dev server on 7378.
 
-**Client and vite-plugin tests** require the Vite dev server (port 5173). Playwright's `webServer` config starts it automatically (building the plugin first) if it is not already running; it reuses an existing server in non-CI mode.
+**`core/client` tests** require the Vite dev server (port 5173). The webServer config starts it automatically with `reuseExistingServer: true` — if `integrations/unplugin` tests are already running and have started the server, `core/client` will reuse it.
+
+**`integrations/unplugin` tests** cover three bundlers across three projects: `vite` (port 5173), `webpack` (port 5174), and `rspack` (port 5175). The webServer command builds both `unplugin` and `client` before starting the Vite demo.
 
 **Do NOT run Playwright tests from inside a package directly** unless you have already built the required packages, since the build step is part of the `webServer` command.
 
