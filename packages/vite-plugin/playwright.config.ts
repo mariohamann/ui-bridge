@@ -25,8 +25,8 @@ export default defineConfig({
   ],
 
   webServer: {
-    command: `cd ${__dirname} && node build.mjs && cd ${path.resolve(__dirname, '../client')} && node build.mjs && cd ${path.resolve(__dirname, '../../demos/vue-tailwind')} && pnpm dev`,
-    cwd: path.resolve(__dirname, '../../demos/vue-tailwind'),
+    command: `cd ${__dirname} && node build.mjs && cd ${path.resolve(__dirname, '../client')} && node build.mjs && cd ${path.resolve(__dirname, '../../demos/vite-vue')} && pnpm dev`,
+    cwd: path.resolve(__dirname, '../../demos/vite-vue'),
     url: 'http://localhost:5173',
     reuseExistingServer: !process.env.CI,
     timeout: 30_000,

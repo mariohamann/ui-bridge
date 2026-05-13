@@ -20,7 +20,7 @@ const CLIENT_DIR = resolve(__dirname, 'packages/client');
 const COMPONENTS_DIR = resolve(__dirname, 'packages/components');
 const DIST_NODE = resolve(PLUGIN_DIR, 'dist/node/index.js');
 const COMPONENTS_DIST = resolve(COMPONENTS_DIR, 'dist');
-const DEMO_DIR = resolve(__dirname, 'demos/vue-tailwind');
+const DEMO_DIR = resolve(__dirname, 'demos/vite-vue');
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
