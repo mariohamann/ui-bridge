@@ -1,0 +1,49 @@
+{
+  "name": "@design-bridge/unplugin",
+  "version": "0.0.1",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "node build.mjs",
+    "dev": "node build.mjs --watch",
+    "test": "playwright test"
+  },
+  "dependencies": {
+    "@design-bridge/client": "workspace:*",
+    "@design-bridge/server": "workspace:*",
+    "code-inspector-plugin": "^1.5.1",
+    "unplugin": "^2.3.4"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.50.0",
+    "@types/node": "^25.6.0",
+    "esbuild": "^0.25.0",
+    "typescript": "~6.0.2",
+    "vite": "^8.0.4",
+    "webpack": "^5.98.0",
+    "@rspack/core": "^1.3.13"
+  },
+  "peerDependencies": {
+    "vite": "^5.0.0 || ^6.0.0 || ^7.0.0 || ^8.0.0",
+    "webpack": "^5.0.0",
+    "@rspack/core": "^1.0.0"
+  },
+  "peerDependenciesMeta": {
+    "vite": {
+      "optional": true
+    },
+    "webpack": {
+      "optional": true
+    },
+    "@rspack/core": {
+      "optional": true
+    }
+  }
+}

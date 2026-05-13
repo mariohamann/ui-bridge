@@ -44,6 +44,8 @@ const ANNOTATION_ITEM_LOCAL_STYLES = css`
   }
   .badge-preview.visible { opacity: 1; transform: scale(1); }
   .badge-preview-text {
+    font-size: 12px;
+    line-height: 1.4;
     display: -webkit-box;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 3;

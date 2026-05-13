@@ -3,6 +3,7 @@ import { fileURLToPath } from 'url';
 import path from 'path';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const demoDir = path.resolve(__dirname, '../../demos/nuxt');
 
 export default defineConfig({
   testDir: './tests',
@@ -10,10 +11,10 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   reporter: 'list',
-  timeout: 5_000,
+  timeout: 30_000,
 
   use: {
-    baseURL: 'http://localhost:5173',
+    baseURL: 'http://localhost:3002',
     trace: 'on-first-retry',
   },
 
@@ -25,10 +26,11 @@ export default defineConfig({
   ],
 
   webServer: {
-    command: `cd ${__dirname} && node build.mjs && cd ${path.resolve(__dirname, '../unplugin')} && node build.mjs && cd ${path.resolve(__dirname, '../../demos/vite-vue')} && pnpm dev`,
-    cwd: path.resolve(__dirname, '../../demos/vite-vue'),
-    url: 'http://localhost:5173',
+    // Build this package, then start the Nuxt demo on a non-conflicting port
+    command: `cd ${__dirname} && node build.mjs && cd ${demoDir} && PORT=3002 pnpm dev`,
+    cwd: demoDir,
+    url: 'http://localhost:3002',
     reuseExistingServer: !process.env.CI,
-    timeout: 30_000,
+    timeout: 90_000,
   },
 });

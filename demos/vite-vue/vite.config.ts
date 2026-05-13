@@ -1,11 +1,11 @@
 import { defineConfig } from 'vite';
 import vue from '@vitejs/plugin-vue';
-import { designBridge } from '@design-bridge/vite-plugin';
+import { designBridgeWithInspector } from '@design-bridge/unplugin';
 
 export default defineConfig({
   plugins: [
     vue(),
-    designBridge(),
+    ...designBridgeWithInspector(),
   ],
   server: {
     watch: {
