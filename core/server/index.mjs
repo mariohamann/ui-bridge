@@ -405,7 +405,19 @@ httpServer.on('upgrade', (req, socket, head) => {
 
 await store.load();
 await tweaks.discoverScripts();
-tweaks.watchScripts(() => broadcast({ type: 'tweak:schema', payload: tweaks.buildSchema() }));
+const tweakWatcher = tweaks.watchScripts(() =>
+  broadcast({ type: 'tweak:schema', payload: tweaks.buildSchema() }),
+);
+
+// ── Graceful shutdown ─────────────────────────────────────────────────────────
+
+function shutdown() {
+  tweakWatcher?.close();
+  for (const client of wss.clients) client.terminate();
+  wss.close(() => httpServer.close(() => process.exit(0)));
+}
+process.on('SIGTERM', shutdown);
+process.on('SIGINT', shutdown);
 
 actualPort = await findFreePort(PREFERRED_PORT);
 if (actualPort !== PREFERRED_PORT) {

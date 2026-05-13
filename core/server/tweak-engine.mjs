@@ -330,13 +330,15 @@ export function createTweakEngine(rootDir) {
   function watchScripts(onReloaded) {
     try {
       let debounce = null;
-      watch(SCRIPTS_DIR, { recursive: false }, (event, filename) => {
+      const watcher = watch(SCRIPTS_DIR, { recursive: false }, (event, filename) => {
         if (!filename?.endsWith('.mjs')) return;
         clearTimeout(debounce);
         debounce = setTimeout(() => reloadScripts(onReloaded), 100);
       });
+      return watcher;
     } catch {
       /* scripts dir doesn't exist yet — watcher will be absent until reloaded */
+      return null;
     }
   }
 

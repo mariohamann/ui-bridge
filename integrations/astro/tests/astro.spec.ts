@@ -13,6 +13,13 @@
  */
 
 import { test, expect } from '@playwright/test';
+import { access, readdir } from 'node:fs/promises';
+import { resolve, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const ASTRO_DEMO_ROOT = resolve(__dirname, '../../../demos/astro');
+const ANNOTATIONS_DIR = resolve(ASTRO_DEMO_ROOT, '.design-bridge', 'annotations');
 
 const DB_PORT = parseInt(process.env.DESIGN_BRIDGE_PORT ?? '7378', 10);
 const API_BASE = `http://localhost:${DB_PORT}/api`;
@@ -76,8 +83,16 @@ test('annotation round-trip: created on the page appears on the review UI', asyn
 
   // 3. Verify it was persisted via the API
   const res = await page.request.get(`${API_BASE}/annotations`);
-  const body = (await res.json()) as { annotations: { comment: string }[] };
+  const body = (await res.json()) as { annotations: { id: string; comment: string }[] };
   expect(body.annotations.some((a) => a.comment === 'Round-trip check from Astro')).toBe(true);
+
+  // File must be written inside the Astro demo root, not somewhere else
+  const ann = body.annotations.find((a) => a.comment === 'Round-trip check from Astro')!;
+  const expectedPath = resolve(ANNOTATIONS_DIR, `${ann.id}.json`);
+  await expect(access(expectedPath)).resolves.toBeUndefined();
+
+  const files = await readdir(ANNOTATIONS_DIR);
+  expect(files).toContain(`${ann.id}.json`);
 
   // 4. Open the server-side review UI and confirm the comment is listed there
   const reviewPage = await context.newPage();

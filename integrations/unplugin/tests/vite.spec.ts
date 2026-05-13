@@ -12,9 +12,20 @@
  */
 
 import { test, expect } from '@playwright/test';
+import { access, readdir } from 'node:fs/promises';
+import { resolve } from 'node:path';
 
 const DB_PORT = parseInt(process.env.DESIGN_BRIDGE_PORT ?? process.env.DB_PORT ?? '7378', 10);
 const API_BASE = `http://localhost:${DB_PORT}/api`;
+
+/** Resolve the annotation directory from the running server's reported root. */
+async function getAnnotationsDir(request: {
+  get: (url: string) => Promise<{ json: () => Promise<unknown> }>;
+}): Promise<string> {
+  const res = await request.get(`http://localhost:${DB_PORT}/health`);
+  const body = (await res.json()) as { root: string };
+  return resolve(body.root, '.design-bridge', 'annotations');
+}
 
 test.beforeEach(async ({ request }) => {
   await request.delete(`${API_BASE}/annotations`);
@@ -51,9 +62,16 @@ test('Design Bridge server health endpoint is reachable', async ({ request }) =>
   expect(typeof body.port).toBe('number');
 });
 
-test('annotation round-trip: created on the page is persisted to the server', async ({ page }) => {
+test('annotation round-trip: created on the page is persisted to the server', async ({
+  page,
+  request,
+}) => {
   await page.goto('/');
-  await page.waitForFunction(() => !!customElements.get('db-annotation'), { timeout: 10_000 });
+  await page.waitForFunction(
+    () =>
+      !!customElements.get('db-annotation') && typeof (window as any).__DB_WS_URL__ === 'string',
+    { timeout: 10_000 },
+  );
 
   await page
     .locator('h1')
@@ -68,6 +86,15 @@ test('annotation round-trip: created on the page is persisted to the server', as
   await expect(panel).toHaveCount(0);
 
   const res = await page.request.get(`${API_BASE}/annotations`);
-  const body = (await res.json()) as { annotations: { comment: string }[] };
+  const body = (await res.json()) as { annotations: { id: string; comment: string }[] };
   expect(body.annotations.some((a) => a.comment === 'unplugin integration check')).toBe(true);
+
+  // File must be written inside the server's root, not somewhere else
+  const ann = body.annotations.find((a) => a.comment === 'unplugin integration check')!;
+  const annotationsDir = await getAnnotationsDir(request);
+  const expectedPath = resolve(annotationsDir, `${ann.id}.json`);
+  await expect(access(expectedPath)).resolves.toBeUndefined();
+
+  const files = await readdir(annotationsDir);
+  expect(files).toContain(`${ann.id}.json`);
 });

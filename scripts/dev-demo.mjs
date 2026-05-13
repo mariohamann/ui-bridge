@@ -26,8 +26,26 @@ function arg(name) {
   return match ? match.slice(prefix.length) : null;
 }
 
+// Collects a potentially multi-word value: starts at --name=<first-word>, then
+// appends subsequent argv tokens until the next --key=value flag is found.
+// This allows e.g. --server=next dev --turbo where 'dev' and '--turbo' are
+// separate shell tokens but all belong to the server command.
+function multiWordArg(name) {
+  const argv = process.argv.slice(2);
+  const prefix = `--${name}=`;
+  const idx = argv.findIndex((a) => a.startsWith(prefix));
+  if (idx === -1) return null;
+  const parts = [argv[idx].slice(prefix.length)];
+  for (let i = idx + 1; i < argv.length; i++) {
+    // Stop at the next --key=value flag (flags with = are named args)
+    if (argv[i].startsWith('--') && argv[i].includes('=')) break;
+    parts.push(argv[i]);
+  }
+  return parts.join(' ');
+}
+
 const integration = arg('integration'); // e.g. "unplugin", "next", "astro", "nuxt"
-const serverCmd = arg('server'); // e.g. "vite", "next dev --turbo"
+const serverCmd = multiWordArg('server'); // e.g. "vite", "next dev --turbo", "nuxt dev"
 const demoPath = arg('demo'); // e.g. "demos/vite"
 
 if (!serverCmd || !demoPath) {

@@ -201,6 +201,15 @@ const unpluginFactory = createUnplugin((options: DesignBridgeOptions = {}) => {
       ensureServer();
     });
 
+    // Kill the child process when the compiler shuts down (webpack 5 / rspack).
+    compiler.hooks.shutdown?.tapAsync('design-bridge', (callback: () => void) => {
+      if (child && !child.killed) {
+        child.kill();
+        child = null;
+      }
+      callback();
+    });
+
     // Use compiler.hooks.emit so that html-webpack-plugin has already added
     // the HTML asset before we patch it.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -8,6 +8,13 @@
 
 import { test, expect } from '@playwright/test';
 import WebSocket from 'ws';
+import { access, readdir } from 'node:fs/promises';
+import { resolve, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const TEST_ROOT = resolve(__dirname, '../.test-root');
+const ANNOTATIONS_DIR = resolve(TEST_ROOT, '.design-bridge', 'annotations');
 
 const TEST_PORT = parseInt(process.env.DESIGN_BRIDGE_PORT ?? '7379', 10);
 const BASE = `http://localhost:${TEST_PORT}`;
@@ -157,6 +164,14 @@ test.describe('POST /api/annotations', () => {
     expect(res.status()).toBe(200);
     const body = (await res.json()) as { ok: boolean };
     expect(body.ok).toBe(true);
+
+    // File must exist at exactly <TEST_ROOT>/.design-bridge/annotations/<id>.json
+    const expectedPath = resolve(ANNOTATIONS_DIR, 'create-ok.json');
+    await expect(access(expectedPath)).resolves.toBeUndefined();
+
+    // No stray files outside the expected annotations directory
+    const allFiles = await readdir(ANNOTATIONS_DIR);
+    expect(allFiles).toContain('create-ok.json');
   });
 
   test('upserts: posting with same id updates the annotation', async ({ request }) => {
@@ -195,6 +210,10 @@ test.describe('DELETE /api/annotations (clear all)', () => {
     const list = await request.get(`${API}/annotations`);
     const body = (await list.json()) as { annotations: unknown[] };
     expect(body.annotations).toHaveLength(0);
+
+    // Annotation files must be gone from the filesystem too
+    const remaining = await readdir(ANNOTATIONS_DIR).catch(() => []);
+    expect(remaining.filter((f) => f.endsWith('.json'))).toHaveLength(0);
   });
 
   test('is idempotent on an already-empty store', async ({ request }) => {
@@ -233,6 +252,12 @@ test.describe('DELETE /api/annotations/:id', () => {
 
     expect((await request.get(`${API}/annotations/del-me`)).status()).toBe(404);
     expect((await request.get(`${API}/annotations/keep-me`)).status()).toBe(200);
+
+    // Deleted file must not exist on disk; kept file must still be present
+    const deletedPath = resolve(ANNOTATIONS_DIR, 'del-me.json');
+    const keptPath = resolve(ANNOTATIONS_DIR, 'keep-me.json');
+    await expect(access(deletedPath)).rejects.toThrow();
+    await expect(access(keptPath)).resolves.toBeUndefined();
   });
 });
 

@@ -8,11 +8,20 @@
  *  2. The db-annotation custom element boots after the client script loads.
  *  3. The Design Bridge server health endpoint is reachable.
  *  4. The client script tag is present in the rendered HTML.
+ *  5. Full annotation round-trip: create on the page → persisted to the correct file location.
  */
 
 import { test, expect } from '@playwright/test';
+import { access, readdir } from 'node:fs/promises';
+import { resolve, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const NUXT_DEMO_ROOT = resolve(__dirname, '../../../demos/nuxt');
+const ANNOTATIONS_DIR = resolve(NUXT_DEMO_ROOT, '.design-bridge', 'annotations');
 
 const DB_PORT = parseInt(process.env.DESIGN_BRIDGE_PORT ?? process.env.DB_PORT ?? '7378', 10);
+const API_BASE = `http://localhost:${DB_PORT}/api`;
 
 test('injects __DB_WS_URL__ into the page', async ({ page }) => {
   await page.goto('/');
@@ -49,4 +58,42 @@ test('client script tag pointing at the Design Bridge server is present', async 
   });
   expect(scriptSrc).not.toBeNull();
   expect(scriptSrc).toContain('design-bridge/client');
+});
+
+test.describe('annotation round-trip', () => {
+  test.beforeEach(async ({ request }) => {
+    await request.delete(`${API_BASE}/annotations`);
+  });
+
+  test.afterEach(async ({ request }) => {
+    await request.delete(`${API_BASE}/annotations`);
+  });
+
+  test('annotation created on the page is persisted to the correct location', async ({ page }) => {
+    await page.goto('/');
+    await page.waitForFunction(() => !!customElements.get('db-annotation'), { timeout: 20_000 });
+
+    await page
+      .locator('h1')
+      .first()
+      .click({ modifiers: ['Alt', 'Shift'] });
+
+    const panel = page.locator('db-annotation .panel:not([hidden])');
+    const input = panel.locator('textarea').first();
+    await expect(input).toBeVisible();
+    await input.fill('nuxt integration check');
+    await input.press('Enter');
+    await expect(panel).toHaveCount(0);
+
+    const res = await page.request.get(`${API_BASE}/annotations`);
+    const body = (await res.json()) as { annotations: { id: string; comment: string }[] };
+    expect(body.annotations.some((a) => a.comment === 'nuxt integration check')).toBe(true);
+
+    const ann = body.annotations.find((a) => a.comment === 'nuxt integration check')!;
+    const expectedPath = resolve(ANNOTATIONS_DIR, `${ann.id}.json`);
+    await expect(access(expectedPath)).resolves.toBeUndefined();
+
+    const files = await readdir(ANNOTATIONS_DIR);
+    expect(files).toContain(`${ann.id}.json`);
+  });
 });
