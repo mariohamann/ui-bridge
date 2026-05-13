@@ -71,7 +71,10 @@ function spawnDesignBridgeServer(preferredPort: number): {
 /** Kill a child process and wait for it to exit. */
 function kill(child: ChildProcess): Promise<void> {
   return new Promise((resolve) => {
-    if (child.exitCode !== null) { resolve(); return; }
+    if (child.exitCode !== null) {
+      resolve();
+      return;
+    }
     child.once('exit', () => resolve());
     child.kill();
   });
@@ -87,7 +90,7 @@ test('starts on preferred port when it is free', async () => {
     expect(actualPort).toBe(PREFERRED);
 
     const res = await fetch(`http://localhost:${actualPort}/health`);
-    const body = await res.json() as { ok: boolean; port: number; };
+    const body = (await res.json()) as { ok: boolean; port: number };
     expect(body.ok).toBe(true);
     expect(body.port).toBe(PREFERRED);
   } finally {
@@ -104,7 +107,7 @@ test('auto-increments to the next free port when preferred is occupied', async (
     expect(actualPort).toBe(PREFERRED + 1);
 
     const res = await fetch(`http://localhost:${actualPort}/health`);
-    const body = await res.json() as { ok: boolean; port: number; };
+    const body = (await res.json()) as { ok: boolean; port: number };
     expect(body.ok).toBe(true);
     expect(body.port).toBe(PREFERRED + 1);
   } finally {
@@ -123,7 +126,7 @@ test('skips multiple occupied ports until a free one is found', async () => {
     expect(actualPort).toBe(PREFERRED + 2);
 
     const res = await fetch(`http://localhost:${actualPort}/health`);
-    const body = await res.json() as { ok: boolean; port: number; };
+    const body = (await res.json()) as { ok: boolean; port: number };
     expect(body.port).toBe(PREFERRED + 2);
   } finally {
     await kill(child);
@@ -141,7 +144,7 @@ test('/health always returns the actual bound port, not the preferred port', asy
     expect(actualPort).not.toBe(PREFERRED);
 
     const res = await fetch(`http://localhost:${actualPort}/health`);
-    const body = await res.json() as { ok: boolean; port: number; };
+    const body = (await res.json()) as { ok: boolean; port: number };
     expect(body.ok).toBe(true);
     expect(body.port).toBe(actualPort);
     expect(body.port).not.toBe(PREFERRED);

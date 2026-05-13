@@ -32,11 +32,12 @@ export interface DesignBridgeNextOptions {
  * }
  * ```
  */
-export function DesignBridgeScript({ port }: { port?: number; } = {}): React.JSX.Element {
+export function DesignBridgeScript({ port }: { port?: number } = {}): React.JSX.Element {
   // Use createElement to avoid requiring JSX transform in this package's build.
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { createElement, Fragment } = _require('react') as typeof import('react');
-  const resolvedPort = port ?? parseInt(process.env.DESIGN_BRIDGE_PORT ?? process.env.DB_PORT ?? '7378', 10);
+  const resolvedPort =
+    port ?? parseInt(process.env.DESIGN_BRIDGE_PORT ?? process.env.DB_PORT ?? '7378', 10);
   const wsUrl = `ws://localhost:${resolvedPort}/design-bridge`;
   const clientUrl = `http://localhost:${resolvedPort}/design-bridge/client.js`;
   const inlineScript = `window.__DB_WS_URL__=${JSON.stringify(wsUrl)};`;
@@ -54,14 +55,17 @@ async function getServerPort(port: number): Promise<number | null> {
       signal: AbortSignal.timeout(600),
     });
     if (!resp.ok) return null;
-    const body = (await resp.json()) as { port?: number; };
+    const body = (await resp.json()) as { port?: number };
     return body.port ?? port;
   } catch {
     return null;
   }
 }
 
-function spawnServer(rootDir: string, preferredPort: number): { child: ChildProcess; ready: Promise<number>; } {
+function spawnServer(
+  rootDir: string,
+  preferredPort: number,
+): { child: ChildProcess; ready: Promise<number> } {
   const serverEntry = _require.resolve('@design-bridge/server');
   const child = spawn(process.execPath, [serverEntry, '--root', rootDir], {
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -72,11 +76,16 @@ function spawnServer(rootDir: string, preferredPort: number): { child: ChildProc
     rl.on('line', (line) => {
       process.stdout.write(line + '\n');
       const match = line.match(/^DESIGN_BRIDGE_READY:(\d+)$/);
-      if (match) { rl.close(); resolve(parseInt(match[1], 10)); }
+      if (match) {
+        rl.close();
+        resolve(parseInt(match[1], 10));
+      }
     });
     child.stderr?.on('data', (chunk: Buffer) => process.stderr.write(chunk));
     child.on('error', reject);
-    child.on('exit', (code) => { if (code !== 0) reject(new Error(`[design-bridge] server exited: ${code}`)); });
+    child.on('exit', (code) => {
+      if (code !== 0) reject(new Error(`[design-bridge] server exited: ${code}`));
+    });
   });
   return { child, ready };
 }
@@ -99,7 +108,8 @@ export function withDesignBridge(
   nextConfig: Record<string, unknown> = {},
   options: DesignBridgeNextOptions = {},
 ): Record<string, unknown> {
-  const preferredPort = options.port ?? parseInt(process.env.DESIGN_BRIDGE_PORT ?? process.env.DB_PORT ?? '7378', 10);
+  const preferredPort =
+    options.port ?? parseInt(process.env.DESIGN_BRIDGE_PORT ?? process.env.DB_PORT ?? '7378', 10);
   const isDev = process.env.NODE_ENV !== 'production';
 
   if (isDev) {

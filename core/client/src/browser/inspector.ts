@@ -12,7 +12,12 @@ import { finder, idName } from '@medv/finder';
 import type { Annotation } from '@design-bridge/protocol';
 import { DB_ANNOTATION_TAG, DB_SOURCE_INSPECTOR_TAG } from '@design-bridge/protocol';
 import type { DbAnnotation } from '@design-bridge/components';
-import { onIntent, updateAnnotations, getSourceInfo, DB_HIGHLIGHT_COLOR } from '@design-bridge/components';
+import {
+  onIntent,
+  updateAnnotations,
+  getSourceInfo,
+  DB_HIGHLIGHT_COLOR,
+} from '@design-bridge/components';
 
 // ─── Selector helper ──────────────────────────────────────────────────────────
 
@@ -23,7 +28,9 @@ function buildSelector(el: Element): string {
       seedMinLength: 5,
       optimizedMinLength: 4,
     });
-  } catch { return el.tagName.toLowerCase(); }
+  } catch {
+    return el.tagName.toLowerCase();
+  }
 }
 
 // ─── State ───────────────────────────────────────────────────────────────────
@@ -188,8 +195,7 @@ function isOwnUI(el: Element): boolean {
 }
 
 function isInspectorUI(el: Element): boolean {
-  return el.tagName === DB_SOURCE_INSPECTOR_TAG.toUpperCase()
-    || isOwnUI(el);
+  return el.tagName === DB_SOURCE_INSPECTOR_TAG.toUpperCase() || isOwnUI(el);
 }
 
 // ─── Hover highlight overlay ──────────────────────────────────────────────
@@ -261,7 +267,11 @@ function onPointerDownForInspect(e: PointerEvent): void {
   if (!draftItem) return;
   const els = document.elementsFromPoint(e.clientX, e.clientY);
   const target = els.find(
-    (el) => !isInspectorUI(el) && el.tagName !== 'HTML' && el.tagName !== 'BODY' && el !== document.documentElement,
+    (el) =>
+      !isInspectorUI(el) &&
+      el.tagName !== 'HTML' &&
+      el.tagName !== 'BODY' &&
+      el !== document.documentElement,
   );
   if (!target) return;
   lastInspectedEl = target;
@@ -269,7 +279,7 @@ function onPointerDownForInspect(e: PointerEvent): void {
 }
 
 function onTrackCode(e: Event): void {
-  const detail = (e as CustomEvent<{ path?: string; line?: number; column?: number; }>).detail;
+  const detail = (e as CustomEvent<{ path?: string; line?: number; column?: number }>).detail;
   hideHighlight();
   if (!itemContainer) return;
 
@@ -279,7 +289,9 @@ function onTrackCode(e: Event): void {
   const sel = buildSelector(el);
   const existing = [...annotations.values()].find((a) => a.selectors.includes(sel));
   // Prefer event detail source info; fall back to reading DOM attributes directly.
-  const detailSource = detail?.path ? { file: detail.path, line: detail.line ?? 1, column: detail.column ?? 0 } : null;
+  const detailSource = detail?.path
+    ? { file: detail.path, line: detail.line ?? 1, column: detail.column ?? 0 }
+    : null;
   const source = detailSource ?? getSourceInfo(el) ?? undefined;
 
   if (existing && !draftItem) {
@@ -301,7 +313,7 @@ function onTrackCode(e: Event): void {
 // ─── Cross-tab BroadcastChannel ──────────────────────────────────────────────
 
 channel.addEventListener('message', (e) => {
-  const { type, payload } = e.data as { type: string; payload: Annotation[]; };
+  const { type, payload } = e.data as { type: string; payload: Annotation[] };
   if (type === 'annotations:sync') syncAnnotations(payload);
 });
 
@@ -321,8 +333,13 @@ onMessage((msg) => {
         for (const sel of ann.selectors) {
           try {
             const el = document.querySelector(sel);
-            if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); break; }
-          } catch { /* noop */ }
+            if (el) {
+              el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              break;
+            }
+          } catch {
+            /* noop */
+          }
         }
       }
     }
@@ -334,17 +351,25 @@ onMessage((msg) => {
 export function initInspector(): void {
   itemContainer = document.createElement('div');
   itemContainer.id = 'db-items';
-  itemContainer.style.cssText = 'position:fixed;top:0;left:0;pointer-events:none;z-index:2147483645;width:0;height:0;';
+  itemContainer.style.cssText =
+    'position:fixed;top:0;left:0;pointer-events:none;z-index:2147483645;width:0;height:0;';
   document.body.appendChild(itemContainer);
 
-  document.addEventListener('pointermove', onPointerMoveForInspect as EventListener, { capture: true });
-  document.addEventListener('pointerdown', onPointerDownForInspect as EventListener, { capture: true });
+  document.addEventListener('pointermove', onPointerMoveForInspect as EventListener, {
+    capture: true,
+  });
+  document.addEventListener('pointerdown', onPointerDownForInspect as EventListener, {
+    capture: true,
+  });
   window.addEventListener('code-inspector:trackCode', onTrackCode);
 
   onIntent((intent) => {
     if (intent.type === 'annotation:save') {
       const ann = intent.annotation;
-      if (draftItem) { itemEls.set(ann.id, draftItem); draftItem = null; }
+      if (draftItem) {
+        itemEls.set(ann.id, draftItem);
+        draftItem = null;
+      }
       upsertAnnotation(ann);
     } else if (intent.type === 'annotation:cancel') {
       draftItem?.remove();
@@ -360,19 +385,30 @@ export function initInspector(): void {
 
   // Also listen for the click event (Alt+Shift) to trigger draft creation.
   // The click is processed at capture phase so it fires before any page handlers.
-  document.addEventListener('click', (e: MouseEvent) => {
-    if (!e.altKey || !e.shiftKey) return;
-    e.preventDefault();
-    e.stopPropagation();
-    window.dispatchEvent(new CustomEvent('code-inspector:trackCode', { detail: getSourceInfo(lastInspectedEl!) ?? {} }));
-  }, { capture: true });
+  document.addEventListener(
+    'click',
+    (e: MouseEvent) => {
+      if (!e.altKey || !e.shiftKey) return;
+      e.preventDefault();
+      e.stopPropagation();
+      window.dispatchEvent(
+        new CustomEvent('code-inspector:trackCode', {
+          detail: getSourceInfo(lastInspectedEl!) ?? {},
+        }),
+      );
+    },
+    { capture: true },
+  );
 
   // Deep-link: ?db-annotation=<id> opens the annotation panel on load
   const targetId = new URLSearchParams(location.search).get('db-annotation');
   if (targetId) {
     const tryOpen = (): boolean => {
       const item = itemEls.get(targetId);
-      if (item) { focusAnnotation(targetId); return true; }
+      if (item) {
+        focusAnnotation(targetId);
+        return true;
+      }
       return false;
     };
     if (!tryOpen()) {

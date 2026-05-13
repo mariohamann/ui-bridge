@@ -10,14 +10,14 @@ argument-hint: 'Describe the change you want to make'
 
 Not every request needs a tweak. Choose the right approach:
 
-| Situation | Approach |
-|-----------|----------|
-| The user wants to **compare options** (wording, variant, color, layout) | **Tweak** — creates a live knob for side-by-side exploration |
-| The user wants to **try multiple values** before committing | **Tweak** — supports reset and replay |
-| The decision is already clear and there's only **one right answer** | **Direct edit** — modify the file immediately, no tweak needed |
-| The change is a **bug fix** or **structural refactor** | **Direct edit** — tweaks are for design experimentation, not code correctness |
-| The request says "please fix X" with no alternatives | **Direct edit** |
-| The request says "try X, Y, Z variants" or "feels off" / "explore" | **Tweak** |
+| Situation                                                               | Approach                                                                      |
+| ----------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| The user wants to **compare options** (wording, variant, color, layout) | **Tweak** — creates a live knob for side-by-side exploration                  |
+| The user wants to **try multiple values** before committing             | **Tweak** — supports reset and replay                                         |
+| The decision is already clear and there's only **one right answer**     | **Direct edit** — modify the file immediately, no tweak needed                |
+| The change is a **bug fix** or **structural refactor**                  | **Direct edit** — tweaks are for design experimentation, not code correctness |
+| The request says "please fix X" with no alternatives                    | **Direct edit**                                                               |
+| The request says "try X, Y, Z variants" or "feels off" / "explore"      | **Tweak**                                                                     |
 
 **When in doubt:** if the user will want to see options side-by-side in the browser, use a tweak. If there's a single clear outcome, edit directly.
 
@@ -30,6 +30,7 @@ For the full tweak API, knob types, regex rules, and HMR behaviour, use the skil
 > **`.agents/skills/write-tweaks.md`**
 
 Key rules at a glance:
+
 - Always read the target file first before writing a regex
 - Each `replaceInFile` must match exactly one location
 - Write your regex against the **original** source (the replay model restores it before each run)

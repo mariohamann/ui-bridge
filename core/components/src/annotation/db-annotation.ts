@@ -4,7 +4,12 @@ import '@awesome.me/webawesome/dist/components/dropdown-item/dropdown-item.js';
 import '@awesome.me/webawesome/dist/components/dropdown/dropdown.js';
 import '@awesome.me/webawesome/dist/components/tag/tag.js';
 import autosize from 'autosize';
-import type { Annotation, AnnotationReply, AnnotationSource, AnnotationTweakLink } from '@design-bridge/protocol';
+import type {
+  Annotation,
+  AnnotationReply,
+  AnnotationSource,
+  AnnotationTweakLink,
+} from '@design-bridge/protocol';
 import { LitElement, html, type TemplateResult } from 'lit';
 import { annotationItemStyles } from './db-annotation.styles.js';
 import { computePosition, autoUpdate, flip, shift, offset } from '@floating-ui/dom';
@@ -144,7 +149,9 @@ export class DbAnnotation extends LitElement {
     // Force reflow so re-triggering the animation works
     void this.shadowRoot?.querySelector('.panel')?.getBoundingClientRect();
     this._wobbling = true;
-    setTimeout(() => { this._wobbling = false; }, 420);
+    setTimeout(() => {
+      this._wobbling = false;
+    }, 420);
   }
 
   /** Register a tweak change as a reply on this annotation. */
@@ -152,7 +159,9 @@ export class DbAnnotation extends LitElement {
     if (!this.annotation || !this._open || this._mode !== 'view') return;
     const text = formatTweakReply(marker, value);
     const replies = this._normalizeReplies(this.annotation);
-    const idx = replies.findIndex((r) => r.type === 'tweak' && r.text.startsWith(`Tweak ${marker} ->`));
+    const idx = replies.findIndex(
+      (r) => r.type === 'tweak' && r.text.startsWith(`Tweak ${marker} ->`),
+    );
     if (idx >= 0) {
       replies[idx] = { ...replies[idx], text, createdAt: Date.now() };
     } else {
@@ -161,7 +170,11 @@ export class DbAnnotation extends LitElement {
     const linkedTweaks = [...(this.annotation.linkedTweaks ?? [])];
     const linkedIdx = linkedTweaks.findIndex((t) => t.marker === marker);
     if (linkedIdx >= 0) {
-      linkedTweaks[linkedIdx] = { ...linkedTweaks[linkedIdx], lastValue: value, linkedAt: Date.now() };
+      linkedTweaks[linkedIdx] = {
+        ...linkedTweaks[linkedIdx],
+        lastValue: value,
+        linkedAt: Date.now(),
+      };
     } else {
       linkedTweaks.push({ marker, label, lastValue: value, linkedAt: Date.now() });
     }
@@ -170,7 +183,9 @@ export class DbAnnotation extends LitElement {
     dispatchIntent({ type: 'annotation:save', annotation: updated });
   }
 
-  get isOpen(): boolean { return this._open; }
+  get isOpen(): boolean {
+    return this._open;
+  }
 
   /** Number of selectors currently connected to this annotation (draft or saved). */
   get connectedSelectorCount(): number {
@@ -237,7 +252,9 @@ export class DbAnnotation extends LitElement {
       try {
         const el = document.querySelector(sel);
         if (el) return el.getBoundingClientRect();
-      } catch { /* bad selector */ }
+      } catch {
+        /* bad selector */
+      }
     }
     // Fall back to the direct element reference (draft mode)
     return this._anchorEl?.getBoundingClientRect() ?? null;
@@ -245,7 +262,11 @@ export class DbAnnotation extends LitElement {
 
   private _repositionBadge = (): void => {
     const rect = this._anchorRect();
-    if (!rect) { this._badgeTop = -9999; this._badgeLeft = -9999; return; }
+    if (!rect) {
+      this._badgeTop = -9999;
+      this._badgeLeft = -9999;
+      return;
+    }
     this._badgeTop = rect.top - 10;
     this._badgeLeft = rect.right - 8;
   };
@@ -268,7 +289,10 @@ export class DbAnnotation extends LitElement {
             }),
             shift({ padding: 8 }),
           ],
-        }).then(({ x, y }) => { this._panelLeft = x; this._panelTop = y; });
+        }).then(({ x, y }) => {
+          this._panelLeft = x;
+          this._panelTop = y;
+        });
       });
     });
   }
@@ -284,7 +308,8 @@ export class DbAnnotation extends LitElement {
 
   private _focusTextarea(): void {
     this.updateComplete.then(() => {
-      const sel = this._mode === 'view' ? 'textarea[data-role="reply"]' : 'textarea[data-role="composer"]';
+      const sel =
+        this._mode === 'view' ? 'textarea[data-role="reply"]' : 'textarea[data-role="composer"]';
       const ta = this.shadowRoot?.querySelector<HTMLTextAreaElement>(sel);
       if (!ta) return;
       ta.focus({ preventScroll: true });
@@ -299,7 +324,11 @@ export class DbAnnotation extends LitElement {
   private _highlightRelated(): void {
     const selectors = this.annotation?.selectors ?? this._pendingSelectors;
     for (const sel of selectors) {
-      try { document.querySelector(sel)?.setAttribute(HIGHLIGHT_ATTR, ''); } catch { /* skip */ }
+      try {
+        document.querySelector(sel)?.setAttribute(HIGHLIGHT_ATTR, '');
+      } catch {
+        /* skip */
+      }
     }
     if (!document.getElementById('db-badge-highlight-style')) {
       const s = document.createElement('style');
@@ -310,7 +339,9 @@ export class DbAnnotation extends LitElement {
   }
 
   private _clearHighlight(): void {
-    document.querySelectorAll(`[${HIGHLIGHT_ATTR}]`).forEach((el) => el.removeAttribute(HIGHLIGHT_ATTR));
+    document
+      .querySelectorAll(`[${HIGHLIGHT_ATTR}]`)
+      .forEach((el) => el.removeAttribute(HIGHLIGHT_ATTR));
   }
 
   private _onBadgeMouseEnter = (): void => {
@@ -344,7 +375,10 @@ export class DbAnnotation extends LitElement {
             flip({ fallbackPlacements: ['left', 'bottom', 'top'] }),
             shift({ padding: 8 }),
           ],
-        }).then(({ x, y }) => { this._previewLeft = x; this._previewTop = y; });
+        }).then(({ x, y }) => {
+          this._previewLeft = x;
+          this._previewTop = y;
+        });
       });
     });
   }
@@ -382,17 +416,26 @@ export class DbAnnotation extends LitElement {
   private _onKeyDown = (e: KeyboardEvent): void => {
     if (e.key === 'Escape') {
       e.stopPropagation();
-      if (this._mode === 'create') { this._cancelDraft(); return; }
+      if (this._mode === 'create') {
+        this._cancelDraft();
+        return;
+      }
       this._open = false;
     }
   };
 
   private _onComposerKeyDown = (e: KeyboardEvent): void => {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); this._saveNew(); }
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      this._saveNew();
+    }
   };
 
   private _onReplyKeyDown = (e: KeyboardEvent): void => {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); this._saveReply(); }
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      this._saveReply();
+    }
   };
 
   // ────────────────────────────────────────────────────────────────────────
@@ -402,7 +445,14 @@ export class DbAnnotation extends LitElement {
   private _normalizeReplies(ann: Annotation): AnnotationReply[] {
     if (ann.replies && ann.replies.length > 0) return [...ann.replies];
     if (!ann.comment?.trim()) return [];
-    return [{ id: `${ann.id}-root`, type: 'comment', text: ann.comment, createdAt: ann.createdAt ?? ann.timestamp }];
+    return [
+      {
+        id: `${ann.id}-root`,
+        type: 'comment',
+        text: ann.comment,
+        createdAt: ann.createdAt ?? ann.timestamp,
+      },
+    ];
   }
 
   private _buildAnnotation(overrides?: {
@@ -414,10 +464,13 @@ export class DbAnnotation extends LitElement {
     const replies = overrides?.replies ?? (base ? this._normalizeReplies(base) : []);
     const comment = overrides?.comment ?? base?.comment ?? this._draft.trim();
     const selectors = base?.selectors ?? [...this._pendingSelectors];
-    const labels = base?.labels?.length ? [...base.labels] : (
-      this._pendingLabels.length ? [...this._pendingLabels]
-        : (this._pendingSource ? [`${this._pendingSource.file}:${this._pendingSource.line}`] : [])
-    );
+    const labels = base?.labels?.length
+      ? [...base.labels]
+      : this._pendingLabels.length
+        ? [...this._pendingLabels]
+        : this._pendingSource
+          ? [`${this._pendingSource.file}:${this._pendingSource.line}`]
+          : [];
     return {
       id: base?.id ?? this._pendingId,
       selectors,
@@ -428,7 +481,9 @@ export class DbAnnotation extends LitElement {
       createdAt: (base?.createdAt ?? this._createdAt) || Date.now(),
       replies,
       linkedTweaks: overrides?.linkedTweaks ?? base?.linkedTweaks ?? [],
-      ...(this._pendingSource ?? base?.source ? { source: this._pendingSource ?? base?.source } : {}),
+      ...((this._pendingSource ?? base?.source)
+        ? { source: this._pendingSource ?? base?.source }
+        : {}),
     };
   }
 
@@ -452,7 +507,7 @@ export class DbAnnotation extends LitElement {
       comment: text,
       replies: [{ id: uid(), type: 'comment', text, createdAt: Date.now() }],
     });
-    this.annotation = ann;   // immediately switch to view mode
+    this.annotation = ann; // immediately switch to view mode
     this._mode = 'view';
     this._draft = '';
     this._open = false;
@@ -463,9 +518,15 @@ export class DbAnnotation extends LitElement {
     if (!this.annotation) return;
     const text = this._replyDraft.trim();
     if (!text) return;
-    const replies = [...this._normalizeReplies(this.annotation), {
-      id: uid(), type: 'comment' as const, text, createdAt: Date.now(),
-    }];
+    const replies = [
+      ...this._normalizeReplies(this.annotation),
+      {
+        id: uid(),
+        type: 'comment' as const,
+        text,
+        createdAt: Date.now(),
+      },
+    ];
     const updated = this._buildAnnotation({
       comment: replies[0]?.text ?? this.annotation.comment,
       replies,
@@ -490,11 +551,13 @@ export class DbAnnotation extends LitElement {
   }
 
   private _copyReviewLink(): void {
-    const wsUrl = (window as unknown as Record<string, unknown>).__DB_WS_URL__ as string | undefined;
+    const wsUrl = (window as unknown as Record<string, unknown>).__DB_WS_URL__ as
+      | string
+      | undefined;
     const url = wsUrl
       ? wsUrl.replace(/^ws:\/\//, 'http://').replace(/\/design-bridge$/, '/')
       : `http://${location.host}/`;
-    navigator.clipboard.writeText(url).catch(() => { });
+    navigator.clipboard.writeText(url).catch(() => {});
   }
 
   private _resolve(): void {
@@ -530,16 +593,37 @@ export class DbAnnotation extends LitElement {
       <div class="tweaks-section">
         <div class="tweaks-section-header">
           <span class="tweaks-section-title">Tweaks</span>
-          <wa-button appearance="outlined" variant="success" size="s" @click=${this._acceptAllTweaks} title="Accept all tweaks and resolve annotation">Accept all ✓</wa-button>
+          <wa-button
+            appearance="outlined"
+            variant="success"
+            size="s"
+            @click=${this._acceptAllTweaks}
+            title="Accept all tweaks and resolve annotation"
+            >Accept all ✓</wa-button
+          >
         </div>
-        ${tweaks.map((t) => html`
-          <div class="tweak-row">
-            <span class="tweak-label">${t.label ?? t.marker}</span>
-            <span class="tweak-value">${t.lastValue}</span>
-            <wa-button appearance="plain" size="s" title="Accept this tweak" @click=${() => this._acceptOneTweak(t.marker)}>✓</wa-button>
-            <wa-button appearance="plain" size="s" title="Dismiss this tweak" @click=${() => this._dismissTweak(t.marker)}>✕</wa-button>
-          </div>
-        `)}
+        ${tweaks.map(
+          (t) => html`
+            <div class="tweak-row">
+              <span class="tweak-label">${t.label ?? t.marker}</span>
+              <span class="tweak-value">${t.lastValue}</span>
+              <wa-button
+                appearance="plain"
+                size="s"
+                title="Accept this tweak"
+                @click=${() => this._acceptOneTweak(t.marker)}
+                >✓</wa-button
+              >
+              <wa-button
+                appearance="plain"
+                size="s"
+                title="Dismiss this tweak"
+                @click=${() => this._dismissTweak(t.marker)}
+                >✕</wa-button
+              >
+            </div>
+          `,
+        )}
       </div>
     `;
   }
@@ -549,65 +633,108 @@ export class DbAnnotation extends LitElement {
     return html`
       <div class="header">
         <span class="header-title">Comment</span>
-        <wa-dropdown size="s" @wa-select=${(e: CustomEvent) => {
-        const val = e.detail.item.value;
-        if (val === 'paths') { this._showPaths = !this._showPaths; }
-        else if (val === 'copy-link') { this._copyReviewLink(); }
-        else if (val === 'delete') { this._delete(); }
-      }}>
+        <wa-dropdown
+          size="s"
+          @wa-select=${(e: CustomEvent) => {
+            const val = e.detail.item.value;
+            if (val === 'paths') {
+              this._showPaths = !this._showPaths;
+            } else if (val === 'copy-link') {
+              this._copyReviewLink();
+            } else if (val === 'delete') {
+              this._delete();
+            }
+          }}
+        >
           <wa-button slot="trigger" appearance="plain" size="s" title="More options">···</wa-button>
-          <wa-dropdown-item value="paths">${this._showPaths ? 'Hide paths' : 'Show paths'}</wa-dropdown-item>
+          <wa-dropdown-item value="paths"
+            >${this._showPaths ? 'Hide paths' : 'Show paths'}</wa-dropdown-item
+          >
           <wa-dropdown-item value="copy-link">Copy link to annotation list</wa-dropdown-item>
           <wa-divider></wa-divider>
           <wa-dropdown-item value="delete" variant="danger">Delete</wa-dropdown-item>
         </wa-dropdown>
         <wa-button appearance="plain" size="s" title="Resolve" @click=${this._resolve}>✓</wa-button>
-        <wa-button appearance="plain" size="s" title="Close" @click=${() => { this._open = false; }}>✕</wa-button>
+        <wa-button
+          appearance="plain"
+          size="s"
+          title="Close"
+          @click=${() => {
+            this._open = false;
+          }}
+          >✕</wa-button
+        >
       </div>
     `;
   }
 
   private _renderSendBtn(enabled: boolean, onClick: () => void): TemplateResult {
-    return html`<wa-button appearance="filled" variant="brand" size="s" ?disabled=${!enabled} @click=${enabled ? onClick : undefined} title="Send">↑</wa-button>`;
+    return html`<wa-button
+      appearance="filled"
+      variant="brand"
+      size="s"
+      ?disabled=${!enabled}
+      @click=${enabled ? onClick : undefined}
+      title="Send"
+      >↑</wa-button
+    >`;
   }
 
   private _renderReplies(): TemplateResult {
     if (!this.annotation) return html``;
-    return html`${this._normalizeReplies(this.annotation).map((r) => html`
-      <div class="comment-text">${r.text}</div>
-      <wa-relative-time sync .date=${new Date(r.createdAt)} style="font-size:var(--wa-font-size-xs);color:var(--wa-color-text-quiet);display:block;margin-bottom:var(--wa-space-s);"></wa-relative-time>
-    `)}`;
+    return html`${this._normalizeReplies(this.annotation).map(
+      (r) => html`
+        <div class="comment-text">${r.text}</div>
+        <wa-relative-time
+          sync
+          .date=${new Date(r.createdAt)}
+          style="font-size:var(--wa-font-size-xs);color:var(--wa-color-text-quiet);display:block;margin-bottom:var(--wa-space-s);"
+        ></wa-relative-time>
+      `,
+    )}`;
   }
 
   private _renderChipsBar(editable: boolean): TemplateResult {
-    const selectors = this._mode === 'create' ? this._pendingSelectors : (this.annotation?.selectors ?? []);
-    const source = this._mode === 'create' ? this._pendingSource : (this.annotation?.source ?? null);
+    const selectors =
+      this._mode === 'create' ? this._pendingSelectors : (this.annotation?.selectors ?? []);
+    const source =
+      this._mode === 'create' ? this._pendingSource : (this.annotation?.source ?? null);
     if (!editable && !this._showPaths) return html``;
     if (!selectors.length && !source) return html``;
     return html`
       <div class="chips-bar">
-        ${selectors.map((sel, i) => html`
-          <wa-tag
-            variant="brand"
-            appearance="outlined"
-            size="s"
-            title=${sel}
-            style="font-family:var(--wa-font-family-code);max-width:160px;overflow:hidden;text-overflow:ellipsis;"
-            ?with-remove=${editable}
-            @wa-remove=${editable ? (e: Event) => { e.stopPropagation(); this._removeChip(i); } : undefined}
-          >
-            ${sel}
-          </wa-tag>
-        `)}
-        ${source ? html`
-          <wa-tag
-            variant="brand"
-            appearance="outlined"
-            size="s"
-            title="${source.file}:${source.line}:${source.column}"
-            style="font-family:var(--wa-font-family-code);max-width:200px;overflow:hidden;text-overflow:ellipsis;"
-          >📍 ${source.file}:${source.line}:${source.column}</wa-tag>
-        ` : ''}
+        ${selectors.map(
+          (sel, i) => html`
+            <wa-tag
+              variant="brand"
+              appearance="outlined"
+              size="s"
+              title=${sel}
+              style="font-family:var(--wa-font-family-code);max-width:160px;overflow:hidden;text-overflow:ellipsis;"
+              ?with-remove=${editable}
+              @wa-remove=${editable
+                ? (e: Event) => {
+                    e.stopPropagation();
+                    this._removeChip(i);
+                  }
+                : undefined}
+            >
+              ${sel}
+            </wa-tag>
+          `,
+        )}
+        ${source
+          ? html`
+              <wa-tag
+                variant="brand"
+                appearance="outlined"
+                size="s"
+                title="${source.file}:${source.line}:${source.column}"
+                style="font-family:var(--wa-font-family-code);max-width:200px;overflow:hidden;text-overflow:ellipsis;"
+                >📍 ${source.file}:${source.line}:${source.column}</wa-tag
+              >
+            `
+          : ''}
       </div>
     `;
   }
@@ -653,7 +780,8 @@ export class DbAnnotation extends LitElement {
         @mouseenter=${this._onBadgeMouseEnter}
         @mouseleave=${this._onBadgeMouseLeave}
         @click=${this._onBadgeClick}
-      >${label}</wa-badge>
+        >${label}</wa-badge
+      >
 
       <!-- Badge hover preview (floating-ui positioned) -->
       ${this._renderBadgePreview()}
@@ -666,36 +794,30 @@ export class DbAnnotation extends LitElement {
         @keydown=${this._onKeyDown}
       >
         <div class="panel-scroll">
-        ${this._renderHeader()}
-        ${!isDraft ? this._renderChipsBar(false) : ''}
+          ${this._renderHeader()} ${!isDraft ? this._renderChipsBar(false) : ''}
+          ${!isDraft ? html` <div class="body">${this._renderReplies()}</div> ` : ''}
+          ${!isDraft ? this._renderTweaksSection() : ''}
 
-        ${!isDraft ? html`
-        <div class="body">
-            ${this._renderReplies()}
-        </div>
-        ` : ''}
-
-        ${!isDraft ? this._renderTweaksSection() : ''}
-
-        <div class="composer">
-          <div class="composer-inner">
-          <textarea
-            data-role=${isDraft ? 'composer' : 'reply'}
-            placeholder=${isDraft ? 'Add a comment\u2026' : 'Reply\u2026'}
-            .value=${isDraft ? this._draft : this._replyDraft}
-            @input=${(e: Event) => {
-        const v = (e.target as HTMLTextAreaElement).value;
-        if (isDraft) this._draft = v; else this._replyDraft = v;
-      }}
-            @keydown=${isDraft ? this._onComposerKeyDown : this._onReplyKeyDown}
-          ></textarea>
-          <div class="composer-row">
-            ${isDraft
-        ? this._renderSendBtn(canSendNew, () => this._saveNew())
-        : this._renderSendBtn(canSendReply, () => this._saveReply())}
+          <div class="composer">
+            <div class="composer-inner">
+              <textarea
+                data-role=${isDraft ? 'composer' : 'reply'}
+                placeholder=${isDraft ? 'Add a comment\u2026' : 'Reply\u2026'}
+                .value=${isDraft ? this._draft : this._replyDraft}
+                @input=${(e: Event) => {
+                  const v = (e.target as HTMLTextAreaElement).value;
+                  if (isDraft) this._draft = v;
+                  else this._replyDraft = v;
+                }}
+                @keydown=${isDraft ? this._onComposerKeyDown : this._onReplyKeyDown}
+              ></textarea>
+              <div class="composer-row">
+                ${isDraft
+                  ? this._renderSendBtn(canSendNew, () => this._saveNew())
+                  : this._renderSendBtn(canSendReply, () => this._saveReply())}
+              </div>
+            </div>
           </div>
-          </div>
-        </div>
         </div>
       </div>
     `;
@@ -703,5 +825,7 @@ export class DbAnnotation extends LitElement {
 }
 
 declare global {
-  interface HTMLElementTagNameMap { 'db-annotation': DbAnnotation; }
+  interface HTMLElementTagNameMap {
+    'db-annotation': DbAnnotation;
+  }
 }

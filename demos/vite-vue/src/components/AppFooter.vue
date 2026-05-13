@@ -2,7 +2,9 @@
   <footer data-theme="dark">
     <nav class="container">
       <ul>
-        <li><strong><a href="#">✦ Luminary</a></strong></li>
+        <li>
+          <strong><a href="#">✦ Luminary</a></strong>
+        </li>
       </ul>
       <ul>
         <li><small>© 2026 Luminary Inc. All rights reserved.</small></li>

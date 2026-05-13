@@ -3,10 +3,7 @@ import vue from '@vitejs/plugin-vue';
 import { designBridgeWithInspector } from '@design-bridge/unplugin';
 
 export default defineConfig({
-  plugins: [
-    vue(),
-    ...designBridgeWithInspector(),
-  ],
+  plugins: [vue(), ...designBridgeWithInspector()],
   server: {
     watch: {
       ignored: ['**/tweaks/**'],

@@ -16,7 +16,9 @@ const DB_PORT = parseInt(process.env.DESIGN_BRIDGE_PORT ?? process.env.DB_PORT ?
 
 test('injects __DB_WS_URL__ into the page', async ({ page }) => {
   await page.goto('/');
-  await page.waitForFunction(() => typeof (window as any).__DB_WS_URL__ === 'string', { timeout: 10_000 });
+  await page.waitForFunction(() => typeof (window as any).__DB_WS_URL__ === 'string', {
+    timeout: 10_000,
+  });
   const wsUrl = await page.evaluate(() => (window as any).__DB_WS_URL__);
   expect(wsUrl).toMatch(/^ws:\/\//);
 });
@@ -31,7 +33,7 @@ test('db-annotation custom element is registered after client boots', async ({ p
 test('Design Bridge server health endpoint is reachable', async ({ request }) => {
   const res = await request.get(`http://localhost:${DB_PORT}/health`);
   expect(res.status()).toBe(200);
-  const body = await res.json() as { port: number; };
+  const body = (await res.json()) as { port: number };
   expect(typeof body.port).toBe('number');
 });
 
@@ -39,7 +41,11 @@ test('client script tag is present in the served HTML', async ({ page }) => {
   await page.goto('/');
   const scriptSrc = await page.evaluate(() => {
     const scripts = Array.from(document.querySelectorAll('script[src]'));
-    return scripts.map((s) => (s as HTMLScriptElement).src).find((src) => src.includes('design-bridge/client')) ?? null;
+    return (
+      scripts
+        .map((s) => (s as HTMLScriptElement).src)
+        .find((src) => src.includes('design-bridge/client')) ?? null
+    );
   });
   expect(scriptSrc).not.toBeNull();
   expect(scriptSrc).toContain('design-bridge/client');

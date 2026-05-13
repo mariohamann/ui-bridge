@@ -33,6 +33,8 @@ if (watch) {
   console.log('[design-bridge/unplugin] watching for changes…');
 } else {
   await Promise.all([build(options), build(loaderOptions)]);
-  execSync('npx tsc -p tsconfig.build.json --emitDeclarationOnly --declaration --outDir dist', { stdio: 'inherit' });
+  execSync('npx tsc -p tsconfig.build.json --emitDeclarationOnly --declaration --outDir dist', {
+    stdio: 'inherit',
+  });
   console.log('[design-bridge/unplugin] build complete');
 }

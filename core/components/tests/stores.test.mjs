@@ -10,9 +10,13 @@ import assert from 'node:assert/strict';
 
 // Import from compiled dist so we exercise the real output
 import {
-  knobsSignal, updateKnobs, getKnobByMarker,
-  annotationsSignal, updateAnnotations,
-  dispatchIntent, onIntent,
+  knobsSignal,
+  updateKnobs,
+  getKnobByMarker,
+  annotationsSignal,
+  updateAnnotations,
+  dispatchIntent,
+  onIntent,
 } from '../dist/index.js';
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -107,14 +111,30 @@ describe('intent bus', () => {
 
   test('multiple subscribers each receive the intent', (t, done) => {
     let count = 0;
-    const unsub1 = onIntent(() => { count++; if (count === 2) { unsub1(); unsub2(); done(); } });
-    const unsub2 = onIntent(() => { count++; if (count === 2) { unsub1(); unsub2(); done(); } });
+    const unsub1 = onIntent(() => {
+      count++;
+      if (count === 2) {
+        unsub1();
+        unsub2();
+        done();
+      }
+    });
+    const unsub2 = onIntent(() => {
+      count++;
+      if (count === 2) {
+        unsub1();
+        unsub2();
+        done();
+      }
+    });
     dispatchIntent({ type: 'tweak:revert' });
   });
 
   test('unsubscribed handler no longer receives intents', (t, done) => {
     let fired = false;
-    const unsub = onIntent(() => { fired = true; });
+    const unsub = onIntent(() => {
+      fired = true;
+    });
     unsub();
     dispatchIntent({ type: 'tweak:discard' });
     // Give event loop one tick then assert
@@ -143,7 +163,10 @@ describe('intent bus', () => {
     const unsub = onIntent((received) => {
       assert.equal(received.type, intents[idx].type);
       idx++;
-      if (idx === intents.length) { unsub(); done(); }
+      if (idx === intents.length) {
+        unsub();
+        done();
+      }
     });
 
     for (const intent of intents) dispatchIntent(intent);

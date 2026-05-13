@@ -39,8 +39,7 @@ export function designBridge(options: DesignBridgeOptions = {}): AstroIntegratio
   // And we handle script injection here via injectScript.
 
   const preferredPort =
-    options.port ??
-    parseInt(process.env.DESIGN_BRIDGE_PORT ?? process.env.DB_PORT ?? '7378', 10);
+    options.port ?? parseInt(process.env.DESIGN_BRIDGE_PORT ?? process.env.DB_PORT ?? '7378', 10);
 
   return {
     name: 'design-bridge',
@@ -66,9 +65,9 @@ export function designBridge(options: DesignBridgeOptions = {}): AstroIntegratio
         injectScript(
           'head-inline',
           `window.__DB_WS_URL__=${JSON.stringify(wsUrl)};` +
-          `(function(){var s=document.createElement('script');` +
-          `s.src='/__design-bridge/client.js?t='+Date.now();` +
-          `document.head.appendChild(s);})();`,
+            `(function(){var s=document.createElement('script');` +
+            `s.src='/__design-bridge/client.js?t='+Date.now();` +
+            `document.head.appendChild(s);})();`,
         );
       },
     },

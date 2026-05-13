@@ -6,7 +6,11 @@ import waCss from '@awesome.me/webawesome/dist/styles/webawesome.css?shadow';
 // prevents any bleed onto the host page.
 export const designBridgeHostTokenStyles = [
   unsafeCSS(waCss),
-  css`:host { color-scheme: dark; }`,
+  css`
+    :host {
+      color-scheme: dark;
+    }
+  `,
 ];
 
 /**

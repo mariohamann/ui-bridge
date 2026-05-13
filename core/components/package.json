@@ -48,6 +48,7 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "node --loader ./tests/css-loader.mjs --test tests/stores.test.mjs",
     "postinstall": "cp -r node_modules/@awesome.me/webawesome/dist/skills/webawesome ../../.agents/skills"
   },

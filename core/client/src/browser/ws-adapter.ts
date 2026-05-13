@@ -38,7 +38,10 @@ onMessage((msg) => {
 onIntent((intent) => {
   switch (intent.type) {
     case 'tweak:change': {
-      sendMessage({ type: 'tweak:change', payload: { marker: intent.marker, value: intent.value } });
+      sendMessage({
+        type: 'tweak:change',
+        payload: { marker: intent.marker, value: intent.value },
+      });
       // Register the value change as a reply on any currently open annotation item
       const label = getKnobByMarker(intent.marker)?.label;
       getOpenItem()?.registerTweakReply(intent.marker, intent.value, label);
@@ -54,13 +57,22 @@ onIntent((intent) => {
       sendMessage({ type: 'tweak:discard-all' });
       break;
     case 'tweak:accept-annotation':
-      sendMessage({ type: 'tweak:accept-annotation', payload: { annotationId: intent.annotationId } });
+      sendMessage({
+        type: 'tweak:accept-annotation',
+        payload: { annotationId: intent.annotationId },
+      });
       break;
     case 'tweak:accept-one':
-      sendMessage({ type: 'tweak:accept-tweak', payload: { annotationId: intent.annotationId, marker: intent.marker } });
+      sendMessage({
+        type: 'tweak:accept-tweak',
+        payload: { annotationId: intent.annotationId, marker: intent.marker },
+      });
       break;
     case 'tweak:dismiss-one':
-      sendMessage({ type: 'tweak:dismiss', payload: { annotationId: intent.annotationId, marker: intent.marker } });
+      sendMessage({
+        type: 'tweak:dismiss',
+        payload: { annotationId: intent.annotationId, marker: intent.marker },
+      });
       break;
     // annotation:delete / clear are handled locally by inspector.ts which also
     // calls sendMessage. Panel dispatches these through the annotation store.

@@ -1,4 +1,4 @@
-@import "@picocss/pico";
+@import '@picocss/pico';
 
 .db-nav {
   display: flex;
@@ -19,16 +19,30 @@
   padding: 0;
   align-items: center;
 }
-.db-logo { font-weight: 700; text-decoration: none; }
+.db-logo {
+  font-weight: 700;
+  text-decoration: none;
+}
 
 .db-hero {
   text-align: center;
   padding: 6rem 2rem;
-  background: linear-gradient(135deg, var(--pico-primary-focus) 0%, var(--pico-background-color) 60%);
+  background: linear-gradient(
+    135deg,
+    var(--pico-primary-focus) 0%,
+    var(--pico-background-color) 60%
+  );
 }
-.db-hero h1 { font-size: clamp(2rem, 5vw, 3.5rem); }
-.db-hero p { max-width: 36rem; margin: 1.5rem auto 2rem; }
-.db-hero a { margin: 0 0.5rem; }
+.db-hero h1 {
+  font-size: clamp(2rem, 5vw, 3.5rem);
+}
+.db-hero p {
+  max-width: 36rem;
+  margin: 1.5rem auto 2rem;
+}
+.db-hero a {
+  margin: 0 0.5rem;
+}
 
 .db-features {
   display: grid;

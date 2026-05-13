@@ -14,7 +14,10 @@ function annotationPanel(page: Page): Locator {
 }
 
 async function createAnnotation(page: Page, selector: string, comment: string): Promise<void> {
-  await page.locator(selector).first().click({ modifiers: ['Alt', 'Shift'] });
+  await page
+    .locator(selector)
+    .first()
+    .click({ modifiers: ['Alt', 'Shift'] });
   const panel = annotationPanel(page);
   const input = panel.locator('textarea').first();
   await expect(input).toBeVisible();
@@ -45,8 +48,10 @@ test.describe('Annotations', () => {
     await createAnnotation(page, 'h1', 'This headline needs a stronger CTA.');
 
     const res = await page.request.get(`${API_BASE}/annotations`);
-    const body = await res.json() as { annotations: { comment: string; }[]; };
-    expect(body.annotations.some((a) => a.comment === 'This headline needs a stronger CTA.')).toBe(true);
+    const body = (await res.json()) as { annotations: { comment: string }[] };
+    expect(body.annotations.some((a) => a.comment === 'This headline needs a stronger CTA.')).toBe(
+      true,
+    );
   });
 
   test('annotation badge appears on the annotated element', async ({ page }) => {
@@ -59,7 +64,7 @@ test.describe('Annotations', () => {
 
     const res = await page.request.get(`${API_BASE}/annotations`);
     expect(res.status()).toBe(200);
-    const body = await res.json() as { annotations: { comment: string; }[]; };
+    const body = (await res.json()) as { annotations: { comment: string }[] };
     expect(body.annotations.some((a) => a.comment === 'Persisted comment')).toBe(true);
   });
 
@@ -88,7 +93,6 @@ test.describe('Annotations', () => {
     // Badge should be vertically near the h1 element (within 200px)
     expect(Math.abs(badgeBox!.y - h1Box!.y)).toBeLessThan(200);
     expect(badgeBox!.x).toBeGreaterThanOrEqual(0);
-
   });
 
   test('can reply to an annotation from the badge', async ({ page }) => {
@@ -104,15 +108,20 @@ test.describe('Annotations', () => {
     await replyInput.press('Enter');
 
     // Verify reply was saved to the server
-    await expect.poll(async () => {
-      const res = await page.request.get(`${API_BASE}/annotations`);
-      const body = await res.json() as { annotations: { replies?: { text: string; }[]; }[]; };
-      return body.annotations.some((a) => a.replies?.some((r) => r.text === 'Reply from badge'));
-    }).toBe(true);
+    await expect
+      .poll(async () => {
+        const res = await page.request.get(`${API_BASE}/annotations`);
+        const body = (await res.json()) as { annotations: { replies?: { text: string }[] }[] };
+        return body.annotations.some((a) => a.replies?.some((r) => r.text === 'Reply from badge'));
+      })
+      .toBe(true);
   });
 
   test('focuses textarea when creating and when opening from badge', async ({ page }) => {
-    await page.locator('h1').first().click({ modifiers: ['Alt', 'Shift'] });
+    await page
+      .locator('h1')
+      .first()
+      .click({ modifiers: ['Alt', 'Shift'] });
 
     const panel = annotationPanel(page);
     const composer = panel.locator('textarea[data-role="composer"]');
@@ -133,7 +142,10 @@ test.describe('Annotations', () => {
   });
 
   test('clicking outside the annotation panel closes it', async ({ page }) => {
-    await page.locator('h1').first().click({ modifiers: ['Alt', 'Shift'] });
+    await page
+      .locator('h1')
+      .first()
+      .click({ modifiers: ['Alt', 'Shift'] });
 
     const panel = annotationPanel(page);
     await expect(panel.locator('textarea[data-role="composer"]')).toBeVisible();
@@ -199,7 +211,10 @@ test.describe('Annotations', () => {
     await expect(page.locator('.empty')).toBeVisible();
   });
 
-  test('clicking a row in the review page opens the annotation panel in the app', async ({ page, context }) => {
+  test('clicking a row in the review page opens the annotation panel in the app', async ({
+    page,
+    context,
+  }) => {
     await createAnnotation(page, 'h1', 'Focus via review page');
 
     // Open the review page in a second tab while the app stays open
@@ -229,11 +244,13 @@ test.describe('Annotations', () => {
     await expect(page.locator('.empty')).toBeVisible();
 
     const res = await page.request.get(`${API_BASE}/annotations`);
-    const body = await res.json() as { annotations: unknown[]; };
+    const body = (await res.json()) as { annotations: unknown[] };
     expect(body.annotations).toHaveLength(0);
   });
 
-  test('alt+shift+click opens panel with source chip visible after save via "Show paths"', async ({ page }) => {
+  test('alt+shift+click opens panel with source chip visible after save via "Show paths"', async ({
+    page,
+  }) => {
     await createAnnotation(page, 'h1', 'Source chip test');
 
     const badge = page.locator('db-annotation wa-badge').first();
@@ -245,12 +262,20 @@ test.describe('Annotations', () => {
     await expect(p.locator('.chips-bar wa-tag')).not.toHaveCount(0);
   });
 
-  test('alt+shift+click while panel is open adds another selector chip (visible after save)', async ({ page }) => {
-    await page.locator('h1').first().click({ modifiers: ['Alt', 'Shift'] });
+  test('alt+shift+click while panel is open adds another selector chip (visible after save)', async ({
+    page,
+  }) => {
+    await page
+      .locator('h1')
+      .first()
+      .click({ modifiers: ['Alt', 'Shift'] });
     const draft = page.locator('db-annotation .panel:not([hidden])');
     await expect(draft.locator('textarea[data-role="composer"]')).toBeVisible();
 
-    await page.locator('p').first().click({ modifiers: ['Alt', 'Shift'] });
+    await page
+      .locator('p')
+      .first()
+      .click({ modifiers: ['Alt', 'Shift'] });
 
     // Save and verify via API that 2 selectors are stored
     const textarea = draft.locator('textarea[data-role="composer"]');
@@ -259,18 +284,23 @@ test.describe('Annotations', () => {
     await expect(annotationPanel(page)).toHaveCount(0);
 
     const res = await page.request.get(`${API_BASE}/annotations`);
-    const body = await res.json() as { annotations: { selectors: string[]; }[]; };
+    const body = (await res.json()) as { annotations: { selectors: string[] }[] };
     const ann = body.annotations.find((a) => a.selectors.length === 2);
     expect(ann).toBeDefined();
   });
 
   test('annotation saved with source location includes file, line, column', async ({ page }) => {
-    await page.locator('h1').first().click({ modifiers: ['Alt', 'Shift'] });
+    await page
+      .locator('h1')
+      .first()
+      .click({ modifiers: ['Alt', 'Shift'] });
 
     // Wait for code-inspector to fire and populate draftSource via the public getter
-    await expect.poll(async () =>
-      page.evaluate(() => (document.querySelector('db-annotation') as any)?.draftSource)
-    ).not.toBeNull();
+    await expect
+      .poll(async () =>
+        page.evaluate(() => (document.querySelector('db-annotation') as any)?.draftSource),
+      )
+      .not.toBeNull();
 
     const panel = annotationPanel(page);
     const input = panel.locator('textarea').first();
@@ -279,7 +309,9 @@ test.describe('Annotations', () => {
     await expect(annotationPanel(page)).toHaveCount(0);
 
     const apiRes = await page.request.get(`${API_BASE}/annotations`);
-    const body = await apiRes.json() as { annotations: { comment: string; source?: { file: string; line: number; column: number; }; }[]; };
+    const body = (await apiRes.json()) as {
+      annotations: { comment: string; source?: { file: string; line: number; column: number } }[];
+    };
     const ann = body.annotations.find((a) => a.comment === 'Has source info');
     expect(ann).toBeDefined();
     expect(ann!.source?.file).toContain('HeroSection.vue');
@@ -288,16 +320,26 @@ test.describe('Annotations', () => {
   });
 
   test('can annotate multiple elements in one annotation via the panel chips', async ({ page }) => {
-    await page.locator('h1').first().click({ modifiers: ['Alt', 'Shift'] });
+    await page
+      .locator('h1')
+      .first()
+      .click({ modifiers: ['Alt', 'Shift'] });
     const panel = annotationPanel(page);
     await expect(panel.locator('textarea').first()).toBeVisible();
 
-    await page.locator('p').first().click({ modifiers: ['Alt', 'Shift'] });
+    await page
+      .locator('p')
+      .first()
+      .click({ modifiers: ['Alt', 'Shift'] });
 
     // Wait until the draft item reports 2 connected selectors via its public property
-    await expect.poll(async () =>
-      page.evaluate(() => (document.querySelector('db-annotation') as any)?.connectedSelectorCount)
-    ).toBe(2);
+    await expect
+      .poll(async () =>
+        page.evaluate(
+          () => (document.querySelector('db-annotation') as any)?.connectedSelectorCount,
+        ),
+      )
+      .toBe(2);
 
     const input = panel.locator('textarea').first();
     await input.fill('Multi-element annotation');
@@ -306,7 +348,7 @@ test.describe('Annotations', () => {
 
     // Verify 2 selectors stored via API
     const res = await page.request.get(`${API_BASE}/annotations`);
-    const body = await res.json() as { annotations: { selectors: string[]; }[]; };
+    const body = (await res.json()) as { annotations: { selectors: string[] }[] };
     const ann = body.annotations.find((a) => a.selectors.length === 2);
     expect(ann).toBeDefined();
   });
@@ -329,7 +371,9 @@ test.describe('Single panel + dirty-draft guard', () => {
     await expect(annotationPanel(page).locator('.comment-text')).toContainText('Second');
   });
 
-  test('clicking another badge while reply is dirty: first click wobbles, does not close', async ({ page }) => {
+  test('clicking another badge while reply is dirty: first click wobbles, does not close', async ({
+    page,
+  }) => {
     await createAnnotation(page, 'h1', 'First');
     await createAnnotation(page, 'p', 'Second');
 
@@ -345,7 +389,9 @@ test.describe('Single panel + dirty-draft guard', () => {
     await expect(annotationPanel(page).locator('.comment-text')).toContainText('First');
   });
 
-  test('clicking another badge twice while reply is dirty: second click switches panel', async ({ page }) => {
+  test('clicking another badge twice while reply is dirty: second click switches panel', async ({
+    page,
+  }) => {
     await createAnnotation(page, 'h1', 'First');
     await createAnnotation(page, 'p', 'Second');
 
@@ -366,7 +412,10 @@ test.describe('Single panel + dirty-draft guard', () => {
     await expect(annotationPanel(page).locator('.comment-text')).toContainText('Second');
   });
 
-  test('review page row click: dirty reply wobbles on first click, switches on second', async ({ page, context }) => {
+  test('review page row click: dirty reply wobbles on first click, switches on second', async ({
+    page,
+    context,
+  }) => {
     await createAnnotation(page, 'h1', 'First');
     await createAnnotation(page, 'p', 'Second');
 
@@ -403,7 +452,9 @@ test.describe('Badge hover preview', () => {
 
     const preview = page.locator('db-annotation .badge-preview');
     await expect(preview).toBeVisible();
-    await expect(preview.locator('.badge-preview-text')).toHaveText('This headline needs a stronger CTA.');
+    await expect(preview.locator('.badge-preview-text')).toHaveText(
+      'This headline needs a stronger CTA.',
+    );
   });
 
   test('preview is not visible when not hovering', async ({ page }) => {
@@ -477,7 +528,9 @@ test.describe('Panel scrolling & textarea autogrow', () => {
     }
 
     // Panel should be scrollable: scrollHeight > clientHeight
-    const isScrollable = await p.locator('.panel-scroll').evaluate((el) => el.scrollHeight > el.clientHeight);
+    const isScrollable = await p
+      .locator('.panel-scroll')
+      .evaluate((el) => el.scrollHeight > el.clientHeight);
     expect(isScrollable).toBe(true);
   });
 
@@ -505,7 +558,10 @@ test.describe('Panel scrolling & textarea autogrow', () => {
   });
 
   test('textarea grows taller as content is typed', async ({ page }) => {
-    await page.locator('h1').first().click({ modifiers: ['Alt', 'Shift'] });
+    await page
+      .locator('h1')
+      .first()
+      .click({ modifiers: ['Alt', 'Shift'] });
     const p = page.locator('db-annotation .panel:not([hidden])');
     const textarea = p.locator('textarea[data-role="composer"]');
     await expect(textarea).toBeVisible();
@@ -519,8 +575,13 @@ test.describe('Panel scrolling & textarea autogrow', () => {
     expect(grownHeight).toBeGreaterThan(initialHeight);
   });
 
-  test('textarea has no internal scrollbar (overflow is hidden or field-sizing)', async ({ page }) => {
-    await page.locator('h1').first().click({ modifiers: ['Alt', 'Shift'] });
+  test('textarea has no internal scrollbar (overflow is hidden or field-sizing)', async ({
+    page,
+  }) => {
+    await page
+      .locator('h1')
+      .first()
+      .click({ modifiers: ['Alt', 'Shift'] });
     const p = page.locator('db-annotation .panel:not([hidden])');
     const textarea = p.locator('textarea[data-role="composer"]');
     await expect(textarea).toBeVisible();
@@ -529,7 +590,7 @@ test.describe('Panel scrolling & textarea autogrow', () => {
 
     // scrollHeight should equal clientHeight — no internal scroll
     const hasInternalScroll = await textarea.evaluate(
-      (el: HTMLTextAreaElement) => el.scrollHeight > el.clientHeight
+      (el: HTMLTextAreaElement) => el.scrollHeight > el.clientHeight,
     );
     expect(hasInternalScroll).toBe(false);
   });
@@ -537,7 +598,10 @@ test.describe('Panel scrolling & textarea autogrow', () => {
 
 test.describe('Compact UI (redesign)', () => {
   test('annotation panel uses Inter font', async ({ page }) => {
-    await page.locator('h1').first().click({ modifiers: ['Alt', 'Shift'] });
+    await page
+      .locator('h1')
+      .first()
+      .click({ modifiers: ['Alt', 'Shift'] });
     const p = page.locator('db-annotation .panel:not([hidden])');
     const fontFamily = await p.evaluate((el) => getComputedStyle(el).fontFamily);
     // WA uses system font stack; verify it's a sans-serif stack
@@ -545,44 +609,65 @@ test.describe('Compact UI (redesign)', () => {
   });
 
   test('create mode: no Cancel button present', async ({ page }) => {
-    await page.locator('h1').first().click({ modifiers: ['Alt', 'Shift'] });
+    await page
+      .locator('h1')
+      .first()
+      .click({ modifiers: ['Alt', 'Shift'] });
     const p = page.locator('db-annotation .panel:not([hidden])');
     await expect(p.locator('.btn-cancel, button:has-text("Cancel")')).toHaveCount(0);
   });
 
   test('create mode: send button is always visible', async ({ page }) => {
-    await page.locator('h1').first().click({ modifiers: ['Alt', 'Shift'] });
+    await page
+      .locator('h1')
+      .first()
+      .click({ modifiers: ['Alt', 'Shift'] });
     const p = page.locator('db-annotation .panel:not([hidden])');
     await expect(p.locator('wa-button[title="Send"]')).toBeVisible();
   });
 
   test('create mode: send button is disabled when textarea is empty', async ({ page }) => {
-    await page.locator('h1').first().click({ modifiers: ['Alt', 'Shift'] });
+    await page
+      .locator('h1')
+      .first()
+      .click({ modifiers: ['Alt', 'Shift'] });
     const p = page.locator('db-annotation .panel:not([hidden])');
     await expect(p.locator('wa-button[title="Send"]')).toHaveAttribute('disabled', '');
   });
 
   test('create mode: send button becomes enabled when text is typed', async ({ page }) => {
-    await page.locator('h1').first().click({ modifiers: ['Alt', 'Shift'] });
+    await page
+      .locator('h1')
+      .first()
+      .click({ modifiers: ['Alt', 'Shift'] });
     const p = page.locator('db-annotation .panel:not([hidden])');
     await p.locator('textarea[data-role="composer"]').fill('hello');
     await expect(p.locator('wa-button[title="Send"]')).toBeEnabled();
   });
 
   test('create mode: no body padding (no .body element rendered)', async ({ page }) => {
-    await page.locator('h1').first().click({ modifiers: ['Alt', 'Shift'] });
+    await page
+      .locator('h1')
+      .first()
+      .click({ modifiers: ['Alt', 'Shift'] });
     const p = page.locator('db-annotation .panel:not([hidden])');
     await expect(p.locator('.body')).toHaveCount(0);
   });
 
   test('create mode: no chips bar shown (paths hidden)', async ({ page }) => {
-    await page.locator('h1').first().click({ modifiers: ['Alt', 'Shift'] });
+    await page
+      .locator('h1')
+      .first()
+      .click({ modifiers: ['Alt', 'Shift'] });
     const p = page.locator('db-annotation .panel:not([hidden])');
     await expect(p.locator('.chips-bar')).toHaveCount(0);
   });
 
   test('create mode: composer has rounded inner card', async ({ page }) => {
-    await page.locator('h1').first().click({ modifiers: ['Alt', 'Shift'] });
+    await page
+      .locator('h1')
+      .first()
+      .click({ modifiers: ['Alt', 'Shift'] });
     const p = page.locator('db-annotation .panel:not([hidden])');
     const inner = p.locator('.composer-inner');
     await expect(inner).toBeVisible();
@@ -638,10 +723,20 @@ test.describe('Compact UI (redesign)', () => {
 
   test('chips-bar is horizontally scrollable when selectors overflow', async ({ page }) => {
     // Add multiple selectors so the chips bar overflows
-    await page.locator('h1').first().click({ modifiers: ['Alt', 'Shift'] });
+    await page
+      .locator('h1')
+      .first()
+      .click({ modifiers: ['Alt', 'Shift'] });
     const draft = page.locator('db-annotation .panel:not([hidden])');
-    await page.locator('p').first().click({ modifiers: ['Alt', 'Shift'] });
-    await page.locator('nav').first().click({ modifiers: ['Alt', 'Shift'] }).catch(() => { });
+    await page
+      .locator('p')
+      .first()
+      .click({ modifiers: ['Alt', 'Shift'] });
+    await page
+      .locator('nav')
+      .first()
+      .click({ modifiers: ['Alt', 'Shift'] })
+      .catch(() => {});
 
     const textarea = draft.locator('textarea[data-role="composer"]');
     await textarea.fill('Multi selector');
@@ -661,7 +756,10 @@ test.describe('Compact UI (redesign)', () => {
   });
 
   test('chip font is monospace', async ({ page }) => {
-    await page.locator('h1').first().click({ modifiers: ['Alt', 'Shift'] });
+    await page
+      .locator('h1')
+      .first()
+      .click({ modifiers: ['Alt', 'Shift'] });
     const draft = page.locator('db-annotation .panel:not([hidden])');
     const textarea = draft.locator('textarea[data-role="composer"]');
     await textarea.fill('Chip font test');
@@ -683,7 +781,10 @@ test.describe('Compact UI (redesign)', () => {
 
 test.describe('Element highlight on annotation create', () => {
   test('target element gets amber outline when draft opens', async ({ page }) => {
-    await page.locator('h1').first().click({ modifiers: ['Alt', 'Shift'] });
+    await page
+      .locator('h1')
+      .first()
+      .click({ modifiers: ['Alt', 'Shift'] });
     await expect(annotationPanel(page)).toBeVisible();
 
     const highlighted = page.locator('[data-db-related]');
@@ -696,7 +797,10 @@ test.describe('Element highlight on annotation create', () => {
   });
 
   test('outline clears after cancelling (clicking outside)', async ({ page }) => {
-    await page.locator('h1').first().click({ modifiers: ['Alt', 'Shift'] });
+    await page
+      .locator('h1')
+      .first()
+      .click({ modifiers: ['Alt', 'Shift'] });
     await expect(page.locator('[data-db-related]')).not.toHaveCount(0);
 
     await page.locator('main').click({ position: { x: 8, y: 8 } });
@@ -705,27 +809,41 @@ test.describe('Element highlight on annotation create', () => {
   });
 
   test('all elements get highlighted when multiple are added to draft', async ({ page }) => {
-    await page.locator('h1').first().click({ modifiers: ['Alt', 'Shift'] });
+    await page
+      .locator('h1')
+      .first()
+      .click({ modifiers: ['Alt', 'Shift'] });
     await expect(page.locator('[data-db-related]')).toHaveCount(1);
 
-    await page.locator('p').first().click({ modifiers: ['Alt', 'Shift'] });
+    await page
+      .locator('p')
+      .first()
+      .click({ modifiers: ['Alt', 'Shift'] });
     await expect(page.locator('[data-db-related]')).toHaveCount(2);
   });
 });
 
 test.describe('Multi-select while draft is open', () => {
-  test('clicking an already-annotated element while draft is open adds it to draft', async ({ page }) => {
+  test('clicking an already-annotated element while draft is open adds it to draft', async ({
+    page,
+  }) => {
     // Create a saved annotation on h1
     await createAnnotation(page, 'h1', 'Existing annotation');
     await expect(page.locator('db-annotation wa-badge')).toHaveCount(1);
 
     // Start a new draft on p
-    await page.locator('p').first().click({ modifiers: ['Alt', 'Shift'] });
+    await page
+      .locator('p')
+      .first()
+      .click({ modifiers: ['Alt', 'Shift'] });
     const draft = annotationPanel(page);
     await expect(draft).toBeVisible();
 
     // Click h1 (already annotated) while draft is open — should add to draft, not open old annotation
-    await page.locator('h1').first().click({ modifiers: ['Alt', 'Shift'] });
+    await page
+      .locator('h1')
+      .first()
+      .click({ modifiers: ['Alt', 'Shift'] });
 
     // Still just one open panel (the draft), not the existing annotation's panel
     await expect(page.locator('db-annotation .panel:not([hidden])')).toHaveCount(1);
@@ -737,7 +855,7 @@ test.describe('Multi-select while draft is open', () => {
     await expect(annotationPanel(page)).toHaveCount(0);
 
     const res = await page.request.get(`${API_BASE}/annotations`);
-    const body = await res.json() as { annotations: { comment: string; selectors: string[]; }[]; };
+    const body = (await res.json()) as { annotations: { comment: string; selectors: string[] }[] };
     const newAnn = body.annotations.find((a) => a.comment === 'Multi-select with existing element');
     expect(newAnn).toBeDefined();
     expect(newAnn!.selectors.length).toBe(2);
@@ -749,7 +867,7 @@ test.describe('Multi-select while draft is open', () => {
 /** Inject an annotation directly via the REST API. */
 async function injectAnnotation(
   page: Page,
-  overrides: Record<string, unknown> & { id: string; },
+  overrides: Record<string, unknown> & { id: string },
 ): Promise<void> {
   const ann = {
     selectors: ['h1'],
@@ -775,7 +893,11 @@ async function openAnnotationPanel(page: Page): Promise<void> {
 
 test.describe('Tweaks in annotations', () => {
   test('tweaks section is not visible when annotation has no linkedTweaks', async ({ page }) => {
-    await injectAnnotation(page, { id: 'test-no-tweaks', comment: 'No tweaks here', linkedTweaks: [] });
+    await injectAnnotation(page, {
+      id: 'test-no-tweaks',
+      comment: 'No tweaks here',
+      linkedTweaks: [],
+    });
     await page.reload();
     await openAnnotationPanel(page);
     const tweaksSection = page.locator('db-annotation .tweaks-section');
@@ -786,7 +908,9 @@ test.describe('Tweaks in annotations', () => {
     await injectAnnotation(page, {
       id: 'test-with-tweaks',
       comment: 'Has a tweak',
-      linkedTweaks: [{ marker: 'font-size', label: 'Font Size', lastValue: '18px', linkedAt: Date.now() }],
+      linkedTweaks: [
+        { marker: 'font-size', label: 'Font Size', lastValue: '18px', linkedAt: Date.now() },
+      ],
     });
     await page.reload();
     await openAnnotationPanel(page);
@@ -799,7 +923,12 @@ test.describe('Tweaks in annotations', () => {
       id: 'test-tweak-content',
       comment: 'Tweak content check',
       linkedTweaks: [
-        { marker: 'primary-color', label: 'Primary Color', lastValue: '#ff6600', linkedAt: Date.now() },
+        {
+          marker: 'primary-color',
+          label: 'Primary Color',
+          lastValue: '#ff6600',
+          linkedAt: Date.now(),
+        },
         { marker: 'font-size', label: 'Font Size', lastValue: '20px', linkedAt: Date.now() },
       ],
     });
@@ -817,7 +946,9 @@ test.describe('Tweaks in annotations', () => {
     await injectAnnotation(page, {
       id: 'test-tweak-buttons',
       comment: 'Tweak buttons',
-      linkedTweaks: [{ marker: 'spacing', label: 'Spacing', lastValue: '8px', linkedAt: Date.now() }],
+      linkedTweaks: [
+        { marker: 'spacing', label: 'Spacing', lastValue: '8px', linkedAt: Date.now() },
+      ],
     });
     await page.reload();
     await openAnnotationPanel(page);
@@ -830,7 +961,9 @@ test.describe('Tweaks in annotations', () => {
     await injectAnnotation(page, {
       id: 'test-accept-all-btn',
       comment: 'Accept all button',
-      linkedTweaks: [{ marker: 'spacing', label: 'Spacing', lastValue: '8px', linkedAt: Date.now() }],
+      linkedTweaks: [
+        { marker: 'spacing', label: 'Spacing', lastValue: '8px', linkedAt: Date.now() },
+      ],
     });
     await page.reload();
     await openAnnotationPanel(page);
@@ -847,7 +980,7 @@ test.describe('Tweaks in annotations', () => {
     await expect(page.locator('db-annotation')).toBeAttached();
     const res2 = await page.request.get(`${API_BASE}/annotations/persist-json-test`);
     expect(res2.status()).toBe(200);
-    const ann = await res2.json() as { comment: string; };
+    const ann = (await res2.json()) as { comment: string };
     expect(ann.comment).toBe('JSON file test');
   });
 
@@ -865,11 +998,12 @@ test.describe('Tweaks in annotations', () => {
     const tweaksSection = page.locator('db-annotation .tweaks-section');
     await expect(tweaksSection.locator('.tweak-row')).toHaveCount(2);
     // Dismiss via REST API (the server broadcasts annotations:sync → UI re-renders)
-    const res = await page.request.delete(`${API_BASE}/annotations/dismiss-ui-test/tweaks/ui-tweak-1`);
+    const res = await page.request.delete(
+      `${API_BASE}/annotations/dismiss-ui-test/tweaks/ui-tweak-1`,
+    );
     expect(res.status()).toBe(200);
     // UI should update via annotations:sync broadcast
     await expect(tweaksSection.locator('.tweak-row')).toHaveCount(1);
     await expect(tweaksSection.locator('.tweak-label')).toHaveText('UI Tweak 2');
   });
 });
-

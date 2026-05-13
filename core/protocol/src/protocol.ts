@@ -39,14 +39,14 @@ export interface AnnotationTweakLink {
 }
 
 export interface Annotation {
-  id: string;            // stable uuid, set by browser
-  selectors: string[];   // CSS selectors of all annotated elements (via @medv/finder)
-  labels: string[];      // short human labels matching selectors
+  id: string; // stable uuid, set by browser
+  selectors: string[]; // CSS selectors of all annotated elements (via @medv/finder)
+  labels: string[]; // short human labels matching selectors
   comment: string;
   pageUrl: string;
   timestamp: number;
-  createdAt: number;     // timestamp when annotation was first created
-  resolvedAt?: number;   // timestamp when resolved; undefined = open
+  createdAt: number; // timestamp when annotation was first created
+  resolvedAt?: number; // timestamp when resolved; undefined = open
   source?: AnnotationSource; // source location from code-inspector (file:line:column)
   replies?: AnnotationReply[];
   linkedTweaks?: AnnotationTweakLink[];
@@ -56,17 +56,17 @@ export interface Annotation {
 
 export interface TweakChangeMsg {
   type: 'tweak:change';
-  payload: { marker: string; value: string; };
+  payload: { marker: string; value: string };
 }
 
 export interface TweakFinalizeMsg {
   type: 'tweak:finalize';
-  payload: { markers: string[]; };
+  payload: { markers: string[] };
 }
 
 export interface TweakResetMsg {
   type: 'tweak:reset';
-  payload: { marker: string; };
+  payload: { marker: string };
 }
 
 export interface TweakResetAllMsg {
@@ -79,17 +79,17 @@ export interface TweakDiscardAllMsg {
 
 export interface TweakAcceptAnnotationMsg {
   type: 'tweak:accept-annotation';
-  payload: { annotationId: string; };
+  payload: { annotationId: string };
 }
 
 export interface TweakAcceptTweakMsg {
   type: 'tweak:accept-tweak';
-  payload: { annotationId: string; marker: string; };
+  payload: { annotationId: string; marker: string };
 }
 
 export interface TweakDismissMsg {
   type: 'tweak:dismiss';
-  payload: { annotationId: string; marker: string; };
+  payload: { annotationId: string; marker: string };
 }
 
 export interface AnnotationUpsertMsg {
@@ -99,7 +99,7 @@ export interface AnnotationUpsertMsg {
 
 export interface AnnotationDeleteMsg {
   type: 'annotation:delete';
-  payload: { id: string; };
+  payload: { id: string };
 }
 
 export interface AnnotationClearMsg {
@@ -108,7 +108,7 @@ export interface AnnotationClearMsg {
 
 export interface AnnotationFocusMsg {
   type: 'annotation:focus';
-  payload: { id: string; };
+  payload: { id: string };
 }
 
 export type BrowserMessage =
@@ -144,7 +144,11 @@ export interface InspectPickMsg {
 
 export interface AnnotationFocusBroadcastMsg {
   type: 'annotation:focus';
-  payload: { id: string; };
+  payload: { id: string };
 }
 
-export type ServerMessage = TweakSchemaMsg | AnnotationsSyncMsg | InspectPickMsg | AnnotationFocusBroadcastMsg;
+export type ServerMessage =
+  | TweakSchemaMsg
+  | AnnotationsSyncMsg
+  | InspectPickMsg
+  | AnnotationFocusBroadcastMsg;

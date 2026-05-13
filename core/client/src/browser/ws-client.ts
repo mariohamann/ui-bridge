@@ -16,8 +16,9 @@ const buffered: ServerMessage[] = [];
 function connect(): void {
   // __DB_WS_URL__ is injected by the Vite plugin (or set manually for non-Vite stacks).
   // Falls back to the same host so the Vite-embedded server still works as a fallback.
-  const url = (window as unknown as Record<string, unknown>).__DB_WS_URL__ as string | undefined
-    ?? `ws://${location.host}${WS_PATH}`;
+  const url =
+    ((window as unknown as Record<string, unknown>).__DB_WS_URL__ as string | undefined) ??
+    `ws://${location.host}${WS_PATH}`;
   ws = new WebSocket(url);
 
   ws.addEventListener('open', () => {

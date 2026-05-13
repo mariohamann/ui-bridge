@@ -10,7 +10,10 @@ gsap.to('#hero-browser', { opacity: 1, y: 0, duration: 1, ease: 'power2.out', de
 // ── Get Started section fade ──────────────────────────────────────────────────
 gsap.from('#get-started > div', {
   scrollTrigger: { trigger: '#get-started', start: 'top 80%' },
-  opacity: 0, y: 24, duration: 0.7, ease: 'power2.out',
+  opacity: 0,
+  y: 24,
+  duration: 0.7,
+  ease: 'power2.out',
 });
 
 // ── Scrollytelling: pin right panel, switch scenes on left scroll ─────────────
@@ -18,14 +21,20 @@ gsap.from('#get-started > div', {
 const scenes = [1, 2, 3, 4, 5];
 
 function showScene(n: number) {
-  scenes.forEach(i => {
+  scenes.forEach((i) => {
     const el = document.getElementById(`scene-${i}`);
     if (!el) return;
     if (i === n) {
       el.style.display = 'flex';
       gsap.fromTo(el, { opacity: 0 }, { opacity: 1, duration: 0.4, ease: 'power2.out' });
     } else {
-      gsap.to(el, { opacity: 0, duration: 0.2, onComplete: () => { el.style.display = 'none'; } });
+      gsap.to(el, {
+        opacity: 0,
+        duration: 0.2,
+        onComplete: () => {
+          el.style.display = 'none';
+        },
+      });
     }
   });
 }
@@ -66,8 +75,14 @@ let scene5Loop: gsap.core.Timeline | null = null;
 
 function runSceneAnimation(scene: number, direction: 'enter' | 'leave') {
   if (direction === 'leave') {
-    if (scene === 3 && scene3Loop) { scene3Loop.kill(); scene3Loop = null; }
-    if (scene === 5 && scene5Loop) { scene5Loop.kill(); scene5Loop = null; }
+    if (scene === 3 && scene3Loop) {
+      scene3Loop.kill();
+      scene3Loop = null;
+    }
+    if (scene === 5 && scene5Loop) {
+      scene5Loop.kill();
+      scene5Loop = null;
+    }
     return;
   }
 
@@ -82,7 +97,14 @@ function runSceneAnimation(scene: number, direction: 'enter' | 'leave') {
 function animateScene1() {
   const bubbles = document.querySelectorAll('#scene-1 .chat-bubble');
   gsap.set(bubbles, { opacity: 0, x: 20 });
-  gsap.to(bubbles, { opacity: 1, x: 0, duration: 0.4, stagger: 0.6, ease: 'power2.out', delay: 0.2 });
+  gsap.to(bubbles, {
+    opacity: 1,
+    x: 0,
+    duration: 0.4,
+    stagger: 0.6,
+    ease: 'power2.out',
+    delay: 0.2,
+  });
 }
 
 // Scene 2 — cursor moves to card, element highlights, annotation appears
@@ -99,7 +121,11 @@ function animateScene2() {
   const tl = gsap.timeline({ delay: 0.3 });
   tl.to(cursor, { opacity: 1, duration: 0.2 })
     .to(cursor, { top: '30%', left: '13%', duration: 0.7, ease: 'power2.inOut' })
-    .to(card, { outline: '2px solid #7c6dfa', background: 'rgba(124,109,250,0.08)', duration: 0.2 }, '-=0.1')
+    .to(
+      card,
+      { outline: '2px solid #7c6dfa', background: 'rgba(124,109,250,0.08)', duration: 0.2 },
+      '-=0.1',
+    )
     .to(cursor, { opacity: 0, duration: 0.15 }, '+=0.1')
     .to(badge, { opacity: 1, scale: 1, duration: 0.25, ease: 'back.out(2)' }, '-=0.1')
     .to(panel, { opacity: 1, y: 0, duration: 0.3, ease: 'power2.out' }, '-=0.05');
@@ -107,7 +133,9 @@ function animateScene2() {
 
 // Scene 3 — terminal lines appear one by one, then loop
 function animateScene3() {
-  const lines = ['#tl1', '#tl2', '#tl3', '#tl4', '#tl5'].map(id => document.querySelector(id) as HTMLElement);
+  const lines = ['#tl1', '#tl2', '#tl3', '#tl4', '#tl5'].map(
+    (id) => document.querySelector(id) as HTMLElement,
+  );
   gsap.set(lines, { opacity: 0 });
 
   const tl = gsap.timeline({ delay: 0.2 });
@@ -115,7 +143,10 @@ function animateScene3() {
 
   // loop: fade all out and back in
   scene3Loop = gsap.to(lines, {
-    opacity: 0, duration: 0.3, stagger: 0.1, delay: 3.5,
+    opacity: 0,
+    duration: 0.3,
+    stagger: 0.1,
+    delay: 3.5,
     onComplete: () => {
       gsap.set(lines, { opacity: 0 });
       animateScene3();
@@ -126,13 +157,17 @@ function animateScene3() {
 // Scene 4 — panel slides in from right
 function animateScene4() {
   const panel = document.querySelector('#scene-4 > div') as HTMLElement;
-  gsap.fromTo(panel, { x: 30, opacity: 0 }, { x: 0, opacity: 1, duration: 0.4, ease: 'power2.out', delay: 0.2 });
+  gsap.fromTo(
+    panel,
+    { x: 30, opacity: 0 },
+    { x: 0, opacity: 1, duration: 0.4, ease: 'power2.out', delay: 0.2 },
+  );
 }
 
 // Scene 5 — loop diagram nodes light up in sequence, loops
 function animateScene5() {
-  const nodes = [1, 2, 3, 4, 5].map(i => document.getElementById(`ln${i}`)!);
-  const lines = [1, 2, 3, 4].map(i => document.getElementById(`ll${i}`)!);
+  const nodes = [1, 2, 3, 4, 5].map((i) => document.getElementById(`ln${i}`)!);
+  const lines = [1, 2, 3, 4].map((i) => document.getElementById(`ll${i}`)!);
 
   gsap.set([...nodes, ...lines], { opacity: 0.15 });
 

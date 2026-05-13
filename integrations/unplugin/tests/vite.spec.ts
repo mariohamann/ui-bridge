@@ -47,7 +47,7 @@ test('serves the client bundle at /__design-bridge/client.js', async ({ request 
 test('Design Bridge server health endpoint is reachable', async ({ request }) => {
   const res = await request.get(`http://localhost:${DB_PORT}/health`);
   expect(res.status()).toBe(200);
-  const body = await res.json() as { port: number };
+  const body = (await res.json()) as { port: number };
   expect(typeof body.port).toBe('number');
 });
 
@@ -55,7 +55,10 @@ test('annotation round-trip: created on the page is persisted to the server', as
   await page.goto('/');
   await page.waitForFunction(() => !!customElements.get('db-annotation'), { timeout: 10_000 });
 
-  await page.locator('h1').first().click({ modifiers: ['Alt', 'Shift'] });
+  await page
+    .locator('h1')
+    .first()
+    .click({ modifiers: ['Alt', 'Shift'] });
 
   const panel = page.locator('db-annotation .panel:not([hidden])');
   const input = panel.locator('textarea').first();
@@ -65,6 +68,6 @@ test('annotation round-trip: created on the page is persisted to the server', as
   await expect(panel).toHaveCount(0);
 
   const res = await page.request.get(`${API_BASE}/annotations`);
-  const body = await res.json() as { annotations: { comment: string }[] };
+  const body = (await res.json()) as { annotations: { comment: string }[] };
   expect(body.annotations.some((a) => a.comment === 'unplugin integration check')).toBe(true);
 });

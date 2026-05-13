@@ -16,7 +16,11 @@ function inlineCssImports(filePath, visited = new Set()) {
   const css = readFileSync(filePath, 'utf8');
   return css.replace(/@import\s+url\(['"]?([^'")\s]+)['"]?\)\s*;?\s*/g, (_, importPath) => {
     const resolved = resolvePath(dir, importPath);
-    try { return inlineCssImports(resolved, visited); } catch { return ''; }
+    try {
+      return inlineCssImports(resolved, visited);
+    } catch {
+      return '';
+    }
   });
 }
 
@@ -66,8 +70,16 @@ const sharedOptions = {
   },
 };
 
-const panelOptions = { ...sharedOptions, entryPoints: ['src/browser/index.ts'], outfile: 'dist/design-bridge.js' };
-const reviewOptions = { ...sharedOptions, entryPoints: ['src/review/index.ts'], outfile: 'dist/review-page.js' };
+const panelOptions = {
+  ...sharedOptions,
+  entryPoints: ['src/browser/index.ts'],
+  outfile: 'dist/design-bridge.js',
+};
+const reviewOptions = {
+  ...sharedOptions,
+  entryPoints: ['src/review/index.ts'],
+  outfile: 'dist/review-page.js',
+};
 
 if (watch) {
   const [ctx1, ctx2] = await Promise.all([context(panelOptions), context(reviewOptions)]);

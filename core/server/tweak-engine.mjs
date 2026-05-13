@@ -31,14 +31,23 @@ export function createTweakEngine(rootDir) {
 
   async function ensureSnapshot(absFilePath) {
     const snap = snapshotPath(absFilePath);
-    try { await access(snap); return; } catch { /* not yet snapshotted */ }
+    try {
+      await access(snap);
+      return;
+    } catch {
+      /* not yet snapshotted */
+    }
     await mkdir(CACHE_DIR, { recursive: true });
     const content = await readFile(absFilePath, 'utf-8');
     await writeFile(snap, content, 'utf-8');
   }
 
   async function readSnapshot(absFilePath) {
-    try { return await readFile(snapshotPath(absFilePath), 'utf-8'); } catch { return null; }
+    try {
+      return await readFile(snapshotPath(absFilePath), 'utf-8');
+    } catch {
+      return null;
+    }
   }
 
   async function deleteSnapshot(absFilePath) {
@@ -56,8 +65,12 @@ export function createTweakEngine(rootDir) {
       return abs;
     }
     return {
-      async readFile(filePath) { return readFile(guard(filePath), 'utf-8'); },
-      async writeFile(filePath, content) { await writeFile(guard(filePath), content, 'utf-8'); },
+      async readFile(filePath) {
+        return readFile(guard(filePath), 'utf-8');
+      },
+      async writeFile(filePath, content) {
+        await writeFile(guard(filePath), content, 'utf-8');
+      },
       async findFiles(pattern) {
         const abs = isAbsolute(pattern) ? pattern : resolve(rootDir, pattern);
         return fg(abs, { onlyFiles: true, absolute: true });
@@ -65,7 +78,11 @@ export function createTweakEngine(rootDir) {
       async replaceInFile(filePath, find, replacement) {
         const abs = guard(filePath);
         const content = await readFile(abs, 'utf-8');
-        await writeFile(abs, content.replace(find instanceof RegExp ? find : new RegExp(find, 'g'), replacement), 'utf-8');
+        await writeFile(
+          abs,
+          content.replace(find instanceof RegExp ? find : new RegExp(find, 'g'), replacement),
+          'utf-8',
+        );
       },
       console: {
         log: (...a) => console.log('[tweak]', ...a),
@@ -85,13 +102,19 @@ export function createTweakEngine(rootDir) {
     }
     const dryCtx = {
       ...base,
-      async writeFile(p) { touched.push(guard(p)); },
-      async replaceInFile(p) { touched.push(guard(p)); },
+      async writeFile(p) {
+        touched.push(guard(p));
+      },
+      async replaceInFile(p) {
+        touched.push(guard(p));
+      },
     };
     try {
       const mod = await import(pathToFileURL(script.scriptPath).href + `?t=${Date.now()}`);
       if (typeof mod.apply === 'function') await mod.apply(value, dryCtx);
-    } catch { /* ignore — readFile may throw in dry run */ }
+    } catch {
+      /* ignore — readFile may throw in dry run */
+    }
     return [...new Set(touched)];
   }
 
@@ -124,18 +147,21 @@ export function createTweakEngine(rootDir) {
   // ── Script operations ─────────────────────────────────────────────────────
 
   async function applyTweakChange(marker, value) {
-    const script = scripts.find(s => s.meta.id === marker);
-    if (!script) { console.warn(`[design-bridge] tweak "${marker}" not found`); return; }
+    const script = scripts.find((s) => s.meta.id === marker);
+    if (!script) {
+      console.warn(`[design-bridge] tweak "${marker}" not found`);
+      return;
+    }
     script.meta.value = value;
     console.log(`[design-bridge] tweak "${marker}" → ${value}`);
     await replayAllTweaks();
   }
 
   async function resetTweak(marker) {
-    const script = scripts.find(s => s.meta.id === marker);
+    const script = scripts.find((s) => s.meta.id === marker);
     if (!script) return;
     script.meta.value = script.defaultValue;
-    const anyDirty = scripts.some(s => s.meta.value !== s.defaultValue);
+    const anyDirty = scripts.some((s) => s.meta.value !== s.defaultValue);
     if (anyDirty) {
       await replayAllTweaks();
     } else {
@@ -143,7 +169,10 @@ export function createTweakEngine(rootDir) {
       for (const s of scripts) for (const f of await dryRun(s, s.defaultValue)) allTouched.add(f);
       for (const f of allTouched) {
         const orig = await readSnapshot(f);
-        if (orig !== null) { await writeFile(f, orig, 'utf-8'); await deleteSnapshot(f); }
+        if (orig !== null) {
+          await writeFile(f, orig, 'utf-8');
+          await deleteSnapshot(f);
+        }
       }
     }
   }
@@ -154,7 +183,10 @@ export function createTweakEngine(rootDir) {
     for (const s of scripts) s.meta.value = s.defaultValue;
     for (const f of allTouched) {
       const orig = await readSnapshot(f);
-      if (orig !== null) { await writeFile(f, orig, 'utf-8'); await deleteSnapshot(f); }
+      if (orig !== null) {
+        await writeFile(f, orig, 'utf-8');
+        await deleteSnapshot(f);
+      }
     }
   }
 
@@ -188,14 +220,17 @@ export function createTweakEngine(rootDir) {
     }
 
     const finalizedFiles = new Set();
-    for (const s of toFinalize) for (const f of await dryRun(s, s.meta.value)) finalizedFiles.add(f);
+    for (const s of toFinalize)
+      for (const f of await dryRun(s, s.meta.value)) finalizedFiles.add(f);
     for (const f of finalizedFiles) {
       await deleteSnapshot(f);
       try {
         const content = await readFile(f, 'utf-8');
         await mkdir(CACHE_DIR, { recursive: true });
         await writeFile(snapshotPath(f), content, 'utf-8');
-      } catch { /* file might not exist */ }
+      } catch {
+        /* file might not exist */
+      }
     }
 
     for (const s of toFinalize) await rm(s.scriptPath, { force: true });
@@ -209,19 +244,19 @@ export function createTweakEngine(rootDir) {
   }
 
   async function finalizeForAnnotation(annotationId) {
-    const toFinalize = scripts.filter(s => s.meta.annotationId === annotationId);
-    const toKeep = scripts.filter(s => s.meta.annotationId !== annotationId);
+    const toFinalize = scripts.filter((s) => s.meta.annotationId === annotationId);
+    const toKeep = scripts.filter((s) => s.meta.annotationId !== annotationId);
     await finalizeScripts(toFinalize, toKeep);
   }
 
   async function finalizeOneTweak(marker) {
-    const toFinalize = scripts.filter(s => s.meta.id === marker);
-    const toKeep = scripts.filter(s => s.meta.id !== marker);
+    const toFinalize = scripts.filter((s) => s.meta.id === marker);
+    const toKeep = scripts.filter((s) => s.meta.id !== marker);
     await finalizeScripts(toFinalize, toKeep);
   }
 
   async function dismissTweak(marker) {
-    const idx = scripts.findIndex(s => s.meta.id === marker);
+    const idx = scripts.findIndex((s) => s.meta.id === marker);
     if (idx < 0) return;
     const [dismissed] = scripts.splice(idx, 1);
 
@@ -237,7 +272,10 @@ export function createTweakEngine(rootDir) {
     } else {
       for (const f of dismissedFiles) {
         const orig = await readSnapshot(f);
-        if (orig !== null) { await writeFile(f, orig, 'utf-8'); await deleteSnapshot(f); }
+        if (orig !== null) {
+          await writeFile(f, orig, 'utf-8');
+          await deleteSnapshot(f);
+        }
       }
     }
 
@@ -304,22 +342,43 @@ export function createTweakEngine(rootDir) {
 
   async function discardAll() {
     await resetAllTweaks();
-    try { await rm(SCRIPTS_DIR, { recursive: true, force: true }); } catch { /* ignore */ }
-    try { await rm(CACHE_DIR, { recursive: true, force: true }); } catch { /* ignore */ }
+    try {
+      await rm(SCRIPTS_DIR, { recursive: true, force: true });
+    } catch {
+      /* ignore */
+    }
+    try {
+      await rm(CACHE_DIR, { recursive: true, force: true });
+    } catch {
+      /* ignore */
+    }
     scripts = [];
   }
 
   async function finalizeAll() {
-    try { await rm(SCRIPTS_DIR, { recursive: true, force: true }); } catch { /* ignore */ }
-    try { await rm(CACHE_DIR, { recursive: true, force: true }); } catch { /* ignore */ }
+    try {
+      await rm(SCRIPTS_DIR, { recursive: true, force: true });
+    } catch {
+      /* ignore */
+    }
+    try {
+      await rm(CACHE_DIR, { recursive: true, force: true });
+    } catch {
+      /* ignore */
+    }
     scripts = [];
   }
 
   return {
     getScripts: () => scripts,
-    setScripts: (s) => { scripts = s; },
+    setScripts: (s) => {
+      scripts = s;
+    },
     buildSchema,
-    discoverScripts: async () => { scripts = await discoverScripts(); return scripts; },
+    discoverScripts: async () => {
+      scripts = await discoverScripts();
+      return scripts;
+    },
     watchScripts,
     applyTweakChange,
     resetTweak,

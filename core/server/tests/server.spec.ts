@@ -36,12 +36,23 @@ function wsMessages(url: string, durationMs = 300): Promise<unknown[]> {
   return new Promise((resolve, reject) => {
     const ws = new WebSocket(url);
     const msgs: unknown[] = [];
-    const timer = setTimeout(() => { ws.close(); resolve(msgs); }, durationMs);
+    const timer = setTimeout(() => {
+      ws.close();
+      resolve(msgs);
+    }, durationMs);
 
     ws.on('message', (raw) => {
-      try { msgs.push(JSON.parse(raw.toString())); } catch { /* ignore */ }
+      try {
+        msgs.push(JSON.parse(raw.toString()));
+      } catch {
+        /* ignore */
+      }
     });
-    ws.on('error', (err) => { clearTimeout(timer); ws.close(); reject(err); });
+    ws.on('error', (err) => {
+      clearTimeout(timer);
+      ws.close();
+      reject(err);
+    });
   });
 }
 
@@ -50,7 +61,10 @@ function wsSend(url: string, message: unknown, durationMs = 400): Promise<unknow
   return new Promise((resolve, reject) => {
     const ws = new WebSocket(url);
     const replies: unknown[] = [];
-    const done = (): void => { ws.close(); resolve(replies); };
+    const done = (): void => {
+      ws.close();
+      resolve(replies);
+    };
 
     ws.on('open', () => {
       // Drain the initial state messages first, then send ours
@@ -60,9 +74,16 @@ function wsSend(url: string, message: unknown, durationMs = 400): Promise<unknow
       }, 100);
     });
     ws.on('message', (raw) => {
-      try { replies.push(JSON.parse(raw.toString())); } catch { /* ignore */ }
+      try {
+        replies.push(JSON.parse(raw.toString()));
+      } catch {
+        /* ignore */
+      }
     });
-    ws.on('error', (err) => { ws.close(); reject(err); });
+    ws.on('error', (err) => {
+      ws.close();
+      reject(err);
+    });
   });
 }
 
@@ -78,7 +99,7 @@ test.describe('Health & static routes', () => {
   test('GET /health returns ok:true with port and root', async ({ request }) => {
     const res = await request.get(`${BASE}/health`);
     expect(res.status()).toBe(200);
-    const body = await res.json() as { ok: boolean; port: number; root: string; };
+    const body = (await res.json()) as { ok: boolean; port: number; root: string };
     expect(body.ok).toBe(true);
     expect(body.port).toBe(7379);
     expect(typeof body.root).toBe('string');
@@ -111,7 +132,7 @@ test.describe('GET /api/annotations', () => {
   test('returns empty list when no annotations exist', async ({ request }) => {
     const res = await request.get(`${API}/annotations`);
     expect(res.status()).toBe(200);
-    const body = await res.json() as { annotations: unknown[]; };
+    const body = (await res.json()) as { annotations: unknown[] };
     expect(body.annotations).toEqual([]);
   });
 
@@ -122,7 +143,7 @@ test.describe('GET /api/annotations', () => {
     await request.post(`${API}/annotations`, { data: a2 });
 
     const res = await request.get(`${API}/annotations`);
-    const body = await res.json() as { annotations: { id: string; }[]; };
+    const body = (await res.json()) as { annotations: { id: string }[] };
     const ids = body.annotations.map((a) => a.id);
     expect(ids).toContain('list-1');
     expect(ids).toContain('list-2');
@@ -134,7 +155,7 @@ test.describe('POST /api/annotations', () => {
     const ann = makeAnnotation({ id: 'create-ok', comment: 'Created' });
     const res = await request.post(`${API}/annotations`, { data: ann });
     expect(res.status()).toBe(200);
-    const body = await res.json() as { ok: boolean; };
+    const body = (await res.json()) as { ok: boolean };
     expect(body.ok).toBe(true);
   });
 
@@ -144,7 +165,7 @@ test.describe('POST /api/annotations', () => {
     await request.post(`${API}/annotations`, { data: { ...ann, comment: 'Updated' } });
 
     const res = await request.get(`${API}/annotations/upsert-id`);
-    const body = await res.json() as { comment: string; };
+    const body = (await res.json()) as { comment: string };
     expect(body.comment).toBe('Updated');
   });
 
@@ -172,7 +193,7 @@ test.describe('DELETE /api/annotations (clear all)', () => {
     expect(del.status()).toBe(200);
 
     const list = await request.get(`${API}/annotations`);
-    const body = await list.json() as { annotations: unknown[]; };
+    const body = (await list.json()) as { annotations: unknown[] };
     expect(body.annotations).toHaveLength(0);
   });
 
@@ -191,7 +212,7 @@ test.describe('GET /api/annotations/:id', () => {
 
     const res = await request.get(`${API}/annotations/get-by-id`);
     expect(res.status()).toBe(200);
-    const body = await res.json() as { id: string; comment: string; };
+    const body = (await res.json()) as { id: string; comment: string };
     expect(body.id).toBe('get-by-id');
     expect(body.comment).toBe('Fetch me');
   });
@@ -241,13 +262,17 @@ test.describe('DELETE /api/annotations/:id/tweaks/:marker (dismiss)', () => {
     const res = await request.delete(`${API}/annotations/dismiss-tweak/tweaks/color-a`);
     expect(res.status()).toBe(200);
 
-    const updated = await (await request.get(`${API}/annotations/dismiss-tweak`)).json() as { linkedTweaks: { marker: string; }[]; };
+    const updated = (await (await request.get(`${API}/annotations/dismiss-tweak`)).json()) as {
+      linkedTweaks: { marker: string }[];
+    };
     expect(updated.linkedTweaks.find((t) => t.marker === 'color-a')).toBeUndefined();
     expect(updated.linkedTweaks.find((t) => t.marker === 'color-b')).toBeDefined();
   });
 
   test('returns 200 even if marker is not linked (no-op)', async ({ request }) => {
-    await request.post(`${API}/annotations`, { data: makeAnnotation({ id: 'dismiss-noop', linkedTweaks: [] }) });
+    await request.post(`${API}/annotations`, {
+      data: makeAnnotation({ id: 'dismiss-noop', linkedTweaks: [] }),
+    });
     const res = await request.delete(`${API}/annotations/dismiss-noop/tweaks/ghost-marker`);
     expect(res.status()).toBe(200);
   });
@@ -266,7 +291,9 @@ test.describe('POST /api/annotations/:id/tweaks/:marker/accept', () => {
     const res = await request.post(`${API}/annotations/accept-tweak/tweaks/spacing/accept`);
     expect(res.status()).toBe(200);
 
-    const updated = await (await request.get(`${API}/annotations/accept-tweak`)).json() as { linkedTweaks: unknown[]; };
+    const updated = (await (await request.get(`${API}/annotations/accept-tweak`)).json()) as {
+      linkedTweaks: unknown[];
+    };
     expect(updated.linkedTweaks).toHaveLength(0);
   });
 });
@@ -277,7 +304,7 @@ test.describe('GET /api/tweaks', () => {
   test('returns an empty knobs array when no scripts are loaded', async ({ request }) => {
     const res = await request.get(`${API}/tweaks`);
     expect(res.status()).toBe(200);
-    const body = await res.json() as { knobs: unknown[]; };
+    const body = (await res.json()) as { knobs: unknown[] };
     expect(Array.isArray(body.knobs)).toBe(true);
     expect(body.knobs).toHaveLength(0);
   });
@@ -291,7 +318,7 @@ test.describe('POST /inspect-pick', () => {
       data: { file: 'src/HeroSection.vue', line: 12, column: 4 },
     });
     expect(res.status()).toBe(200);
-    const body = await res.json() as { ok: boolean; };
+    const body = (await res.json()) as { ok: boolean };
     expect(body.ok).toBe(true);
   });
 
@@ -310,12 +337,18 @@ test.describe('POST /inspect-pick', () => {
     // Give the server time to broadcast
     await new Promise<void>((resolve) => setTimeout(resolve, 150));
     ws.on('message', (raw) => {
-      try { received.push(JSON.parse(raw.toString())); } catch { /* ignore */ }
+      try {
+        received.push(JSON.parse(raw.toString()));
+      } catch {
+        /* ignore */
+      }
     });
     await new Promise<void>((resolve) => setTimeout(resolve, 150));
     ws.close();
 
-    const pick = received.find((m: unknown) => (m as { type: string; }).type === 'inspect:pick') as { type: string; payload: unknown; } | undefined;
+    const pick = received.find((m: unknown) => (m as { type: string }).type === 'inspect:pick') as
+      | { type: string; payload: unknown }
+      | undefined;
     // The broadcast may or may not arrive depending on timing — just verify the POST succeeded.
     // The WS broadcast test is best-effort here; the REST response is the authoritative signal.
     void pick; // used to suppress unused-var lint
@@ -330,17 +363,25 @@ test.describe('Annotation persistence', () => {
     await request.post(`${API}/annotations`, { data: ann });
 
     // Retrieve twice — confirms it stays in the in-memory store
-    const r1 = await (await request.get(`${API}/annotations/persist-1`)).json() as { comment: string; };
-    const r2 = await (await request.get(`${API}/annotations/persist-1`)).json() as { comment: string; };
+    const r1 = (await (await request.get(`${API}/annotations/persist-1`)).json()) as {
+      comment: string;
+    };
+    const r2 = (await (await request.get(`${API}/annotations/persist-1`)).json()) as {
+      comment: string;
+    };
     expect(r1.comment).toBe('Persisted');
     expect(r2.comment).toBe('Persisted');
   });
 
-  test('DELETE /api/annotations/:id removes it from subsequent GET /api/annotations', async ({ request }) => {
+  test('DELETE /api/annotations/:id removes it from subsequent GET /api/annotations', async ({
+    request,
+  }) => {
     await request.post(`${API}/annotations`, { data: makeAnnotation({ id: 'gone' }) });
     await request.delete(`${API}/annotations/gone`);
 
-    const list = await (await request.get(`${API}/annotations`)).json() as { annotations: { id: string; }[]; };
+    const list = (await (await request.get(`${API}/annotations`)).json()) as {
+      annotations: { id: string }[];
+    };
     expect(list.annotations.find((a) => a.id === 'gone')).toBeUndefined();
   });
 });
@@ -358,7 +399,7 @@ test.describe('WebSocket — initial state broadcast', () => {
     const ann = makeAnnotation({ id: 'ws-init', comment: 'WS init' });
     await request.post(`${API}/annotations`, { data: ann });
 
-    const msgs = await wsMessages(WS_URL, 500) as { type: string; payload: unknown; }[];
+    const msgs = (await wsMessages(WS_URL, 500)) as { type: string; payload: unknown }[];
     const sync = msgs.find((m) => m.type === 'annotations:sync');
     expect(sync).toBeDefined();
     expect(Array.isArray(sync!.payload)).toBe(true);
@@ -372,7 +413,7 @@ test.describe('WebSocket — annotation messages', () => {
 
     const res = await request.get(`${API}/annotations/ws-upsert`);
     expect(res.status()).toBe(200);
-    const body = await res.json() as { comment: string; };
+    const body = (await res.json()) as { comment: string };
     expect(body.comment).toBe('Via WS');
   });
 
@@ -391,13 +432,17 @@ test.describe('WebSocket — annotation messages', () => {
 
     await wsSend(WS_URL, { type: 'annotation:clear' });
 
-    const list = await (await request.get(`${API}/annotations`)).json() as { annotations: unknown[]; };
+    const list = (await (await request.get(`${API}/annotations`)).json()) as {
+      annotations: unknown[];
+    };
     expect(list.annotations).toHaveLength(0);
   });
 
   test('annotation:upsert triggers annotations:sync broadcast', async ({ request }) => {
     const ann = makeAnnotation({ id: 'ws-broadcast', comment: 'Broadcast test' });
-    const replies = await wsSend(WS_URL, { type: 'annotation:upsert', payload: ann }) as { type: string; }[];
+    const replies = (await wsSend(WS_URL, { type: 'annotation:upsert', payload: ann })) as {
+      type: string;
+    }[];
 
     const sync = replies.find((m) => m.type === 'annotations:sync');
     expect(sync).toBeDefined();
@@ -406,7 +451,10 @@ test.describe('WebSocket — annotation messages', () => {
 
 test.describe('WebSocket — tweak:reset-all (no scripts loaded)', () => {
   test('sends tweak:schema with empty payload', async () => {
-    const replies = await wsSend(WS_URL, { type: 'tweak:reset-all' }) as { type: string; payload: unknown[]; }[];
+    const replies = (await wsSend(WS_URL, { type: 'tweak:reset-all' })) as {
+      type: string;
+      payload: unknown[];
+    }[];
     const schema = replies.find((m) => m.type === 'tweak:schema');
     // With no scripts, schema payload is empty
     expect(schema).toBeDefined();

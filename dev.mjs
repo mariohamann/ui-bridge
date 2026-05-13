@@ -35,7 +35,9 @@ function kill(proc) {
     proc.kill('SIGTERM');
     // Force-kill after 3 s if it hasn't exited
     setTimeout(() => {
-      try { proc.kill('SIGKILL'); } catch { }
+      try {
+        proc.kill('SIGKILL');
+      } catch {}
     }, 3000);
   });
 }
@@ -47,7 +49,11 @@ rmSync(resolve(PLUGIN_DIR, 'dist'), { recursive: true, force: true });
 rmSync(resolve(CLIENT_DIR, 'dist'), { recursive: true, force: true });
 rmSync(COMPONENTS_DIST, { recursive: true, force: true });
 
-const componentsBuilder = spawnInherited('pnpm', ['exec', 'tsc', '-p', 'tsconfig.json', '--watch', '--preserveWatchOutput'], COMPONENTS_DIR);
+const componentsBuilder = spawnInherited(
+  'pnpm',
+  ['exec', 'tsc', '-p', 'tsconfig.json', '--watch', '--preserveWatchOutput'],
+  COMPONENTS_DIR,
+);
 const builder = spawnInherited('node', ['build.mjs', '--watch'], PLUGIN_DIR);
 const clientBuilder = spawnInherited('node', ['build.mjs', '--watch'], CLIENT_DIR);
 
@@ -100,7 +106,9 @@ function watchAndRestart(dir) {
     viteProc = spawnInherited('pnpm', ['dev'], DEMO_DIR);
     viteProc.on('error', (err) => console.error('[dev] Vite failed:', err.message));
 
-    setTimeout(() => { restarting = false; }, 1000);
+    setTimeout(() => {
+      restarting = false;
+    }, 1000);
   });
 }
 
@@ -114,7 +122,9 @@ watch(resolve(CLIENT_DIR, 'dist'), { recursive: false }, async (_event, filename
   await kill(viteProc);
   viteProc = spawnInherited('pnpm', ['dev'], DEMO_DIR);
   viteProc.on('error', (err) => console.error('[dev] Vite failed:', err.message));
-  setTimeout(() => { restarting = false; }, 1000);
+  setTimeout(() => {
+    restarting = false;
+  }, 1000);
 });
 
 // ── Cleanup on exit ───────────────────────────────────────────────────────────

@@ -1,4 +1,4 @@
-@import "@picocss/pico";
+@import '@picocss/pico';
 
 /* ── Sticky nav header ────────────────────────────────────── */
 body > header {
@@ -13,7 +13,11 @@ body > header {
 .hero {
   position: relative;
   overflow: hidden;
-  background: linear-gradient(135deg, var(--pico-primary-focus) 0%, var(--pico-background-color) 60%);
+  background: linear-gradient(
+    135deg,
+    var(--pico-primary-focus) 0%,
+    var(--pico-background-color) 60%
+  );
   padding-block: 7rem;
   text-align: center;
 }
@@ -31,7 +35,9 @@ body > header {
   margin-bottom: 1.5rem;
 }
 
-.hero h1 span { color: var(--pico-primary); }
+.hero h1 span {
+  color: var(--pico-primary);
+}
 
 .hero > .container > p {
   max-width: 36rem;
@@ -46,11 +52,14 @@ body > header {
   justify-content: center;
 }
 
-.hero-cta button { margin: 0; min-width: 10rem; }
+.hero-cta button {
+  margin: 0;
+  min-width: 10rem;
+}
 
 .hero::before,
 .hero::after {
-  content: "";
+  content: '';
   position: absolute;
   width: 24rem;
   height: 24rem;
@@ -61,8 +70,14 @@ body > header {
   background: var(--pico-primary);
 }
 
-.hero::before { top: -6rem; left: -6rem; }
-.hero::after  { bottom: -6rem; right: -6rem; }
+.hero::before {
+  top: -6rem;
+  left: -6rem;
+}
+.hero::after {
+  bottom: -6rem;
+  right: -6rem;
+}
 
 /* ── Section header ───────────────────────────────────────── */
 .section-header {
@@ -71,7 +86,9 @@ body > header {
 }
 
 /* ── Features: 3-col grid for 6 items ────────────────────── */
-.features-grid.grid { grid-template-columns: repeat(3, 1fr); }
+.features-grid.grid {
+  grid-template-columns: repeat(3, 1fr);
+}
 
 .feature-icon {
   font-size: 2rem;
@@ -80,5 +97,9 @@ body > header {
 }
 
 /* ── CTA card ─────────────────────────────────────────────── */
-article.cta-card { text-align: center; }
-article.cta-card hgroup { margin-bottom: 1.5rem; }
+article.cta-card {
+  text-align: center;
+}
+article.cta-card hgroup {
+  margin-bottom: 1.5rem;
+}

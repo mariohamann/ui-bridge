@@ -49,11 +49,14 @@ test('serves the client bundle at /__design-bridge/client.js', async ({ request 
 test('Design Bridge server health endpoint is reachable', async ({ request }) => {
   const res = await request.get(`http://localhost:${DB_PORT}/health`);
   expect(res.status()).toBe(200);
-  const body = await res.json() as { port: number; };
+  const body = (await res.json()) as { port: number };
   expect(typeof body.port).toBe('number');
 });
 
-test('annotation round-trip: created on the page appears on the review UI', async ({ page, context }) => {
+test('annotation round-trip: created on the page appears on the review UI', async ({
+  page,
+  context,
+}) => {
   // 1. Load the Astro demo and wait for the Design Bridge client to be ready
   await page.goto('/');
   await page.waitForFunction(() => !!customElements.get('db-annotation'), { timeout: 10_000 });
@@ -73,7 +76,7 @@ test('annotation round-trip: created on the page appears on the review UI', asyn
 
   // 3. Verify it was persisted via the API
   const res = await page.request.get(`${API_BASE}/annotations`);
-  const body = await res.json() as { annotations: { comment: string; }[]; };
+  const body = (await res.json()) as { annotations: { comment: string }[] };
   expect(body.annotations.some((a) => a.comment === 'Round-trip check from Astro')).toBe(true);
 
   // 4. Open the server-side review UI and confirm the comment is listed there
@@ -82,4 +85,3 @@ test('annotation round-trip: created on the page appears on the review UI', asyn
   await expect(reviewPage.getByText('Round-trip check from Astro')).toBeVisible();
   await reviewPage.close();
 });
-

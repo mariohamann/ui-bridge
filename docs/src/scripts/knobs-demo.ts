@@ -49,20 +49,23 @@ if (btn) {
   });
 
   // ── Button-group: variant ────────────────────────────────────────────────
-  const variantMap: Record<string, { bg: string; color: string; }> = {
+  const variantMap: Record<string, { bg: string; color: string }> = {
     primary: { bg: '#7c6dfa', color: '#fff' },
     secondary: { bg: 'transparent', color: '#8888a0' },
     danger: { bg: '#ef4444', color: '#fff' },
   };
-  document.querySelectorAll<HTMLButtonElement>('.kb').forEach(b => {
+  document.querySelectorAll<HTMLButtonElement>('.kb').forEach((b) => {
     b.addEventListener('click', () => {
-      document.querySelectorAll<HTMLButtonElement>('.kb').forEach(x => {
+      document.querySelectorAll<HTMLButtonElement>('.kb').forEach((x) => {
         x.style.background = 'transparent';
         x.style.color = '#6b6b80';
       });
       const v = variantMap[b.dataset.val!];
-      if (v) { btn.style.background = v.bg; btn.style.color = v.color; }
-      b.style.background = `${(variantMap[b.dataset.val!]?.bg ?? '#7c6dfa')}33`;
+      if (v) {
+        btn.style.background = v.bg;
+        btn.style.color = v.color;
+      }
+      b.style.background = `${variantMap[b.dataset.val!]?.bg ?? '#7c6dfa'}33`;
       b.style.color = variantMap[b.dataset.val!]?.bg ?? '#7c6dfa';
 
       // also update the color knob to reflect variant color

@@ -20,7 +20,11 @@ export function createAnnotationStore(rootDir) {
   async function persist(ann) {
     try {
       await mkdir(ANNOTATIONS_DIR, { recursive: true });
-      await writeFile(resolve(ANNOTATIONS_DIR, `${ann.id}.json`), JSON.stringify(ann, null, 2), 'utf-8');
+      await writeFile(
+        resolve(ANNOTATIONS_DIR, `${ann.id}.json`),
+        JSON.stringify(ann, null, 2),
+        'utf-8',
+      );
     } catch (e) {
       console.warn('[design-bridge] could not write annotation file:', e);
     }
@@ -29,14 +33,16 @@ export function createAnnotationStore(rootDir) {
   async function remove(id) {
     try {
       await rm(resolve(ANNOTATIONS_DIR, `${id}.json`), { force: true });
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }
 
   async function load() {
     try {
       const { readdir } = await import('node:fs/promises');
       const files = await readdir(ANNOTATIONS_DIR).catch(() => []);
-      for (const file of files.filter(f => f.endsWith('.json'))) {
+      for (const file of files.filter((f) => f.endsWith('.json'))) {
         try {
           const raw = await readFile(resolve(ANNOTATIONS_DIR, file), 'utf-8');
           const ann = JSON.parse(raw);
@@ -45,8 +51,11 @@ export function createAnnotationStore(rootDir) {
           console.warn(`[design-bridge] could not parse annotation ${file}:`, e);
         }
       }
-      if (annotations.size > 0) console.log(`[design-bridge] loaded ${annotations.size} annotation(s)`);
-    } catch { /* dir doesn't exist yet — that's fine */ }
+      if (annotations.size > 0)
+        console.log(`[design-bridge] loaded ${annotations.size} annotation(s)`);
+    } catch {
+      /* dir doesn't exist yet — that's fine */
+    }
   }
 
   function upsert(ann) {
@@ -67,7 +76,7 @@ export function createAnnotationStore(rootDir) {
   function unlinkTweak(annotationId, marker) {
     const ann = annotations.get(annotationId);
     if (ann) {
-      ann.linkedTweaks = (ann.linkedTweaks ?? []).filter(t => t.marker !== marker);
+      ann.linkedTweaks = (ann.linkedTweaks ?? []).filter((t) => t.marker !== marker);
       ann.timestamp = Date.now();
       annotations.set(annotationId, ann);
       persist(ann);

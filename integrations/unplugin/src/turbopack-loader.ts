@@ -11,10 +11,12 @@
  */
 
 export default function designBridgeInjectLoader(
-  this: { query: { port?: number; }; },
+  this: { query: { port?: number } },
   content: string,
 ): string {
-  const port = this.query?.port ?? parseInt(process.env.DESIGN_BRIDGE_PORT ?? process.env.DB_PORT ?? '7378', 10);
+  const port =
+    this.query?.port ??
+    parseInt(process.env.DESIGN_BRIDGE_PORT ?? process.env.DB_PORT ?? '7378', 10);
   const wsUrl = `ws://localhost:${port}/design-bridge`;
   const clientUrl = `http://localhost:${port}/design-bridge/client.js`;
 

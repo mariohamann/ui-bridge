@@ -21,10 +21,7 @@ export default /** @type {import('@rspack/core').Configuration} */ ({
       },
     ],
   },
-  plugins: [
-    new HtmlWebpackPlugin({ template: './src/index.html' }),
-    designBridgeRspack(),
-  ],
+  plugins: [new HtmlWebpackPlugin({ template: './src/index.html' }), designBridgeRspack()],
   devServer: {
     port: 5175,
     hot: true,

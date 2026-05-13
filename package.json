@@ -11,6 +11,13 @@
     "docs:dev": "pnpm --filter @design-bridge/docs dev",
     "docs:build": "pnpm --filter @design-bridge/docs build",
     "build": "pnpm -r build",
+    "typecheck": "pnpm -r --parallel typecheck",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "verify": "pnpm format:check && pnpm typecheck && pnpm test",
     "test": "pnpm -r test"
+  },
+  "devDependencies": {
+    "prettier": "^3.8.3"
   }
 }

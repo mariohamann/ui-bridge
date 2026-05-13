@@ -25,7 +25,7 @@ async function getServerPort(port: number): Promise<number | null> {
       signal: AbortSignal.timeout(600),
     });
     if (!resp.ok) return null;
-    const body = (await resp.json()) as { port?: number; };
+    const body = (await resp.json()) as { port?: number };
     return body.port ?? port;
   } catch {
     return null;
@@ -38,7 +38,7 @@ async function getServerPort(port: number): Promise<number | null> {
 function spawnServer(
   rootDir: string,
   preferredPort: number,
-): { child: ChildProcess; ready: Promise<number>; } {
+): { child: ChildProcess; ready: Promise<number> } {
   const serverEntry = _require.resolve('@design-bridge/server');
   const child = spawn(process.execPath, [serverEntry, '--root', rootDir], {
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -85,8 +85,7 @@ function buildInjectionHtml(resolvedPort: number): string {
 
 const unpluginFactory = createUnplugin((options: DesignBridgeOptions = {}) => {
   const preferredPort =
-    options.port ??
-    parseInt(process.env.DESIGN_BRIDGE_PORT ?? process.env.DB_PORT ?? '7378', 10);
+    options.port ?? parseInt(process.env.DESIGN_BRIDGE_PORT ?? process.env.DB_PORT ?? '7378', 10);
 
   let resolvedPort = preferredPort;
   let rootDir = '';
@@ -116,19 +115,22 @@ const unpluginFactory = createUnplugin((options: DesignBridgeOptions = {}) => {
         return { server: { watch: { ignored: ['**/tweaks/.cache/**'] } } };
       },
 
-      async configResolved(config: { root: string; }) {
+      async configResolved(config: { root: string }) {
         rootDir = config.root;
       },
 
       configureServer(server: {
-        httpServer: { once: (event: string, cb: () => void) => void; } | null;
+        httpServer: { once: (event: string, cb: () => void) => void } | null;
         middlewares: {
           use: (
             path: string,
-            handler: (req: unknown, res: {
-              writeHead: (code: number, headers: Record<string, string>) => void;
-              end: (data: Buffer) => void;
-            }) => void,
+            handler: (
+              req: unknown,
+              res: {
+                writeHead: (code: number, headers: Record<string, string>) => void;
+                end: (data: Buffer) => void;
+              },
+            ) => void,
           ) => void;
         };
       }) {
@@ -157,7 +159,7 @@ const unpluginFactory = createUnplugin((options: DesignBridgeOptions = {}) => {
 
       transformIndexHtml: {
         order: 'pre' as const,
-        handler(_html: string, ctx: { server?: unknown; }) {
+        handler(_html: string, ctx: { server?: unknown }) {
           if (!ctx.server) return;
           const wsUrl = `ws://localhost:${resolvedPort}/design-bridge`;
           const CLIENT_URL = '/__design-bridge/client.js';
@@ -216,7 +218,6 @@ const unpluginFactory = createUnplugin((options: DesignBridgeOptions = {}) => {
   }
 });
 
-
 // ── per-bundler exports ───────────────────────────────────────────────────────
 
 export const designBridge = unpluginFactory;
@@ -248,7 +249,8 @@ export const designBridgeEsbuild = unpluginFactory.esbuild;
  *   export default withDesignBridge(nextConfig);
  */
 export function designBridgeTurbopack(options: DesignBridgeOptions = {}): Record<string, unknown> {
-  const port = options.port ?? parseInt(process.env.DESIGN_BRIDGE_PORT ?? process.env.DB_PORT ?? '7378', 10);
+  const port =
+    options.port ?? parseInt(process.env.DESIGN_BRIDGE_PORT ?? process.env.DB_PORT ?? '7378', 10);
   const loaderPath = _require.resolve('./turbopack-loader.cjs');
 
   // code-inspector rules for data-insp-path stamping
@@ -257,12 +259,9 @@ export function designBridgeTurbopack(options: DesignBridgeOptions = {}): Record
   // Merge our inject loader into every rule entry that code-inspector produces
   const merged: Record<string, unknown> = {};
   for (const [glob, rule] of Object.entries(codeInspectorRules)) {
-    const existing = (rule as { loaders: unknown[]; }).loaders ?? [];
+    const existing = (rule as { loaders: unknown[] }).loaders ?? [];
     merged[glob] = {
-      loaders: [
-        ...existing,
-        { loader: loaderPath, options: { port } },
-      ],
+      loaders: [...existing, { loader: loaderPath, options: { port } }],
     };
   }
 

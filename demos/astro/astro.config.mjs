@@ -6,4 +6,3 @@ import designBridge from '@design-bridge/astro';
 export default defineConfig({
   integrations: [designBridge()],
 });
-

@@ -22,14 +22,11 @@ export default (env, argv) => ({
       },
     ],
   },
-  plugins: [
-    new HtmlWebpackPlugin({ template: './src/index.html' }),
-    designBridgeWebpack(),
-  ],
+  plugins: [new HtmlWebpackPlugin({ template: './src/index.html' }), designBridgeWebpack()],
   devServer: {
     port: 5174,
     hot: true,
-    open: true,
+    open: false,
   },
   mode: argv.mode ?? 'development',
 });

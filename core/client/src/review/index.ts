@@ -26,7 +26,9 @@ fetch('/api/annotations')
   .then((data: { annotations?: unknown[] }) => {
     if (Array.isArray(data.annotations)) updateAnnotations(data.annotations as never);
   })
-  .catch(() => { /* server not yet available */ });
+  .catch(() => {
+    /* server not yet available */
+  });
 
 // ── Intents → server ────────────────────────────────────────────────────────
 

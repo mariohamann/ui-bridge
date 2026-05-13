@@ -3,34 +3,39 @@ const features = [
   {
     icon: '⚡',
     title: 'Instant previews',
-    description: 'See every change reflected live in the browser without reloads or manual refresh cycles.',
+    description:
+      'See every change reflected live in the browser without reloads or manual refresh cycles.',
   },
   {
     icon: '🎨',
     title: 'Design tokens',
-    description: 'Sync colours, spacing, and typography directly from your design tool into production CSS.',
+    description:
+      'Sync colours, spacing, and typography directly from your design tool into production CSS.',
   },
   {
     icon: '🔗',
     title: 'Component linking',
-    description: 'Map Figma components to source files so annotations always point at the right code.',
+    description:
+      'Map Figma components to source files so annotations always point at the right code.',
   },
   {
     icon: '🛡️',
     title: 'Type-safe',
-    description: 'Full TypeScript support from plugin config to runtime — no surprises at build time.',
+    description:
+      'Full TypeScript support from plugin config to runtime — no surprises at build time.',
   },
   {
     icon: '📦',
     title: 'Zero-config deploy',
-    description: 'Drop the plugin into any Vite project and go. Works with Vue, React, Svelte, and plain HTML.',
+    description:
+      'Drop the plugin into any Vite project and go. Works with Vue, React, Svelte, and plain HTML.',
   },
   {
     icon: '🤝',
     title: 'Team collaboration',
     description: 'Annotations are synced in real-time across every open tab for your whole team.',
   },
-]
+];
 </script>
 
 <template>

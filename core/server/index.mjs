@@ -31,7 +31,10 @@ const REVIEW_BUNDLE_PATH = _require.resolve('@design-bridge/client/review-page')
 const args = process.argv.slice(2);
 const rootIdx = args.indexOf('--root');
 const ROOT = rootIdx >= 0 ? resolve(args[rootIdx + 1]) : process.cwd();
-const PREFERRED_PORT = parseInt(process.env.DESIGN_BRIDGE_PORT ?? process.env.DB_PORT ?? '7378', 10);
+const PREFERRED_PORT = parseInt(
+  process.env.DESIGN_BRIDGE_PORT ?? process.env.DB_PORT ?? '7378',
+  10,
+);
 /** Set once the server binds — used in the /health route and the DESIGN_BRIDGE_READY signal. */
 let actualPort = PREFERRED_PORT;
 
@@ -48,7 +51,11 @@ function findFreePort(start, maxAttempts = 10) {
         if (err.code === 'EADDRINUSE') {
           attempt++;
           if (attempt >= maxAttempts) {
-            reject(new Error(`[design-bridge] no free port found in range ${start}–${start + maxAttempts - 1}`));
+            reject(
+              new Error(
+                `[design-bridge] no free port found in range ${start}–${start + maxAttempts - 1}`,
+              ),
+            );
           } else {
             tryPort(port + 1);
           }
@@ -101,9 +108,13 @@ function jsonResponse(res, status, body) {
 function readBody(req) {
   return new Promise((resolve, reject) => {
     let raw = '';
-    req.on('data', chunk => (raw += chunk.toString()));
+    req.on('data', (chunk) => (raw += chunk.toString()));
     req.on('end', () => {
-      try { resolve(raw ? JSON.parse(raw) : {}); } catch { reject(new Error('Invalid JSON')); }
+      try {
+        resolve(raw ? JSON.parse(raw) : {});
+      } catch {
+        reject(new Error('Invalid JSON'));
+      }
     });
     req.on('error', reject);
   });
@@ -124,11 +135,16 @@ wss.on('connection', (ws) => {
   const schema = tweaks.buildSchema();
   if (schema.length > 0) ws.send(JSON.stringify({ type: 'tweak:schema', payload: schema }));
   const annotations = store.all();
-  if (annotations.length > 0) ws.send(JSON.stringify({ type: 'annotations:sync', payload: annotations }));
+  if (annotations.length > 0)
+    ws.send(JSON.stringify({ type: 'annotations:sync', payload: annotations }));
 
   ws.on('message', async (raw) => {
     let msg;
-    try { msg = JSON.parse(raw.toString()); } catch { return; }
+    try {
+      msg = JSON.parse(raw.toString());
+    } catch {
+      return;
+    }
 
     switch (msg.type) {
       case 'tweak:change':
@@ -210,7 +226,10 @@ wss.on('connection', (ws) => {
 const httpServer = createServer(async (req, res) => {
   const url = req.url ?? '';
 
-  if (req.method === 'OPTIONS') { jsonResponse(res, 204, {}); return; }
+  if (req.method === 'OPTIONS') {
+    jsonResponse(res, 204, {});
+    return;
+  }
 
   if (url === '/health') {
     jsonResponse(res, 200, { ok: true, port: actualPort, root: ROOT });
@@ -219,17 +238,31 @@ const httpServer = createServer(async (req, res) => {
 
   if (url === '/design-bridge/client.js' && req.method === 'GET') {
     try {
-      res.writeHead(200, { 'Content-Type': 'application/javascript; charset=utf-8', 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'no-store' });
+      res.writeHead(200, {
+        'Content-Type': 'application/javascript; charset=utf-8',
+        'Access-Control-Allow-Origin': '*',
+        'Cache-Control': 'no-store',
+      });
       res.end(readFileSync(CLIENT_BUNDLE_PATH));
-    } catch (e) { res.writeHead(500); res.end(String(e)); }
+    } catch (e) {
+      res.writeHead(500);
+      res.end(String(e));
+    }
     return;
   }
 
   if (url === '/design-bridge/review-page.js' && req.method === 'GET') {
     try {
-      res.writeHead(200, { 'Content-Type': 'application/javascript; charset=utf-8', 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'no-store' });
+      res.writeHead(200, {
+        'Content-Type': 'application/javascript; charset=utf-8',
+        'Access-Control-Allow-Origin': '*',
+        'Cache-Control': 'no-store',
+      });
       res.end(readFileSync(REVIEW_BUNDLE_PATH));
-    } catch (e) { res.writeHead(500); res.end(String(e)); }
+    } catch (e) {
+      res.writeHead(500);
+      res.end(String(e));
+    }
     return;
   }
 
@@ -238,7 +271,9 @@ const httpServer = createServer(async (req, res) => {
       const source = await readBody(req);
       broadcast({ type: 'inspect:pick', payload: source });
       jsonResponse(res, 200, { ok: true });
-    } catch (e) { jsonResponse(res, 400, { error: String(e) }); }
+    } catch (e) {
+      jsonResponse(res, 400, { error: String(e) });
+    }
     return;
   }
 
@@ -251,7 +286,10 @@ const httpServer = createServer(async (req, res) => {
   // ── REST API (/api/...) ───────────────────────────────────────────────────
 
   const apiPath = url.startsWith('/api') ? url.slice(4) : null;
-  if (!apiPath) { jsonResponse(res, 404, { error: 'not found' }); return; }
+  if (!apiPath) {
+    jsonResponse(res, 404, { error: 'not found' });
+    return;
+  }
 
   if (req.method === 'GET' && apiPath === '/annotations') {
     jsonResponse(res, 200, { annotations: store.all() });
@@ -261,11 +299,16 @@ const httpServer = createServer(async (req, res) => {
   if (req.method === 'POST' && apiPath === '/annotations') {
     try {
       const ann = await readBody(req);
-      if (!ann?.id) { jsonResponse(res, 400, { error: 'missing id' }); return; }
+      if (!ann?.id) {
+        jsonResponse(res, 400, { error: 'missing id' });
+        return;
+      }
       store.upsert(ann);
       broadcast({ type: 'annotations:sync', payload: store.all() });
       jsonResponse(res, 200, { ok: true });
-    } catch (e) { jsonResponse(res, 400, { error: String(e) }); }
+    } catch (e) {
+      jsonResponse(res, 400, { error: String(e) });
+    }
     return;
   }
 
@@ -281,7 +324,10 @@ const httpServer = createServer(async (req, res) => {
     const annId = annIdMatch[1];
     if (req.method === 'GET') {
       const ann = store.get(annId);
-      if (!ann) { jsonResponse(res, 404, { error: 'not found' }); return; }
+      if (!ann) {
+        jsonResponse(res, 404, { error: 'not found' });
+        return;
+      }
       jsonResponse(res, 200, ann);
       return;
     }
@@ -302,7 +348,9 @@ const httpServer = createServer(async (req, res) => {
       broadcast({ type: 'tweak:schema', payload: tweaks.buildSchema() });
       broadcast({ type: 'annotations:sync', payload: store.all() });
       jsonResponse(res, 200, { ok: true });
-    } catch (e) { jsonResponse(res, 400, { error: String(e) }); }
+    } catch (e) {
+      jsonResponse(res, 400, { error: String(e) });
+    }
     return;
   }
 
@@ -315,7 +363,9 @@ const httpServer = createServer(async (req, res) => {
       broadcast({ type: 'tweak:schema', payload: tweaks.buildSchema() });
       broadcast({ type: 'annotations:sync', payload: store.all() });
       jsonResponse(res, 200, { ok: true });
-    } catch (e) { jsonResponse(res, 400, { error: String(e) }); }
+    } catch (e) {
+      jsonResponse(res, 400, { error: String(e) });
+    }
     return;
   }
 
@@ -328,7 +378,9 @@ const httpServer = createServer(async (req, res) => {
       broadcast({ type: 'tweak:schema', payload: tweaks.buildSchema() });
       broadcast({ type: 'annotations:sync', payload: store.all() });
       jsonResponse(res, 200, { ok: true });
-    } catch (e) { jsonResponse(res, 400, { error: String(e) }); }
+    } catch (e) {
+      jsonResponse(res, 400, { error: String(e) });
+    }
     return;
   }
 

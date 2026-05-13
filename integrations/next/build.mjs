@@ -21,6 +21,8 @@ if (watch) {
   console.log('[design-bridge/next] watching for changes…');
 } else {
   await build(options);
-  execSync('npx tsc -p tsconfig.build.json --emitDeclarationOnly --declaration --outDir dist', { stdio: 'inherit' });
+  execSync('npx tsc -p tsconfig.build.json --emitDeclarationOnly --declaration --outDir dist', {
+    stdio: 'inherit',
+  });
   console.log('[design-bridge/next] build complete');
 }

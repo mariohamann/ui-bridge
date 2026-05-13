@@ -7,8 +7,19 @@ export { annotationsSignal, updateAnnotations } from './state/annotations-store.
 
 // ── Intent bus ────────────────────────────────────────────────────────────────
 export { dispatchIntent, onIntent } from './state/intents.js';
-export type { ComponentIntent, AnnotationSaveIntent, AnnotationCancelIntent, AnnotationResolveIntent, AnnotationBadgeClickIntent } from './state/intents.js';
+export type {
+  ComponentIntent,
+  AnnotationSaveIntent,
+  AnnotationCancelIntent,
+  AnnotationResolveIntent,
+  AnnotationBadgeClickIntent,
+} from './state/intents.js';
 
 // ── Annotation item ───────────────────────────────────────────────────────────
 export { DbAnnotation } from './annotation/db-annotation.js';
-export { uid, shortLabel, formatTweakReply, getSourceInfo } from './annotation/db-annotation.utils.js';
+export {
+  uid,
+  shortLabel,
+  formatTweakReply,
+  getSourceInfo,
+} from './annotation/db-annotation.utils.js';

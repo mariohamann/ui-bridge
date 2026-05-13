@@ -1,12 +1,14 @@
 <script setup lang="ts">
-const links = ['Features', 'Pricing', 'Blog', 'Docs']
+const links = ['Features', 'Pricing', 'Blog', 'Docs'];
 </script>
 
 <template>
   <header>
     <nav class="container">
       <ul>
-        <li><strong><a href="#">✦ Luminary</a></strong></li>
+        <li>
+          <strong><a href="#">✦ Luminary</a></strong>
+        </li>
       </ul>
       <ul>
         <li v-for="link in links" :key="link">
