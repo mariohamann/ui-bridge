@@ -1,6 +1,7 @@
 import { createRequire } from 'node:module';
 import { spawn, type ChildProcess } from 'node:child_process';
 import { createInterface } from 'node:readline';
+import type React from 'react';
 
 const _require = createRequire(import.meta.url);
 
@@ -31,7 +32,7 @@ export interface DesignBridgeNextOptions {
  * }
  * ```
  */
-export function DesignBridgeScript({ port }: { port?: number } = {}): unknown {
+export function DesignBridgeScript({ port }: { port?: number; } = {}): React.JSX.Element {
   // Use createElement to avoid requiring JSX transform in this package's build.
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { createElement, Fragment } = _require('react') as typeof import('react');
@@ -53,14 +54,14 @@ async function getServerPort(port: number): Promise<number | null> {
       signal: AbortSignal.timeout(600),
     });
     if (!resp.ok) return null;
-    const body = (await resp.json()) as { port?: number };
+    const body = (await resp.json()) as { port?: number; };
     return body.port ?? port;
   } catch {
     return null;
   }
 }
 
-function spawnServer(rootDir: string, preferredPort: number): { child: ChildProcess; ready: Promise<number> } {
+function spawnServer(rootDir: string, preferredPort: number): { child: ChildProcess; ready: Promise<number>; } {
   const serverEntry = _require.resolve('@design-bridge/server');
   const child = spawn(process.execPath, [serverEntry, '--root', rootDir], {
     stdio: ['ignore', 'pipe', 'pipe'],
