@@ -1,0 +1,84 @@
+@import "@picocss/pico";
+
+/* ── Sticky nav header ────────────────────────────────────── */
+body > header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  backdrop-filter: blur(8px);
+  background: color-mix(in srgb, var(--pico-background-color) 85%, transparent);
+}
+
+/* ── Hero ─────────────────────────────────────────────────── */
+.hero {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, var(--pico-primary-focus) 0%, var(--pico-background-color) 60%);
+  padding-block: 7rem;
+  text-align: center;
+}
+
+.hero .hero-badge {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--pico-primary);
+  background: var(--pico-primary-focus);
+  padding: 0.25rem 0.75rem;
+  border-radius: 999px;
+  margin-bottom: 1.5rem;
+}
+
+.hero h1 span { color: var(--pico-primary); }
+
+.hero > .container > p {
+  max-width: 36rem;
+  margin-inline: auto;
+  margin-bottom: 2.5rem;
+}
+
+.hero-cta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  justify-content: center;
+}
+
+.hero-cta button { margin: 0; min-width: 10rem; }
+
+.hero::before,
+.hero::after {
+  content: "";
+  position: absolute;
+  width: 24rem;
+  height: 24rem;
+  border-radius: 50%;
+  filter: blur(80px);
+  pointer-events: none;
+  opacity: 0.25;
+  background: var(--pico-primary);
+}
+
+.hero::before { top: -6rem; left: -6rem; }
+.hero::after  { bottom: -6rem; right: -6rem; }
+
+/* ── Section header ───────────────────────────────────────── */
+.section-header {
+  text-align: center;
+  margin-bottom: 3.5rem;
+}
+
+/* ── Features: 3-col grid for 6 items ────────────────────── */
+.features-grid.grid { grid-template-columns: repeat(3, 1fr); }
+
+.feature-icon {
+  font-size: 2rem;
+  display: block;
+  margin-bottom: 1rem;
+}
+
+/* ── CTA card ─────────────────────────────────────────────── */
+article.cta-card { text-align: center; }
+article.cta-card hgroup { margin-bottom: 1.5rem; }

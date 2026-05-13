@@ -1,0 +1,8 @@
+{
+  "name": "@design-bridge/demo-styles",
+  "version": "0.0.1",
+  "private": true,
+  "dependencies": {
+    "@picocss/pico": "^2.0.0"
+  }
+}

@@ -4,6 +4,7 @@ import HeroSection from "../components/HeroSection.astro"
 import FeaturesSection from "../components/FeaturesSection.astro"
 import CtaSection from "../components/CtaSection.astro"
 import AppFooter from "../components/AppFooter.astro"
+import "@design-bridge/demo-styles/base.css"
 ---
 
 <html lang="en">
@@ -13,19 +14,6 @@ import AppFooter from "../components/AppFooter.astro"
     <meta name="viewport" content="width=device-width" />
     <meta name="generator" content={Astro.generator} />
     <title>Luminary — Design Bridge Astro Demo</title>
-    <style>
-      * {
-        box-sizing: border-box;
-        margin: 0;
-        padding: 0;
-      }
-      body {
-        font-family:
-          system-ui,
-          -apple-system,
-          sans-serif;
-      }
-    </style>
   </head>
   <body>
     <AppNav />

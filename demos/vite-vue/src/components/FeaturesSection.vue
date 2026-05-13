@@ -34,24 +34,18 @@ const features = [
 </script>
 
 <template>
-  <section class="py-24 px-6 bg-white">
-    <div class="max-w-6xl mx-auto">
-      <div class="text-center mb-16">
-        <h2 class="text-3xl font-bold text-gray-900 mb-4">Everything you need</h2>
-        <p class="text-gray-500 max-w-xl mx-auto">
-          A curated set of tools designed to eliminate the gap between design and engineering.
-        </p>
+  <section>
+    <div class="container">
+      <div class="section-header">
+        <h2>Everything you need</h2>
+        <p>A curated set of tools designed to eliminate the gap between design and engineering.</p>
       </div>
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-        <div
-          v-for="feature in features"
-          :key="feature.title"
-          class="group p-6 rounded-2xl border border-gray-100 hover:border-violet-200 hover:shadow-lg hover:shadow-violet-50 transition-all"
-        >
-          <div class="text-3xl mb-4">{{ feature.icon }}</div>
-          <h3 class="font-semibold text-gray-900 mb-2">{{ feature.title }}</h3>
-          <p class="text-sm text-gray-500 leading-relaxed">{{ feature.description }}</p>
-        </div>
+      <div class="features-grid grid">
+        <article v-for="feature in features" :key="feature.title" class="feature-card">
+          <span class="feature-icon">{{ feature.icon }}</span>
+          <h3>{{ feature.title }}</h3>
+          <p>{{ feature.description }}</p>
+        </article>
       </div>
     </div>
   </section>
