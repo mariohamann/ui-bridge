@@ -6,11 +6,11 @@ import '@awesome.me/webawesome/dist/components/tag/tag.js';
 import autosize from 'autosize';
 import type { Annotation, AnnotationReply, AnnotationSource, AnnotationTweakLink } from '@design-bridge/core';
 import { LitElement, html, type TemplateResult } from 'lit';
-import { annotationItemStyles } from './db-annotation-styles.js';
+import { annotationItemStyles } from './db-annotation.styles.js';
 import { computePosition, autoUpdate, flip, shift, offset } from '@floating-ui/dom';
 import { customElement, property, state } from 'lit/decorators.js';
 import { dispatchIntent } from '../state/intents.js';
-import { uid, shortLabel, formatTweakReply } from './db-annotation-utils.js';
+import { uid, shortLabel, formatTweakReply } from './db-annotation.utils.js';
 import { DB_HIGHLIGHT_COLOR } from '../styles/tokens.js';
 
 const HIGHLIGHT_ATTR = 'data-db-related';

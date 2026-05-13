@@ -11,4 +11,4 @@ export type { ComponentIntent, AnnotationSaveIntent, AnnotationCancelIntent, Ann
 
 // ── Annotation item ───────────────────────────────────────────────────────────
 export { DbAnnotation } from './annotation/db-annotation.js';
-export { uid, shortLabel, formatTweakReply, getSourceInfo } from './annotation/db-annotation-utils.js';
+export { uid, shortLabel, formatTweakReply, getSourceInfo } from './annotation/db-annotation.utils.js';
