@@ -4,7 +4,7 @@ import '@awesome.me/webawesome/dist/components/dropdown-item/dropdown-item.js';
 import '@awesome.me/webawesome/dist/components/dropdown/dropdown.js';
 import '@awesome.me/webawesome/dist/components/tag/tag.js';
 import autosize from 'autosize';
-import type { Annotation, AnnotationReply, AnnotationSource, AnnotationTweakLink } from '@design-bridge/core';
+import type { Annotation, AnnotationReply, AnnotationSource, AnnotationTweakLink } from '@design-bridge/protocol';
 import { LitElement, html, type TemplateResult } from 'lit';
 import { annotationItemStyles } from './db-annotation.styles.js';
 import { computePosition, autoUpdate, flip, shift, offset } from '@floating-ui/dom';

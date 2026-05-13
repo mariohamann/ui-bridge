@@ -15,7 +15,7 @@
   "devDependencies": {
     "@awesome.me/webawesome": "^3.6.0",
     "@design-bridge/components": "workspace:*",
-    "@design-bridge/core": "workspace:*",
+    "@design-bridge/protocol": "workspace:*",
     "@floating-ui/dom": "^1.7.6",
     "@lit-labs/signals": "^0.2.0",
     "@medv/finder": "^4.0.2",

@@ -1,3 +1,5 @@
 packages:
-  - packages/*
+  - core/*
+  - integrations/*
   - demos/*
+  - docs

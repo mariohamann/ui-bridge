@@ -8,7 +8,7 @@
  * No WebSocket or browser-API imports here — this module is transport-agnostic.
  */
 
-import type { Annotation } from '@design-bridge/core';
+import type { Annotation } from '@design-bridge/protocol';
 
 // ── Intent types ──────────────────────────────────────────────────────────────
 

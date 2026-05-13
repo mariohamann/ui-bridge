@@ -9,7 +9,7 @@ import '@awesome.me/webawesome/dist/components/tag/tag.js';
 import { LitElement, html } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { SignalWatcher } from '@lit-labs/signals';
-import type { Annotation } from '@design-bridge/core';
+import type { Annotation } from '@design-bridge/protocol';
 import { annotationsSignal } from '../state/annotations-store.js';
 import { dispatchIntent } from '../state/intents.js';
 import { dbReviewStyles } from './db-review.styles.js';

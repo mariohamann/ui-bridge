@@ -1,5 +1,5 @@
 import { Signal } from 'signal-polyfill';
-import type { Annotation } from '@design-bridge/core';
+import type { Annotation } from '@design-bridge/protocol';
 
 /**
  * Signal store for annotations.

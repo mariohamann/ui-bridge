@@ -30,7 +30,7 @@ export default defineConfig({
     // Builds this package + client + vite-plugin, then starts the Astro demo.
     // In non-CI mode an already-running server is reused so repeated test runs
     // are fast.
-    command: `cd ${__dirname} && node build.mjs && cd ${path.resolve(__dirname, '../client')} && node build.mjs && cd ${path.resolve(__dirname, '../unplugin')} && node build.mjs && cd ${demoDir} && pnpm dev`,
+    command: `cd ${__dirname} && node build.mjs && cd ${path.resolve(__dirname, '../../core/client')} && node build.mjs && cd ${path.resolve(__dirname, '../unplugin')} && node build.mjs && cd ${demoDir} && pnpm dev`,
     cwd: demoDir,
     url: 'http://localhost:4321',
     reuseExistingServer: !process.env.CI,

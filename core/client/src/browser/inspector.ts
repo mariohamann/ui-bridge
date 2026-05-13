@@ -9,8 +9,8 @@
 
 import { sendMessage, onMessage } from './ws-client.js';
 import { finder, idName } from '@medv/finder';
-import type { Annotation } from '@design-bridge/core';
-import { DB_ANNOTATION_TAG, DB_SOURCE_INSPECTOR_TAG } from '@design-bridge/core';
+import type { Annotation } from '@design-bridge/protocol';
+import { DB_ANNOTATION_TAG, DB_SOURCE_INSPECTOR_TAG } from '@design-bridge/protocol';
 import type { DbAnnotation } from '@design-bridge/components';
 import { onIntent, updateAnnotations, getSourceInfo, DB_HIGHLIGHT_COLOR } from '@design-bridge/components';
 

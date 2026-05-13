@@ -40,7 +40,7 @@ export default defineConfig({
   webServer: [
     {
       // Build unplugin + client, then start the vite-vue demo
-      command: `cd ${__dirname} && node build.mjs && cd ${path.resolve(__dirname, '../client')} && node build.mjs && cd ${viteDemoDir} && pnpm dev`,
+      command: `cd ${__dirname} && node build.mjs && cd ${path.resolve(__dirname, '../../core/client')} && node build.mjs && cd ${viteDemoDir} && pnpm dev`,
       cwd: viteDemoDir,
       url: 'http://localhost:5173',
       reuseExistingServer: !process.env.CI,

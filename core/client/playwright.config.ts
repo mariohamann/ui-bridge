@@ -25,10 +25,12 @@ export default defineConfig({
   ],
 
   webServer: {
-    command: `cd ${__dirname} && node build.mjs && cd ${path.resolve(__dirname, '../unplugin')} && node build.mjs && cd ${path.resolve(__dirname, '../../demos/vite-vue')} && pnpm dev`,
+    // Build first, then serve. integrations/unplugin tests share the same server
+    // (reuseExistingServer is true locally) so we only need one to build+start.
+    command: `cd ${path.resolve(__dirname, '../../demos/vite-vue')} && pnpm dev`,
     cwd: path.resolve(__dirname, '../../demos/vite-vue'),
     url: 'http://localhost:5173',
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: true,
     timeout: 30_000,
   },
 });

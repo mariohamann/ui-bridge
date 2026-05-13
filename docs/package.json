@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@design-bridge/components": "workspace:*",
-    "@design-bridge/core": "workspace:*",
+    "@design-bridge/protocol": "workspace:*",
     "astro": "^6.3.1",
     "gsap": "^3.12.7"
   },
