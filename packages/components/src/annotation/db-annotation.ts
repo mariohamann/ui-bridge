@@ -11,6 +11,7 @@ import { computePosition, autoUpdate, flip, shift, offset } from '@floating-ui/d
 import { customElement, property, state } from 'lit/decorators.js';
 import { dispatchIntent } from '../state/intents.js';
 import { uid, shortLabel, formatTweakReply } from './db-annotation-utils.js';
+import { DB_HIGHLIGHT_COLOR } from '../styles/tokens.js';
 
 const HIGHLIGHT_ATTR = 'data-db-related';
 
@@ -303,7 +304,7 @@ export class DbAnnotation extends LitElement {
     if (!document.getElementById('db-badge-highlight-style')) {
       const s = document.createElement('style');
       s.id = 'db-badge-highlight-style';
-      s.textContent = `[${HIGHLIGHT_ATTR}]{outline:2px solid var(--wa-color-brand)!important;outline-offset:2px!important;}`;
+      s.textContent = `[${HIGHLIGHT_ATTR}]{outline:2px solid ${DB_HIGHLIGHT_COLOR}!important;outline-offset:2px!important;}`;
       document.head.appendChild(s);
     }
   }

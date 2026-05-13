@@ -8,6 +8,16 @@ importers:
 
   .: {}
 
+  demos/astro:
+    dependencies:
+      astro:
+        specifier: ^6.3.1
+        version: 6.3.1(@types/node@25.6.2)(jiti@2.7.0)(lightningcss@1.32.0)(rollup@4.60.3)
+    devDependencies:
+      '@design-bridge/astro':
+        specifier: workspace:*
+        version: link:../../packages/astro
+
   demos/vite-vue:
     dependencies:
       vue:
@@ -36,7 +46,33 @@ importers:
         specifier: ^6.0.0
         version: 6.4.2(@types/node@25.6.2)(jiti@2.7.0)(lightningcss@1.32.0)
 
+  packages/astro:
+    dependencies:
+      '@design-bridge/vite-plugin':
+        specifier: workspace:*
+        version: link:../vite-plugin
+    devDependencies:
+      '@playwright/test':
+        specifier: ^1.50.0
+        version: 1.59.1
+      '@types/node':
+        specifier: ^25.6.0
+        version: 25.6.2
+      astro:
+        specifier: ^6.3.1
+        version: 6.3.1(@types/node@25.6.2)(jiti@2.7.0)(lightningcss@1.32.0)(rollup@4.60.3)
+      esbuild:
+        specifier: ^0.25.0
+        version: 0.25.12
+      typescript:
+        specifier: ~6.0.2
+        version: 6.0.3
+
   packages/client:
+    dependencies:
+      '@code-inspector/core':
+        specifier: ^1.5.1
+        version: 1.5.1
     devDependencies:
       '@awesome.me/webawesome':
         specifier: ^3.6.0
@@ -170,6 +206,9 @@ importers:
       '@design-bridge/server':
         specifier: workspace:*
         version: link:../server
+      code-inspector-plugin:
+        specifier: ^1.5.1
+        version: 1.5.1
     devDependencies:
       '@playwright/test':
         specifier: ^1.50.0

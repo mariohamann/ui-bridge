@@ -10,8 +10,9 @@
 import { sendMessage, onMessage } from './ws-client.js';
 import { finder, idName } from '@medv/finder';
 import type { Annotation } from '@design-bridge/core';
+import { DB_ANNOTATION_TAG, DB_SOURCE_INSPECTOR_TAG } from '@design-bridge/core';
 import type { DbAnnotation } from '@design-bridge/components';
-import { onIntent, updateAnnotations } from '@design-bridge/components';
+import { onIntent, updateAnnotations, getSourceInfo, DB_HIGHLIGHT_COLOR } from '@design-bridge/components';
 
 // ─── Selector helper ──────────────────────────────────────────────────────────
 
@@ -183,16 +184,67 @@ function reconcileItems(): void {
 let lastInspectedEl: Element | null = null;
 
 function isOwnUI(el: Element): boolean {
-  return !!el.closest('db-annotation');
+  return !!el.closest(DB_ANNOTATION_TAG);
+}
+
+function isInspectorUI(el: Element): boolean {
+  return el.tagName === DB_SOURCE_INSPECTOR_TAG.toUpperCase()
+    || isOwnUI(el);
+}
+
+// ─── Hover highlight overlay ──────────────────────────────────────────────
+
+let highlightEl: HTMLElement | null = null;
+
+function getOrCreateHighlight(): HTMLElement {
+  if (!highlightEl) {
+    highlightEl = document.createElement('div');
+    highlightEl.id = '__db-hover-highlight';
+    Object.assign(highlightEl.style, {
+      position: 'fixed',
+      pointerEvents: 'none',
+      zIndex: '2147483646',
+      outline: `2px solid ${DB_HIGHLIGHT_COLOR}`,
+      outlineOffset: '1px',
+      borderRadius: '2px',
+      display: 'none',
+    });
+    document.documentElement.appendChild(highlightEl);
+  }
+  return highlightEl;
+}
+
+function showHighlight(el: Element): void {
+  const rect = el.getBoundingClientRect();
+  const h = getOrCreateHighlight();
+  Object.assign(h.style, {
+    display: 'block',
+    top: `${rect.top}px`,
+    left: `${rect.left}px`,
+    width: `${rect.width}px`,
+    height: `${rect.height}px`,
+  });
+}
+
+function hideHighlight(): void {
+  if (highlightEl) highlightEl.style.display = 'none';
 }
 
 function onPointerMoveForInspect(e: MouseEvent): void {
-  if (!e.altKey || !e.shiftKey) { lastInspectedEl = null; return; }
+  if (!e.altKey || !e.shiftKey) {
+    lastInspectedEl = null;
+    hideHighlight();
+    document.documentElement.style.cursor = '';
+    return;
+  }
+  document.documentElement.style.cursor = 'crosshair';
   for (const node of e.composedPath()) {
     if (!(node instanceof Element)) continue;
-    if (node.tagName === 'CODE-INSPECTOR-COMPONENT') continue;
-    if (isOwnUI(node)) continue;
-    lastInspectedEl = node;
+    if (isInspectorUI(node)) continue;
+    if (node !== lastInspectedEl) {
+      lastInspectedEl = node;
+      showHighlight(node);
+    }
     return;
   }
 }
@@ -204,10 +256,12 @@ function onPointerMoveForInspect(e: MouseEvent): void {
  * No source-info update needed — it's already set from the first click.
  */
 function onPointerDownForInspect(e: PointerEvent): void {
-  if (!e.altKey || !e.shiftKey || !draftItem) return;
+  if (!e.altKey || !e.shiftKey) return;
+  hideHighlight();
+  if (!draftItem) return;
   const els = document.elementsFromPoint(e.clientX, e.clientY);
   const target = els.find(
-    (el) => el.tagName !== 'CODE-INSPECTOR-COMPONENT' && !isOwnUI(el) && el.tagName !== 'HTML' && el.tagName !== 'BODY' && el !== document.documentElement,
+    (el) => !isInspectorUI(el) && el.tagName !== 'HTML' && el.tagName !== 'BODY' && el !== document.documentElement,
   );
   if (!target) return;
   lastInspectedEl = target;
@@ -215,30 +269,30 @@ function onPointerDownForInspect(e: PointerEvent): void {
 }
 
 function onTrackCode(e: Event): void {
-  const detail = (e as CustomEvent<{ path: string; line: number; column: number; }>).detail;
-  if (!detail?.path) return;
+  const detail = (e as CustomEvent<{ path?: string; line?: number; column?: number; }>).detail;
+  hideHighlight();
   if (!itemContainer) return;
 
   const el = lastInspectedEl;
-  if (!el || isOwnUI(el)) return;
+  if (!el || isInspectorUI(el)) return;
 
   const sel = buildSelector(el);
   const existing = [...annotations.values()].find((a) => a.selectors.includes(sel));
+  // Prefer event detail source info; fall back to reading DOM attributes directly.
+  const detailSource = detail?.path ? { file: detail.path, line: detail.line ?? 1, column: detail.column ?? 0 } : null;
+  const source = detailSource ?? getSourceInfo(el) ?? undefined;
 
   if (existing && !draftItem) {
-    // Open the existing saved item (only when not in draft/multi-select mode)
     openItemPanel(getItemById(existing.id)!);
   } else if (draftItem) {
-    // Draft already open: add selector (deduped by element ref) + update source.
     draftItem.addDraftSelector(el, buildSelector(el));
-    draftItem.setDraftSource({ file: detail.path, line: detail.line, column: detail.column });
+    if (source) draftItem.setDraftSource(source);
   } else {
-    // Create a new draft item immediately
-    const item = document.createElement('db-annotation') as DbAnnotation;
+    const item = document.createElement(DB_ANNOTATION_TAG) as DbAnnotation;
     itemContainer.appendChild(item);
     draftItem = item;
     item.initDraft(el, buildSelector(el));
-    item.setDraftSource({ file: detail.path, line: detail.line, column: detail.column });
+    if (source) item.setDraftSource(source);
   }
 }
 
@@ -303,6 +357,15 @@ export function initInspector(): void {
   });
 
   reconcileItems();
+
+  // Also listen for the click event (Alt+Shift) to trigger draft creation.
+  // The click is processed at capture phase so it fires before any page handlers.
+  document.addEventListener('click', (e: MouseEvent) => {
+    if (!e.altKey || !e.shiftKey) return;
+    e.preventDefault();
+    e.stopPropagation();
+    window.dispatchEvent(new CustomEvent('code-inspector:trackCode', { detail: getSourceInfo(lastInspectedEl!) ?? {} }));
+  }, { capture: true });
 
   // Deep-link: ?db-annotation=<id> opens the annotation panel on load
   const targetId = new URLSearchParams(location.search).get('db-annotation');

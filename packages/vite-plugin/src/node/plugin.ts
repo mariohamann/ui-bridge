@@ -2,8 +2,9 @@ import { readFileSync } from 'node:fs';
 import { spawn, type ChildProcess } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { createInterface } from 'node:readline';
-import type { Plugin } from 'vite';
+import type { Plugin, PluginOption } from 'vite';
 import type { ServerResponse } from 'node:http';
+import { codeInspectorPlugin } from 'code-inspector-plugin';
 
 const _require = createRequire(import.meta.url);
 const clientBundlePath: string = _require.resolve('@design-bridge/client');
@@ -78,7 +79,7 @@ function spawnServer(rootDir: string, preferredPort: number): { child: ChildProc
   return { child, ready };
 }
 
-export function designBridge(options: DesignBridgeOptions = {}): Plugin {
+export function designBridge(options: DesignBridgeOptions = {}): PluginOption {
   const preferredPort =
     options.port ??
     parseInt(process.env.DESIGN_BRIDGE_PORT ?? process.env.DB_PORT ?? '7378', 10);
@@ -91,7 +92,7 @@ export function designBridge(options: DesignBridgeOptions = {}): Plugin {
   let rootDir = '';
   let child: ChildProcess | null = null;
 
-  return {
+  const bridgePlugin: Plugin = {
     name: 'design-bridge',
 
     config() {
@@ -153,5 +154,19 @@ export function designBridge(options: DesignBridgeOptions = {}): Plugin {
       },
     },
   };
+
+  return [
+    // code-inspector stamps data-insp-path attributes onto Vue/React/Svelte
+    // elements via its Vite transform — invaluable for agents and source jumping.
+    // We override transformIndexHtml to a no-op so it never injects its own
+    // <code-inspector-component> browser client; the Design Bridge inspector
+    // handles all browser-side UI directly in client/src/browser/inspector.ts.
+    {
+      ...codeInspectorPlugin({ bundler: 'vite', behavior: { locate: false } }),
+      transformIndexHtml: undefined,
+      apply: 'serve',
+    },
+    bridgePlugin,
+  ];
 }
 

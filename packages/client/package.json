@@ -12,7 +12,6 @@
     "dev": "node build.mjs --watch",
     "test": "playwright test"
   },
-  "dependencies": {},
   "devDependencies": {
     "@awesome.me/webawesome": "^3.6.0",
     "@design-bridge/components": "workspace:*",
@@ -20,13 +19,13 @@
     "@floating-ui/dom": "^1.7.6",
     "@lit-labs/signals": "^0.2.0",
     "@medv/finder": "^4.0.2",
-    "autosize": "^6.0.1",
-    "lit": "^3.3.0",
-    "signal-polyfill": "^0.2.2",
     "@playwright/test": "^1.50.0",
     "@types/autosize": "^4.0.3",
     "@types/node": "^25.6.0",
+    "autosize": "^6.0.1",
     "esbuild": "^0.25.0",
+    "lit": "^3.3.0",
+    "signal-polyfill": "^0.2.2",
     "typescript": "~6.0.2"
   }
 }

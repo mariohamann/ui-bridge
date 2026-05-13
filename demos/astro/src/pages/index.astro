@@ -1,0 +1,39 @@
+---
+import AppNav from "../components/AppNav.astro"
+import HeroSection from "../components/HeroSection.astro"
+import FeaturesSection from "../components/FeaturesSection.astro"
+import CtaSection from "../components/CtaSection.astro"
+import AppFooter from "../components/AppFooter.astro"
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width" />
+    <meta name="generator" content={Astro.generator} />
+    <title>Luminary — Design Bridge Astro Demo</title>
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        font-family:
+          system-ui,
+          -apple-system,
+          sans-serif;
+      }
+    </style>
+  </head>
+  <body>
+    <AppNav />
+    <main>
+      <HeroSection />
+      <FeaturesSection />
+      <CtaSection />
+    </main>
+    <AppFooter />
+  </body>
+</html>

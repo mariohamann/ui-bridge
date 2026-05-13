@@ -8,3 +8,10 @@ export const designBridgeHostTokenStyles = [
   unsafeCSS(waCss),
   css`:host { color-scheme: dark; }`,
 ];
+
+/**
+ * Brand color used for element highlights (hover outline, related-element outline).
+ * Matches Web Awesome's --wa-color-brand in dark mode. Export as a plain string
+ * so it can be used in vanilla DOM code (inspector.ts) and Lit CSS alike.
+ */
+export const DB_HIGHLIGHT_COLOR = '#3b82f6';

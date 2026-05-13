@@ -1,5 +1,5 @@
 // ── Styles ────────────────────────────────────────────────────────────────────
-export { designBridgeHostTokenStyles } from './styles/tokens.js';
+export { designBridgeHostTokenStyles, DB_HIGHLIGHT_COLOR } from './styles/tokens.js';
 
 // ── Signal stores ─────────────────────────────────────────────────────────────
 export { knobsSignal, updateKnobs, getKnobByMarker } from './state/knobs-store.js';
@@ -11,4 +11,4 @@ export type { ComponentIntent, AnnotationSaveIntent, AnnotationCancelIntent, Ann
 
 // ── Annotation item ───────────────────────────────────────────────────────────
 export { DbAnnotation } from './annotation/db-annotation.js';
-export { uid, shortLabel, formatTweakReply } from './annotation/db-annotation-utils.js';
+export { uid, shortLabel, formatTweakReply, getSourceInfo } from './annotation/db-annotation-utils.js';

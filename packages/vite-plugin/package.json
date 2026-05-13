@@ -3,11 +3,11 @@
   "version": "0.0.1",
   "type": "module",
   "main": "./dist/node/index.js",
-  "types": "./dist/node/index.d.ts",
+  "types": "./dist/node/node/index.d.ts",
   "exports": {
     ".": {
       "import": "./dist/node/index.js",
-      "types": "./dist/node/index.d.ts"
+      "types": "./dist/node/node/index.d.ts"
     }
   },
   "scripts": {
@@ -17,7 +17,8 @@
   },
   "dependencies": {
     "@design-bridge/client": "workspace:*",
-    "@design-bridge/server": "workspace:*"
+    "@design-bridge/server": "workspace:*",
+    "code-inspector-plugin": "^1.5.1"
   },
   "devDependencies": {
     "@playwright/test": "^1.50.0",
