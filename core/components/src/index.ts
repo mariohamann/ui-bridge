@@ -17,6 +17,7 @@ export type {
 
 // ── Annotation item ───────────────────────────────────────────────────────────
 export { DbAnnotation } from './annotation/db-annotation.js';
+export { DbKnob } from './annotation/db-knob.js';
 export {
   uid,
   shortLabel,

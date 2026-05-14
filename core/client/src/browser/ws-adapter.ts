@@ -56,6 +56,9 @@ onIntent((intent) => {
     case 'tweak:discard':
       sendMessage({ type: 'tweak:discard-all' });
       break;
+    case 'tweak:discard-annotation':
+      sendMessage({ type: 'tweak:discard', payload: { annotationId: intent.annotationId } });
+      break;
     case 'tweak:accept-annotation':
       sendMessage({
         type: 'tweak:accept-annotation',

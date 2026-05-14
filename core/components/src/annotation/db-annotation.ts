@@ -9,7 +9,10 @@ import type {
   AnnotationReply,
   AnnotationSource,
   AnnotationTweakLink,
+  TweakKnob,
 } from '@design-bridge/protocol';
+import { knobsSignal } from '../state/knobs-store.js';
+import './db-knob.js';
 import { LitElement, html, type TemplateResult } from 'lit';
 import { annotationItemStyles } from './db-annotation.styles.js';
 import { computePosition, autoUpdate, flip, shift, offset } from '@floating-ui/dom';
@@ -155,7 +158,7 @@ export class DbAnnotation extends LitElement {
   }
 
   /** Register a tweak change as a reply on this annotation. */
-  registerTweakReply(marker: string, value: string, label?: string): void {
+  registerTweakReply(marker: string, value: string, _label?: string): void {
     if (!this.annotation || !this._open || this._mode !== 'view') return;
     const text = formatTweakReply(marker, value);
     const replies = this._normalizeReplies(this.annotation);
@@ -167,18 +170,7 @@ export class DbAnnotation extends LitElement {
     } else {
       replies.push({ id: uid(), type: 'tweak', text, createdAt: Date.now() });
     }
-    const linkedTweaks = [...(this.annotation.linkedTweaks ?? [])];
-    const linkedIdx = linkedTweaks.findIndex((t) => t.marker === marker);
-    if (linkedIdx >= 0) {
-      linkedTweaks[linkedIdx] = {
-        ...linkedTweaks[linkedIdx],
-        lastValue: value,
-        linkedAt: Date.now(),
-      };
-    } else {
-      linkedTweaks.push({ marker, label, lastValue: value, linkedAt: Date.now() });
-    }
-    const updated = this._buildAnnotation({ replies, linkedTweaks });
+    const updated = this._buildAnnotation({ replies });
     this.annotation = updated;
     dispatchIntent({ type: 'annotation:save', annotation: updated });
   }
@@ -481,6 +473,8 @@ export class DbAnnotation extends LitElement {
       createdAt: (base?.createdAt ?? this._createdAt) || Date.now(),
       replies,
       linkedTweaks: overrides?.linkedTweaks ?? base?.linkedTweaks ?? [],
+      ...(base?.knob ? { knob: base.knob } : {}),
+      ...(base?.actions ? { actions: base.actions } : {}),
       ...((this._pendingSource ?? base?.source)
         ? { source: this._pendingSource ?? base?.source }
         : {}),
@@ -557,7 +551,7 @@ export class DbAnnotation extends LitElement {
     const url = wsUrl
       ? wsUrl.replace(/^ws:\/\//, 'http://').replace(/\/design-bridge$/, '/')
       : `http://${location.host}/`;
-    navigator.clipboard.writeText(url).catch(() => {});
+    navigator.clipboard.writeText(url).catch(() => { });
   }
 
   private _resolve(): void {
@@ -572,14 +566,18 @@ export class DbAnnotation extends LitElement {
     this._open = false;
   }
 
-  private _acceptOneTweak(marker: string): void {
+  private _discardTweak(): void {
     if (!this.annotation) return;
-    dispatchIntent({ type: 'tweak:accept-one', annotationId: this.annotation.id, marker });
+    dispatchIntent({ type: 'tweak:discard-annotation', annotationId: this.annotation.id });
   }
 
-  private _dismissTweak(marker: string): void {
+  private _onKnobChange(e: CustomEvent<{ value: string | number | boolean; }>): void {
     if (!this.annotation) return;
-    dispatchIntent({ type: 'tweak:dismiss-one', annotationId: this.annotation.id, marker });
+    dispatchIntent({
+      type: 'tweak:change',
+      marker: this.annotation.id,
+      value: String(e.detail.value),
+    });
   }
 
   // ────────────────────────────────────────────────────────────────────────
@@ -587,43 +585,40 @@ export class DbAnnotation extends LitElement {
   // ────────────────────────────────────────────────────────────────────────
 
   private _renderTweaksSection(): TemplateResult {
-    const tweaks = this.annotation?.linkedTweaks ?? [];
-    if (!tweaks.length) return html``;
+    const knobDef = this.annotation?.knob;
+    if (!knobDef) return html``;
+    // Build a TweakKnob using the live value from knobsSignal when available.
+    const liveKnob = knobsSignal.get().find((k) => k.marker === this.annotation!.id);
+    const knob: TweakKnob = liveKnob ?? {
+      marker: this.annotation!.id,
+      annotationId: this.annotation!.id,
+      ...knobDef,
+    };
     return html`
       <div class="tweaks-section">
         <div class="tweaks-section-header">
-          <span class="tweaks-section-title">Tweaks</span>
+          <span class="tweaks-section-title">Tweak</span>
           <wa-button
             appearance="outlined"
             variant="success"
             size="s"
             @click=${this._acceptAllTweaks}
-            title="Accept all tweaks and resolve annotation"
-            >Accept all ✓</wa-button
+            title="Accept tweak and resolve annotation"
+            >Accept ✓</wa-button
+          >
+          <wa-button
+            appearance="outlined"
+            variant="warning"
+            size="s"
+            @click=${this._discardTweak}
+            title="Discard tweak"
+            >Discard ✕</wa-button
           >
         </div>
-        ${tweaks.map(
-          (t) => html`
-            <div class="tweak-row">
-              <span class="tweak-label">${t.label ?? t.marker}</span>
-              <span class="tweak-value">${t.lastValue}</span>
-              <wa-button
-                appearance="plain"
-                size="s"
-                title="Accept this tweak"
-                @click=${() => this._acceptOneTweak(t.marker)}
-                >✓</wa-button
-              >
-              <wa-button
-                appearance="plain"
-                size="s"
-                title="Dismiss this tweak"
-                @click=${() => this._dismissTweak(t.marker)}
-                >✕</wa-button
-              >
-            </div>
-          `,
-        )}
+        <div class="tweak-row">
+          <span class="tweak-label">${knobDef.label}</span>
+          <db-knob .knob=${knob} @db-knob-change=${this._onKnobChange}></db-knob>
+        </div>
       </div>
     `;
   }
@@ -636,15 +631,15 @@ export class DbAnnotation extends LitElement {
         <wa-dropdown
           size="s"
           @wa-select=${(e: CustomEvent) => {
-            const val = e.detail.item.value;
-            if (val === 'paths') {
-              this._showPaths = !this._showPaths;
-            } else if (val === 'copy-link') {
-              this._copyReviewLink();
-            } else if (val === 'delete') {
-              this._delete();
-            }
-          }}
+        const val = e.detail.item.value;
+        if (val === 'paths') {
+          this._showPaths = !this._showPaths;
+        } else if (val === 'copy-link') {
+          this._copyReviewLink();
+        } else if (val === 'delete') {
+          this._delete();
+        }
+      }}
         >
           <wa-button slot="trigger" appearance="plain" size="s" title="More options">···</wa-button>
           <wa-dropdown-item value="paths"
@@ -660,8 +655,8 @@ export class DbAnnotation extends LitElement {
           size="s"
           title="Close"
           @click=${() => {
-            this._open = false;
-          }}
+        this._open = false;
+      }}
           >✕</wa-button
         >
       </div>
@@ -704,7 +699,7 @@ export class DbAnnotation extends LitElement {
     return html`
       <div class="chips-bar">
         ${selectors.map(
-          (sel, i) => html`
+      (sel, i) => html`
             <wa-tag
               variant="brand"
               appearance="outlined"
@@ -713,18 +708,18 @@ export class DbAnnotation extends LitElement {
               style="font-family:var(--wa-font-family-code);max-width:160px;overflow:hidden;text-overflow:ellipsis;"
               ?with-remove=${editable}
               @wa-remove=${editable
-                ? (e: Event) => {
-                    e.stopPropagation();
-                    this._removeChip(i);
-                  }
-                : undefined}
+          ? (e: Event) => {
+            e.stopPropagation();
+            this._removeChip(i);
+          }
+          : undefined}
             >
               ${sel}
             </wa-tag>
           `,
-        )}
+    )}
         ${source
-          ? html`
+        ? html`
               <wa-tag
                 variant="brand"
                 appearance="outlined"
@@ -734,7 +729,7 @@ export class DbAnnotation extends LitElement {
                 >📍 ${source.file}:${source.line}:${source.column}</wa-tag
               >
             `
-          : ''}
+        : ''}
       </div>
     `;
   }
@@ -805,16 +800,16 @@ export class DbAnnotation extends LitElement {
                 placeholder=${isDraft ? 'Add a comment\u2026' : 'Reply\u2026'}
                 .value=${isDraft ? this._draft : this._replyDraft}
                 @input=${(e: Event) => {
-                  const v = (e.target as HTMLTextAreaElement).value;
-                  if (isDraft) this._draft = v;
-                  else this._replyDraft = v;
-                }}
+        const v = (e.target as HTMLTextAreaElement).value;
+        if (isDraft) this._draft = v;
+        else this._replyDraft = v;
+      }}
                 @keydown=${isDraft ? this._onComposerKeyDown : this._onReplyKeyDown}
               ></textarea>
               <div class="composer-row">
                 ${isDraft
-                  ? this._renderSendBtn(canSendNew, () => this._saveNew())
-                  : this._renderSendBtn(canSendReply, () => this._saveReply())}
+        ? this._renderSendBtn(canSendNew, () => this._saveNew())
+        : this._renderSendBtn(canSendReply, () => this._saveReply())}
               </div>
             </div>
           </div>

@@ -73,16 +73,6 @@ export function createAnnotationStore(rootDir) {
     annotations.clear();
   }
 
-  function unlinkTweak(annotationId, marker) {
-    const ann = annotations.get(annotationId);
-    if (ann) {
-      ann.linkedTweaks = (ann.linkedTweaks ?? []).filter((t) => t.marker !== marker);
-      ann.timestamp = Date.now();
-      annotations.set(annotationId, ann);
-      persist(ann);
-    }
-  }
-
   function all() {
     return [...annotations.values()];
   }
@@ -95,5 +85,5 @@ export function createAnnotationStore(rootDir) {
     return annotations.has(id);
   }
 
-  return { load, upsert, del, clear, unlinkTweak, all, get, has };
+  return { load, upsert, del, clear, all, get, has };
 }

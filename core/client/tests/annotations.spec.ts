@@ -48,7 +48,7 @@ test.describe('Annotations', () => {
     await createAnnotation(page, 'h1', 'This headline needs a stronger CTA.');
 
     const res = await page.request.get(`${API_BASE}/annotations`);
-    const body = (await res.json()) as { annotations: { comment: string }[] };
+    const body = (await res.json()) as { annotations: { comment: string; }[]; };
     expect(body.annotations.some((a) => a.comment === 'This headline needs a stronger CTA.')).toBe(
       true,
     );
@@ -64,7 +64,7 @@ test.describe('Annotations', () => {
 
     const res = await page.request.get(`${API_BASE}/annotations`);
     expect(res.status()).toBe(200);
-    const body = (await res.json()) as { annotations: { comment: string }[] };
+    const body = (await res.json()) as { annotations: { comment: string; }[]; };
     expect(body.annotations.some((a) => a.comment === 'Persisted comment')).toBe(true);
   });
 
@@ -111,7 +111,7 @@ test.describe('Annotations', () => {
     await expect
       .poll(async () => {
         const res = await page.request.get(`${API_BASE}/annotations`);
-        const body = (await res.json()) as { annotations: { replies?: { text: string }[] }[] };
+        const body = (await res.json()) as { annotations: { replies?: { text: string; }[]; }[]; };
         return body.annotations.some((a) => a.replies?.some((r) => r.text === 'Reply from badge'));
       })
       .toBe(true);
@@ -244,7 +244,7 @@ test.describe('Annotations', () => {
     await expect(page.locator('.empty')).toBeVisible();
 
     const res = await page.request.get(`${API_BASE}/annotations`);
-    const body = (await res.json()) as { annotations: unknown[] };
+    const body = (await res.json()) as { annotations: unknown[]; };
     expect(body.annotations).toHaveLength(0);
   });
 
@@ -284,7 +284,7 @@ test.describe('Annotations', () => {
     await expect(annotationPanel(page)).toHaveCount(0);
 
     const res = await page.request.get(`${API_BASE}/annotations`);
-    const body = (await res.json()) as { annotations: { selectors: string[] }[] };
+    const body = (await res.json()) as { annotations: { selectors: string[]; }[]; };
     const ann = body.annotations.find((a) => a.selectors.length === 2);
     expect(ann).toBeDefined();
   });
@@ -310,7 +310,7 @@ test.describe('Annotations', () => {
 
     const apiRes = await page.request.get(`${API_BASE}/annotations`);
     const body = (await apiRes.json()) as {
-      annotations: { comment: string; source?: { file: string; line: number; column: number } }[];
+      annotations: { comment: string; source?: { file: string; line: number; column: number; }; }[];
     };
     const ann = body.annotations.find((a) => a.comment === 'Has source info');
     expect(ann).toBeDefined();
@@ -348,7 +348,7 @@ test.describe('Annotations', () => {
 
     // Verify 2 selectors stored via API
     const res = await page.request.get(`${API_BASE}/annotations`);
-    const body = (await res.json()) as { annotations: { selectors: string[] }[] };
+    const body = (await res.json()) as { annotations: { selectors: string[]; }[]; };
     const ann = body.annotations.find((a) => a.selectors.length === 2);
     expect(ann).toBeDefined();
   });
@@ -736,7 +736,7 @@ test.describe('Compact UI (redesign)', () => {
       .locator('nav')
       .first()
       .click({ modifiers: ['Alt', 'Shift'] })
-      .catch(() => {});
+      .catch(() => { });
 
     const textarea = draft.locator('textarea[data-role="composer"]');
     await textarea.fill('Multi selector');
@@ -855,7 +855,7 @@ test.describe('Multi-select while draft is open', () => {
     await expect(annotationPanel(page)).toHaveCount(0);
 
     const res = await page.request.get(`${API_BASE}/annotations`);
-    const body = (await res.json()) as { annotations: { comment: string; selectors: string[] }[] };
+    const body = (await res.json()) as { annotations: { comment: string; selectors: string[]; }[]; };
     const newAnn = body.annotations.find((a) => a.comment === 'Multi-select with existing element');
     expect(newAnn).toBeDefined();
     expect(newAnn!.selectors.length).toBe(2);
@@ -867,7 +867,7 @@ test.describe('Multi-select while draft is open', () => {
 /** Inject an annotation directly via the REST API. */
 async function injectAnnotation(
   page: Page,
-  overrides: Record<string, unknown> & { id: string },
+  overrides: Record<string, unknown> & { id: string; },
 ): Promise<void> {
   const ann = {
     selectors: ['h1'],
@@ -891,12 +891,32 @@ async function openAnnotationPanel(page: Page): Promise<void> {
   await badge.click();
 }
 
+/** Build an annotation with a select knob and empty actions (UI-only, no file side-effects). */
+function makeTweakAnnotation(id: string): Record<string, unknown> {
+  return {
+    id,
+    selectors: ['h1'],
+    labels: ['h1'],
+    comment: 'Propose different emojis',
+    pageUrl: 'http://localhost:5173/',
+    timestamp: Date.now(),
+    createdAt: Date.now(),
+    replies: [],
+    knob: {
+      label: 'Feature icon',
+      type: 'select',
+      value: '🎨',
+      options: { Palette: '🎨', Fire: '🔥', Rocket: '🚀' },
+    },
+    actions: [],
+  };
+}
+
 test.describe('Tweaks in annotations', () => {
-  test('tweaks section is not visible when annotation has no linkedTweaks', async ({ page }) => {
+  test('tweaks section is not visible when annotation has no knob', async ({ page }) => {
     await injectAnnotation(page, {
       id: 'test-no-tweaks',
       comment: 'No tweaks here',
-      linkedTweaks: [],
     });
     await page.reload();
     await openAnnotationPanel(page);
@@ -904,70 +924,115 @@ test.describe('Tweaks in annotations', () => {
     await expect(tweaksSection).toHaveCount(0);
   });
 
-  test('tweaks section appears when annotation has linkedTweaks', async ({ page }) => {
-    await injectAnnotation(page, {
-      id: 'test-with-tweaks',
-      comment: 'Has a tweak',
-      linkedTweaks: [
-        { marker: 'font-size', label: 'Font Size', lastValue: '18px', linkedAt: Date.now() },
-      ],
-    });
+  test('tweaks section appears when annotation has a knob', async ({ page }) => {
+    await injectAnnotation(page, makeTweakAnnotation('test-with-knob'));
     await page.reload();
     await openAnnotationPanel(page);
-    const tweaksSection = page.locator('db-annotation .tweaks-section');
-    await expect(tweaksSection).toBeVisible();
+    await expect(page.locator('db-annotation .tweaks-section')).toBeVisible();
   });
 
-  test('tweaks section shows label and value for each linked tweak', async ({ page }) => {
-    await injectAnnotation(page, {
-      id: 'test-tweak-content',
-      comment: 'Tweak content check',
-      linkedTweaks: [
-        {
-          marker: 'primary-color',
-          label: 'Primary Color',
-          lastValue: '#ff6600',
-          linkedAt: Date.now(),
-        },
-        { marker: 'font-size', label: 'Font Size', lastValue: '20px', linkedAt: Date.now() },
-      ],
-    });
+  test('tweaks section shows the knob label', async ({ page }) => {
+    await injectAnnotation(page, makeTweakAnnotation('test-knob-label'));
     await page.reload();
     await openAnnotationPanel(page);
-    const tweaksSection = page.locator('db-annotation .tweaks-section');
-    await expect(tweaksSection).toBeVisible();
-    await expect(tweaksSection.locator('.tweak-label').nth(0)).toHaveText('Primary Color');
-    await expect(tweaksSection.locator('.tweak-value').nth(0)).toHaveText('#ff6600');
-    await expect(tweaksSection.locator('.tweak-label').nth(1)).toHaveText('Font Size');
-    await expect(tweaksSection.locator('.tweak-value').nth(1)).toHaveText('20px');
+    await expect(page.locator('db-annotation .tweak-label')).toHaveText('Feature icon');
   });
 
-  test('tweaks section shows Accept and Dismiss buttons per tweak', async ({ page }) => {
-    await injectAnnotation(page, {
-      id: 'test-tweak-buttons',
-      comment: 'Tweak buttons',
-      linkedTweaks: [
-        { marker: 'spacing', label: 'Spacing', lastValue: '8px', linkedAt: Date.now() },
-      ],
-    });
+  test('db-knob renders a select with the correct options', async ({ page }) => {
+    await injectAnnotation(page, makeTweakAnnotation('test-knob-select'));
     await page.reload();
     await openAnnotationPanel(page);
-    const tweaksSection = page.locator('db-annotation .tweaks-section');
-    await expect(tweaksSection.locator('wa-button[title="Accept this tweak"]')).toBeVisible();
-    await expect(tweaksSection.locator('wa-button[title="Dismiss this tweak"]')).toBeVisible();
+    const select = page.locator('db-annotation db-knob select');
+    await expect(select).toBeVisible();
+    // Default value should be 🎨
+    await expect(select).toHaveValue('🎨');
+    // All three options should be present
+    await expect(select.locator('option')).toHaveCount(3);
   });
 
-  test('"Accept all" button is visible when annotation has linked tweaks', async ({ page }) => {
-    await injectAnnotation(page, {
-      id: 'test-accept-all-btn',
-      comment: 'Accept all button',
-      linkedTweaks: [
-        { marker: 'spacing', label: 'Spacing', lastValue: '8px', linkedAt: Date.now() },
-      ],
-    });
+  test('changing the select dispatches tweak:change and updates schema value', async ({ page }) => {
+    await injectAnnotation(page, makeTweakAnnotation('test-knob-change'));
     await page.reload();
     await openAnnotationPanel(page);
-    await expect(page.locator('db-annotation wa-button:has-text("Accept all")')).toBeVisible();
+
+    const select = page.locator('db-annotation db-knob select');
+    await expect(select).toBeVisible();
+    await select.selectOption('🔥');
+
+    // Server should update the knob value in the schema
+    await expect
+      .poll(async () => {
+        const res = await page.request.get(`${API_BASE}/tweaks`);
+        const body = (await res.json()) as { knobs: { marker: string; value: string; }[]; };
+        return body.knobs.find((k) => k.marker === 'test-knob-change')?.value;
+      })
+      .toBe('🔥');
+  });
+
+  test('Accept button finalizes the tweak and removes the annotation', async ({ page }) => {
+    await injectAnnotation(page, makeTweakAnnotation('test-knob-accept'));
+    await page.reload();
+    await openAnnotationPanel(page);
+
+    const acceptBtn = page.locator(
+      'db-annotation wa-button[title="Accept tweak and resolve annotation"]',
+    );
+    await expect(acceptBtn).toBeVisible();
+    await acceptBtn.click();
+
+    // Annotation should be gone from the API
+    await expect
+      .poll(async () => {
+        return (await page.request.get(`${API_BASE}/annotations/test-knob-accept`)).status();
+      })
+      .toBe(404);
+
+    // Knob should be removed from schema
+    await expect
+      .poll(async () => {
+        const res = await page.request.get(`${API_BASE}/tweaks`);
+        const body = (await res.json()) as { knobs: { marker: string; }[]; };
+        return body.knobs.find((k) => k.marker === 'test-knob-accept');
+      })
+      .toBeUndefined();
+  });
+
+  test('Discard button removes knob from schema but keeps annotation', async ({ page }) => {
+    await injectAnnotation(page, makeTweakAnnotation('test-knob-discard'));
+    await page.reload();
+    await openAnnotationPanel(page);
+
+    // First change the value
+    const select = page.locator('db-annotation db-knob select');
+    await select.selectOption('🚀');
+    await expect
+      .poll(async () => {
+        const res = await page.request.get(`${API_BASE}/tweaks`);
+        const body = (await res.json()) as { knobs: { marker: string; value: string; }[]; };
+        return body.knobs.find((k) => k.marker === 'test-knob-discard')?.value;
+      })
+      .toBe('🚀');
+
+    // Now discard
+    const discardBtn = page.locator('db-annotation wa-button[title="Discard tweak"]');
+    await expect(discardBtn).toBeVisible();
+    await discardBtn.click();
+
+    // Annotation should still exist
+    await expect
+      .poll(async () => {
+        return (await page.request.get(`${API_BASE}/annotations/test-knob-discard`)).status();
+      })
+      .toBe(200);
+
+    // Knob value should be reset in schema
+    await expect
+      .poll(async () => {
+        const res = await page.request.get(`${API_BASE}/tweaks`);
+        const body = (await res.json()) as { knobs: { marker: string; value: string; }[]; };
+        return body.knobs.find((k) => k.marker === 'test-knob-discard')?.value;
+      })
+      .toBe('🎨');
   });
 
   test('annotation persists to disk as JSON file after injection', async ({ page }) => {
@@ -980,30 +1045,7 @@ test.describe('Tweaks in annotations', () => {
     await expect(page.locator('db-annotation')).toBeAttached();
     const res2 = await page.request.get(`${API_BASE}/annotations/persist-json-test`);
     expect(res2.status()).toBe(200);
-    const ann = (await res2.json()) as { comment: string };
+    const ann = (await res2.json()) as { comment: string; };
     expect(ann.comment).toBe('JSON file test');
-  });
-
-  test('dismissing a tweak via API removes its row from the tweaks section', async ({ page }) => {
-    await injectAnnotation(page, {
-      id: 'dismiss-ui-test',
-      comment: 'Dismiss via API + UI check',
-      linkedTweaks: [
-        { marker: 'ui-tweak-1', label: 'UI Tweak 1', lastValue: '10px', linkedAt: Date.now() },
-        { marker: 'ui-tweak-2', label: 'UI Tweak 2', lastValue: '20px', linkedAt: Date.now() },
-      ],
-    });
-    await page.reload();
-    await openAnnotationPanel(page);
-    const tweaksSection = page.locator('db-annotation .tweaks-section');
-    await expect(tweaksSection.locator('.tweak-row')).toHaveCount(2);
-    // Dismiss via REST API (the server broadcasts annotations:sync → UI re-renders)
-    const res = await page.request.delete(
-      `${API_BASE}/annotations/dismiss-ui-test/tweaks/ui-tweak-1`,
-    );
-    expect(res.status()).toBe(200);
-    // UI should update via annotations:sync broadcast
-    await expect(tweaksSection.locator('.tweak-row')).toHaveCount(1);
-    await expect(tweaksSection.locator('.tweak-label')).toHaveText('UI Tweak 2');
   });
 });

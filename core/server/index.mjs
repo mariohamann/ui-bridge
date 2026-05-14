@@ -35,12 +35,10 @@ const PREFERRED_PORT = parseInt(
   process.env.DESIGN_BRIDGE_PORT ?? process.env.DB_PORT ?? '7378',
   10,
 );
-/** Set once the server binds — used in the /health route and the DESIGN_BRIDGE_READY signal. */
 let actualPort = PREFERRED_PORT;
 
 // ── Free-port finder ──────────────────────────────────────────────────────────
 
-/** Try up to `maxAttempts` consecutive ports starting at `start`. Resolves with the first free one. */
 function findFreePort(start, maxAttempts = 10) {
   return new Promise((resolve, reject) => {
     let attempt = 0;
@@ -66,7 +64,6 @@ function findFreePort(start, maxAttempts = 10) {
       probe.once('listening', () => {
         probe.close(() => resolve(port));
       });
-      // Probe on 0.0.0.0 (all interfaces) so we detect ports occupied on :: as well.
       probe.listen(port);
     }
     tryPort(start);
@@ -75,8 +72,9 @@ function findFreePort(start, maxAttempts = 10) {
 
 // ── Engine & store ────────────────────────────────────────────────────────────
 
-const tweaks = createTweakEngine(ROOT);
 const store = createAnnotationStore(ROOT);
+// Engine receives a callback so it always reads the latest annotation list.
+const tweaks = createTweakEngine(ROOT, () => store.all());
 
 // ── Review page HTML ──────────────────────────────────────────────────────────
 
@@ -149,6 +147,7 @@ wss.on('connection', (ws) => {
 
     switch (msg.type) {
       case 'tweak:change':
+        // marker === annotation id
         await tweaks.applyTweakChange(msg.payload.marker, msg.payload.value);
         broadcast({ type: 'tweak:schema', payload: tweaks.buildSchema() });
         break;
@@ -173,24 +172,12 @@ wss.on('connection', (ws) => {
         broadcast({ type: 'tweak:schema', payload: [] });
         break;
 
-      case 'annotation:upsert':
-        store.upsert(msg.payload);
-        broadcast({ type: 'annotations:sync', payload: store.all() });
+      case 'tweak:discard': {
+        const { annotationId } = msg.payload;
+        await tweaks.discardAnnotation(annotationId);
+        broadcast({ type: 'tweak:schema', payload: tweaks.buildSchema() });
         break;
-
-      case 'annotation:delete':
-        store.del(msg.payload.id);
-        broadcast({ type: 'annotations:sync', payload: store.all() });
-        break;
-
-      case 'annotation:clear':
-        await store.clear();
-        broadcast({ type: 'annotations:sync', payload: [] });
-        break;
-
-      case 'annotation:focus':
-        broadcast({ type: 'annotation:focus', payload: msg.payload });
-        break;
+      }
 
       case 'tweak:accept-annotation': {
         const { annotationId } = msg.payload;
@@ -201,23 +188,34 @@ wss.on('connection', (ws) => {
         break;
       }
 
-      case 'tweak:accept-tweak': {
-        const { annotationId, marker } = msg.payload;
-        await tweaks.finalizeOneTweak(marker);
-        store.unlinkTweak(annotationId, marker);
+      case 'tweak:dismiss': {
+        const { annotationId } = msg.payload;
+        await tweaks.discardAnnotation(annotationId);
         broadcast({ type: 'tweak:schema', payload: tweaks.buildSchema() });
-        broadcast({ type: 'annotations:sync', payload: store.all() });
         break;
       }
 
-      case 'tweak:dismiss': {
-        const { annotationId, marker } = msg.payload;
-        await tweaks.dismissTweak(marker);
-        store.unlinkTweak(annotationId, marker);
-        broadcast({ type: 'tweak:schema', payload: tweaks.buildSchema() });
+      case 'annotation:upsert':
+        store.upsert(msg.payload);
         broadcast({ type: 'annotations:sync', payload: store.all() });
+        broadcast({ type: 'tweak:schema', payload: tweaks.buildSchema() });
         break;
-      }
+
+      case 'annotation:delete':
+        store.del(msg.payload.id);
+        broadcast({ type: 'annotations:sync', payload: store.all() });
+        broadcast({ type: 'tweak:schema', payload: tweaks.buildSchema() });
+        break;
+
+      case 'annotation:clear':
+        await store.clear();
+        broadcast({ type: 'annotations:sync', payload: [] });
+        broadcast({ type: 'tweak:schema', payload: [] });
+        break;
+
+      case 'annotation:focus':
+        broadcast({ type: 'annotation:focus', payload: msg.payload });
+        break;
     }
   });
 });
@@ -292,6 +290,8 @@ const httpServer = createServer(async (req, res) => {
     return;
   }
 
+  // ── Annotations ───────────────────────────────────────────────────────────
+
   if (req.method === 'GET' && apiPath === '/annotations') {
     jsonResponse(res, 200, { annotations: store.all() });
     return;
@@ -306,6 +306,7 @@ const httpServer = createServer(async (req, res) => {
       }
       store.upsert(ann);
       broadcast({ type: 'annotations:sync', payload: store.all() });
+      broadcast({ type: 'tweak:schema', payload: tweaks.buildSchema() });
       jsonResponse(res, 200, { ok: true });
     } catch (e) {
       jsonResponse(res, 400, { error: String(e) });
@@ -316,6 +317,7 @@ const httpServer = createServer(async (req, res) => {
   if (req.method === 'DELETE' && apiPath === '/annotations') {
     await store.clear();
     broadcast({ type: 'annotations:sync', payload: [] });
+    broadcast({ type: 'tweak:schema', payload: [] });
     jsonResponse(res, 200, { ok: true });
     return;
   }
@@ -335,6 +337,7 @@ const httpServer = createServer(async (req, res) => {
     if (req.method === 'DELETE') {
       store.del(annId);
       broadcast({ type: 'annotations:sync', payload: store.all() });
+      broadcast({ type: 'tweak:schema', payload: tweaks.buildSchema() });
       jsonResponse(res, 200, { ok: true });
       return;
     }
@@ -355,14 +358,12 @@ const httpServer = createServer(async (req, res) => {
     return;
   }
 
-  const dismissMatch = apiPath.match(/^\/annotations\/([^/]+)\/tweaks\/([^/]+)$/);
-  if (dismissMatch && req.method === 'DELETE') {
-    const [, annId, marker] = dismissMatch;
+  const discardAnnMatch = apiPath.match(/^\/annotations\/([^/]+)\/discard$/);
+  if (discardAnnMatch && req.method === 'POST') {
+    const annId = discardAnnMatch[1];
     try {
-      await tweaks.dismissTweak(marker);
-      store.unlinkTweak(annId, marker);
+      await tweaks.discardAnnotation(annId);
       broadcast({ type: 'tweak:schema', payload: tweaks.buildSchema() });
-      broadcast({ type: 'annotations:sync', payload: store.all() });
       jsonResponse(res, 200, { ok: true });
     } catch (e) {
       jsonResponse(res, 400, { error: String(e) });
@@ -370,24 +371,83 @@ const httpServer = createServer(async (req, res) => {
     return;
   }
 
-  const acceptTweakMatch = apiPath.match(/^\/annotations\/([^/]+)\/tweaks\/([^/]+)\/accept$/);
-  if (acceptTweakMatch && req.method === 'POST') {
-    const [, annId, marker] = acceptTweakMatch;
-    try {
-      await tweaks.finalizeOneTweak(marker);
-      store.unlinkTweak(annId, marker);
-      broadcast({ type: 'tweak:schema', payload: tweaks.buildSchema() });
-      broadcast({ type: 'annotations:sync', payload: store.all() });
-      jsonResponse(res, 200, { ok: true });
-    } catch (e) {
-      jsonResponse(res, 400, { error: String(e) });
-    }
-    return;
-  }
+  // ── Tweaks schema ─────────────────────────────────────────────────────────
 
   if (req.method === 'GET' && apiPath === '/tweaks') {
     jsonResponse(res, 200, { knobs: tweaks.buildSchema() });
     return;
+  }
+
+  // ── Scripts ───────────────────────────────────────────────────────────────
+
+  if (req.method === 'POST' && apiPath === '/scripts') {
+    try {
+      const body = await readBody(req);
+      if (!body?.id || typeof body.script !== 'string') {
+        jsonResponse(res, 400, { error: 'missing id or script' });
+        return;
+      }
+      await tweaks.writeScript(body.id, body.script);
+      jsonResponse(res, 201, { id: body.id });
+    } catch (e) {
+      jsonResponse(res, 400, { error: String(e) });
+    }
+    return;
+  }
+
+  const scriptIdMatch = apiPath.match(/^\/scripts\/([^/]+)$/);
+  if (scriptIdMatch) {
+    const scriptId = scriptIdMatch[1];
+    if (req.method === 'GET') {
+      try {
+        const script = await tweaks.readScript(scriptId);
+        res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
+        res.end(script);
+      } catch {
+        jsonResponse(res, 404, { error: 'not found' });
+      }
+      return;
+    }
+    if (req.method === 'DELETE') {
+      try {
+        await tweaks.deleteScript(scriptId);
+        jsonResponse(res, 200, { ok: true });
+      } catch (e) {
+        jsonResponse(res, 400, { error: String(e) });
+      }
+      return;
+    }
+  }
+
+  // ── File assets ───────────────────────────────────────────────────────────
+
+  if (req.method === 'POST' && apiPath === '/files') {
+    try {
+      const body = await readBody(req);
+      if (!body?.id || typeof body.content !== 'string') {
+        jsonResponse(res, 400, { error: 'missing id or content' });
+        return;
+      }
+      await tweaks.writeFileAsset(body.id, body.content);
+      jsonResponse(res, 201, { id: body.id });
+    } catch (e) {
+      jsonResponse(res, 400, { error: String(e) });
+    }
+    return;
+  }
+
+  const fileIdMatch = apiPath.match(/^\/files\/([^/]+)$/);
+  if (fileIdMatch) {
+    const fileId = fileIdMatch[1];
+    if (req.method === 'DELETE') {
+      try {
+        await tweaks.deleteFileAsset(fileId);
+        jsonResponse(res, 200, { ok: true });
+      } catch (e) {
+        jsonResponse(res, 400, { error: String(e) });
+      }
+      return;
+    }
   }
 
   jsonResponse(res, 404, { error: 'not found' });
@@ -404,15 +464,10 @@ httpServer.on('upgrade', (req, socket, head) => {
 // ── Boot ──────────────────────────────────────────────────────────────────────
 
 await store.load();
-await tweaks.discoverScripts();
-const tweakWatcher = tweaks.watchScripts(() =>
-  broadcast({ type: 'tweak:schema', payload: tweaks.buildSchema() }),
-);
 
 // ── Graceful shutdown ─────────────────────────────────────────────────────────
 
 function shutdown() {
-  tweakWatcher?.close();
   for (const client of wss.clients) client.terminate();
   wss.close(() => httpServer.close(() => process.exit(0)));
 }
@@ -428,6 +483,5 @@ if (actualPort !== PREFERRED_PORT) {
 
 httpServer.listen(actualPort, () => {
   console.log(`[design-bridge] server listening on http://localhost:${actualPort} (root: ${ROOT})`);
-  // Machine-readable signal read by the Vite plugin to discover the actual port.
   process.stdout.write(`DESIGN_BRIDGE_READY:${actualPort}\n`);
 });

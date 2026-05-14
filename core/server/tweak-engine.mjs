@@ -1,394 +1,441 @@
 /**
- * Tweak Engine — script discovery, sandbox context, snapshot system, replay.
+ * Tweak Engine — annotation-driven, action-based file transformation system.
  *
- * All functions are pure with respect to the server's HTTP/WS layer.
- * Use createTweakEngine(rootDir) to get a bound engine instance.
+ * Architecture:
+ *
+ *   Annotation (owns the knob + ordered actions[])
+ *     └─ ContentEditAction  → loads .design-bridge/scripts/{scriptId}.mjs
+ *                             script: (content: string, value: unknown) => string
+ *     └─ FileCreateAction   → writes .design-bridge/files/{fileId} to path
+ *     └─ FileDeleteAction   → deletes path (snapshot taken first)
+ *
+ * Snapshot / replay model:
+ *   Before any action touches a file, its original content is snapshotted to
+ *   .design-bridge/.cache/. On replay every touched file is restored from its
+ *   snapshot before actions run, so each run starts from the original state.
+ *   Discard restores all snapshots and deletes scripts/files/cache artifacts.
+ *   Finalize makes changes permanent and clears the snapshot.
+ *
+ * Use createTweakEngine(rootDir, getAnnotations) to get a bound instance.
+ * `getAnnotations` is a callback that returns the current annotation list —
+ * the engine has no direct reference to the store.
  */
 
 import { readFile, writeFile, mkdir, rm, access } from 'node:fs/promises';
-import { watch } from 'node:fs';
 import { resolve, relative, isAbsolute } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import fg from 'fast-glob';
+
+// ─── Path constants ───────────────────────────────────────────────────────────
+
+function dirs(rootDir) {
+  const db = resolve(rootDir, '.design-bridge');
+  return {
+    scripts: resolve(db, 'scripts'),
+    files: resolve(db, 'files'),
+    cache: resolve(db, '.cache'),
+  };
+}
+
+// ─── Path guard ───────────────────────────────────────────────────────────────
+
+function guardPath(rootDir, filePath) {
+  const abs = isAbsolute(filePath) ? filePath : resolve(rootDir, filePath);
+  if (relative(rootDir, abs).startsWith('..')) {
+    throw new Error(`[design-bridge] path "${filePath}" is outside project root — blocked`);
+  }
+  return abs;
+}
+
+// ─── ID validation ────────────────────────────────────────────────────────────
+
+export function isValidId(id) {
+  return typeof id === 'string' && /^[a-z0-9][a-z0-9-]*$/.test(id);
+}
+
+// ─── Snapshot helpers ─────────────────────────────────────────────────────────
+
+function snapshotKey(absPath) {
+  return Buffer.from(absPath).toString('base64url');
+}
+
+async function ensureSnapshot(cacheDir, absPath) {
+  const snap = resolve(cacheDir, `${snapshotKey(absPath)}.orig`);
+  try {
+    await access(snap);
+    return; // already snapshotted
+  } catch {
+    /* first time */
+  }
+  await mkdir(cacheDir, { recursive: true });
+  try {
+    const content = await readFile(absPath, 'utf-8');
+    await writeFile(snap, content, 'utf-8');
+  } catch {
+    // file doesn't exist yet (e.g. file-create target) — write a sentinel
+    await writeFile(snap, '\x00', 'utf-8');
+  }
+}
+
+async function readSnapshot(cacheDir, absPath) {
+  try {
+    const content = await readFile(resolve(cacheDir, `${snapshotKey(absPath)}.orig`), 'utf-8');
+    return content === '\x00' ? null : content; // null = file didn't exist originally
+  } catch {
+    return undefined; // no snapshot at all
+  }
+}
+
+async function deleteSnapshot(cacheDir, absPath) {
+  await rm(resolve(cacheDir, `${snapshotKey(absPath)}.orig`), { force: true });
+}
+
+// ─── Script loader ────────────────────────────────────────────────────────────
+
+async function loadTransformer(scriptsDir, scriptId) {
+  const scriptPath = resolve(scriptsDir, `${scriptId}.mjs`);
+  const mod = await import(pathToFileURL(scriptPath).href + `?t=${Date.now()}`);
+  const fn = mod.default;
+  if (typeof fn !== 'function') {
+    throw new Error(
+      `[design-bridge] script "${scriptId}" must export a default function (content, value) => string`,
+    );
+  }
+  return fn;
+}
+
+// ─── Action execution ─────────────────────────────────────────────────────────
+
+function touchedByAction(rootDir, action) {
+  if (action.type === 'content-edit') return [guardPath(rootDir, action.file)];
+  if (action.type === 'file-create') return [guardPath(rootDir, action.path)];
+  if (action.type === 'file-delete') return [guardPath(rootDir, action.path)];
+  return [];
+}
+
+async function executeAction(rootDir, { scripts, files, cache }, action, value) {
+  if (action.type === 'content-edit') {
+    const abs = guardPath(rootDir, action.file);
+    await ensureSnapshot(cache, abs);
+    let transformer;
+    try {
+      transformer = await loadTransformer(scripts, action.scriptId);
+    } catch (e) {
+      console.error(`[design-bridge] failed to load script "${action.scriptId}":`, e);
+      return;
+    }
+    const current = await readFile(abs, 'utf-8');
+    const transformed = transformer(current, value);
+    if (typeof transformed !== 'string') {
+      console.error(
+        `[design-bridge] script "${action.scriptId}" did not return a string — skipped`,
+      );
+      return;
+    }
+    await writeFile(abs, transformed, 'utf-8');
+  }
+
+  if (action.type === 'file-create') {
+    const abs = guardPath(rootDir, action.path);
+    await ensureSnapshot(cache, abs);
+    const assetPath = resolve(files, action.fileId);
+    const content = await readFile(assetPath, 'utf-8');
+    await mkdir(resolve(abs, '..'), { recursive: true });
+    await writeFile(abs, content, 'utf-8');
+  }
+
+  if (action.type === 'file-delete') {
+    const abs = guardPath(rootDir, action.path);
+    await ensureSnapshot(cache, abs);
+    await rm(abs, { force: true });
+  }
+}
+
+// ─── Engine factory ───────────────────────────────────────────────────────────
 
 /**
- * @param {string} rootDir  — project root (where tweaks/ lives)
- * @returns engine API
+ * @param {string} rootDir
+ * @param {() => object[]} getAnnotations  — returns current annotation list from the store
  */
-export function createTweakEngine(rootDir) {
-  const SCRIPTS_DIR = resolve(rootDir, '.design-bridge', 'tweaks');
-  const CACHE_DIR = resolve(rootDir, '.design-bridge', '.cache');
+export function createTweakEngine(rootDir, getAnnotations) {
+  const { scripts: SCRIPTS_DIR, files: FILES_DIR, cache: CACHE_DIR } = dirs(rootDir);
 
-  /** @type {Array<{ meta: object; defaultValue: any; scriptPath: string }>} */
-  let scripts = [];
+  /**
+   * In-memory map of annotation id → current knob value (overridden by user).
+   * @type {Map<string, unknown>}
+   */
+  const activeValues = new Map();
 
-  // ── Snapshot helpers ──────────────────────────────────────────────────────
+  // ── Helpers ─────────────────────────────────────────────────────────────
 
-  function snapshotPath(absFilePath) {
-    const key = Buffer.from(absFilePath).toString('base64url');
-    return resolve(CACHE_DIR, `${key}.orig`);
+  function tweakableAnnotations() {
+    return getAnnotations().filter((a) => a.knob && Array.isArray(a.actions));
   }
 
-  async function ensureSnapshot(absFilePath) {
-    const snap = snapshotPath(absFilePath);
-    try {
-      await access(snap);
-      return;
-    } catch {
-      /* not yet snapshotted */
-    }
-    await mkdir(CACHE_DIR, { recursive: true });
-    const content = await readFile(absFilePath, 'utf-8');
-    await writeFile(snap, content, 'utf-8');
+  function currentValue(ann) {
+    return activeValues.has(ann.id) ? activeValues.get(ann.id) : ann.knob.value;
   }
 
-  async function readSnapshot(absFilePath) {
-    try {
-      return await readFile(snapshotPath(absFilePath), 'utf-8');
-    } catch {
-      return null;
-    }
-  }
-
-  async function deleteSnapshot(absFilePath) {
-    await rm(snapshotPath(absFilePath), { force: true });
-  }
-
-  // ── Sandbox context (passed to each script's apply()) ─────────────────────
-
-  function makeCtx() {
-    function guard(filePath) {
-      const abs = isAbsolute(filePath) ? filePath : resolve(rootDir, filePath);
-      if (relative(rootDir, abs).startsWith('..')) {
-        throw new Error(`[design-bridge] path "${filePath}" is outside project root — blocked`);
+  function allTouchedFiles(annotations) {
+    const set = new Set();
+    for (const ann of annotations) {
+      for (const action of ann.actions ?? []) {
+        for (const f of touchedByAction(rootDir, action)) set.add(f);
       }
-      return abs;
     }
-    return {
-      async readFile(filePath) {
-        return readFile(guard(filePath), 'utf-8');
-      },
-      async writeFile(filePath, content) {
-        await writeFile(guard(filePath), content, 'utf-8');
-      },
-      async findFiles(pattern) {
-        const abs = isAbsolute(pattern) ? pattern : resolve(rootDir, pattern);
-        return fg(abs, { onlyFiles: true, absolute: true });
-      },
-      async replaceInFile(filePath, find, replacement) {
-        const abs = guard(filePath);
-        const content = await readFile(abs, 'utf-8');
-        await writeFile(
-          abs,
-          content.replace(find instanceof RegExp ? find : new RegExp(find, 'g'), replacement),
-          'utf-8',
-        );
-      },
-      console: {
-        log: (...a) => console.log('[tweak]', ...a),
-        warn: (...a) => console.warn('[tweak]', ...a),
-        error: (...a) => console.error('[tweak]', ...a),
-      },
-    };
+    return set;
   }
 
-  // ── Dry run — discover which files a script would touch ───────────────────
-
-  async function dryRun(script, value) {
-    const touched = [];
-    const base = makeCtx();
-    function guard(p) {
-      return isAbsolute(p) ? p : resolve(rootDir, p);
-    }
-    const dryCtx = {
-      ...base,
-      async writeFile(p) {
-        touched.push(guard(p));
-      },
-      async replaceInFile(p) {
-        touched.push(guard(p));
-      },
-    };
-    try {
-      const mod = await import(pathToFileURL(script.scriptPath).href + `?t=${Date.now()}`);
-      if (typeof mod.apply === 'function') await mod.apply(value, dryCtx);
-    } catch {
-      /* ignore — readFile may throw in dry run */
-    }
-    return [...new Set(touched)];
+  async function snapshotAll(files) {
+    for (const f of files) await ensureSnapshot(CACHE_DIR, f);
   }
 
-  // ── Replay engine ─────────────────────────────────────────────────────────
-
-  async function replayAllTweaks() {
-    const allTouched = new Set();
-    for (const s of scripts) {
-      for (const f of await dryRun(s, s.meta.value)) allTouched.add(f);
-    }
-    if (allTouched.size === 0) return;
-
-    for (const f of allTouched) await ensureSnapshot(f);
-    for (const f of allTouched) {
-      const orig = await readSnapshot(f);
-      if (orig !== null) await writeFile(f, orig, 'utf-8');
-    }
-
-    const ctx = makeCtx();
-    for (const s of scripts) {
-      try {
-        const mod = await import(pathToFileURL(s.scriptPath).href + `?t=${Date.now()}`);
-        if (typeof mod.apply === 'function') await mod.apply(s.meta.value, ctx);
-      } catch (e) {
-        console.error(`[design-bridge] replay error in "${s.meta.id}":`, e);
+  async function restoreAll(files) {
+    for (const f of files) {
+      const snap = await readSnapshot(CACHE_DIR, f);
+      if (snap === undefined) continue;
+      if (snap === null) {
+        await rm(f, { force: true });
+      } else {
+        await writeFile(f, snap, 'utf-8');
       }
     }
   }
 
-  // ── Script operations ─────────────────────────────────────────────────────
-
-  async function applyTweakChange(marker, value) {
-    const script = scripts.find((s) => s.meta.id === marker);
-    if (!script) {
-      console.warn(`[design-bridge] tweak "${marker}" not found`);
-      return;
-    }
-    script.meta.value = value;
-    console.log(`[design-bridge] tweak "${marker}" → ${value}`);
-    await replayAllTweaks();
+  async function clearSnapshots(files) {
+    for (const f of files) await deleteSnapshot(CACHE_DIR, f);
   }
 
-  async function resetTweak(marker) {
-    const script = scripts.find((s) => s.meta.id === marker);
-    if (!script) return;
-    script.meta.value = script.defaultValue;
-    const anyDirty = scripts.some((s) => s.meta.value !== s.defaultValue);
-    if (anyDirty) {
-      await replayAllTweaks();
-    } else {
-      const allTouched = new Set();
-      for (const s of scripts) for (const f of await dryRun(s, s.defaultValue)) allTouched.add(f);
-      for (const f of allTouched) {
-        const orig = await readSnapshot(f);
-        if (orig !== null) {
-          await writeFile(f, orig, 'utf-8');
-          await deleteSnapshot(f);
+  // ── Replay ───────────────────────────────────────────────────────────────
+
+  /**
+   * Restore all touched files from snapshot, then re-execute all active
+   * annotations in createdAt order.
+   */
+  async function replay() {
+    const annotations = tweakableAnnotations();
+    if (annotations.length === 0) return;
+
+    const touched = allTouchedFiles(annotations);
+    await snapshotAll(touched);
+    await restoreAll(touched);
+
+    const sorted = [...annotations].sort((a, b) => (a.createdAt ?? 0) - (b.createdAt ?? 0));
+    for (const ann of sorted) {
+      const value = currentValue(ann);
+      for (const action of ann.actions ?? []) {
+        try {
+          await executeAction(
+            rootDir,
+            { scripts: SCRIPTS_DIR, files: FILES_DIR, cache: CACHE_DIR },
+            action,
+            value,
+          );
+        } catch (e) {
+          console.error(`[design-bridge] error executing action for annotation "${ann.id}":`, e);
         }
       }
     }
   }
 
-  async function resetAllTweaks() {
-    const allTouched = new Set();
-    for (const s of scripts) for (const f of await dryRun(s, s.meta.value)) allTouched.add(f);
-    for (const s of scripts) s.meta.value = s.defaultValue;
-    for (const f of allTouched) {
-      const orig = await readSnapshot(f);
-      if (orig !== null) {
-        await writeFile(f, orig, 'utf-8');
-        await deleteSnapshot(f);
-      }
-    }
+  // ── Public API ───────────────────────────────────────────────────────────
+
+  async function applyTweakChange(annotationId, value) {
+    activeValues.set(annotationId, value);
+    await replay();
   }
 
-  /**
-   * Finalize a subset of scripts (make their changes permanent), then replay the rest.
-   * @param {typeof scripts} toFinalize
-   * @param {typeof scripts} toKeep
-   */
-  async function finalizeScripts(toFinalize, toKeep) {
+  async function resetTweak(annotationId) {
+    activeValues.delete(annotationId);
+    await replay();
+  }
+
+  async function resetAllTweaks() {
+    activeValues.clear();
+    const annotations = tweakableAnnotations();
+    const touched = allTouchedFiles(annotations);
+    await restoreAll(touched);
+    await clearSnapshots(touched);
+  }
+
+  async function finalizeAnnotations(annotationIds) {
+    if (annotationIds.length === 0) return;
+    const idSet = new Set(annotationIds);
+
+    const all = tweakableAnnotations();
+    const toFinalize = all.filter((a) => idSet.has(a.id));
+    const toKeep = all.filter((a) => !idSet.has(a.id));
+
     if (toFinalize.length === 0) return;
 
-    const allScripts = [...toFinalize, ...toKeep];
+    // Full replay so all files are in their desired state
+    const allTouched = allTouchedFiles(all);
+    await snapshotAll(allTouched);
+    await restoreAll(allTouched);
 
-    const allTouched = new Set();
-    for (const s of allScripts) for (const f of await dryRun(s, s.meta.value)) allTouched.add(f);
-    for (const f of allTouched) await ensureSnapshot(f);
-
-    for (const f of allTouched) {
-      const orig = await readSnapshot(f);
-      if (orig !== null) await writeFile(f, orig, 'utf-8');
-    }
-
-    const ctx = makeCtx();
-    for (const s of toFinalize) {
-      try {
-        const mod = await import(pathToFileURL(s.scriptPath).href + `?t=${Date.now()}`);
-        if (typeof mod.apply === 'function') await mod.apply(s.meta.value, ctx);
-      } catch (e) {
-        console.error(`[design-bridge] finalize error in "${s.meta.id}":`, e);
+    const sorted = [...all].sort((a, b) => (a.createdAt ?? 0) - (b.createdAt ?? 0));
+    for (const ann of sorted) {
+      const value = currentValue(ann);
+      for (const action of ann.actions ?? []) {
+        try {
+          await executeAction(
+            rootDir,
+            { scripts: SCRIPTS_DIR, files: FILES_DIR, cache: CACHE_DIR },
+            action,
+            value,
+          );
+        } catch (e) {
+          console.error(`[design-bridge] finalize error for annotation "${ann.id}":`, e);
+        }
       }
     }
 
-    const finalizedFiles = new Set();
-    for (const s of toFinalize)
-      for (const f of await dryRun(s, s.meta.value)) finalizedFiles.add(f);
-    for (const f of finalizedFiles) {
-      await deleteSnapshot(f);
-      try {
-        const content = await readFile(f, 'utf-8');
-        await mkdir(CACHE_DIR, { recursive: true });
-        await writeFile(snapshotPath(f), content, 'utf-8');
-      } catch {
-        /* file might not exist */
-      }
+    // Clear snapshots for files only touched by finalized annotations
+    const keepTouched = allTouchedFiles(toKeep);
+    const finalizeTouched = allTouchedFiles(toFinalize);
+    for (const f of finalizeTouched) {
+      if (!keepTouched.has(f)) await deleteSnapshot(CACHE_DIR, f);
     }
 
-    for (const s of toFinalize) await rm(s.scriptPath, { force: true });
+    // Delete artifacts, remove from active values
+    for (const ann of toFinalize) {
+      await deleteAnnotationArtifacts(ann);
+      activeValues.delete(ann.id);
+    }
 
-    scripts = toKeep;
+    // Re-baseline snapshots for files shared with remaining tweaks
     if (toKeep.length > 0) {
-      await replayAllTweaks();
-    } else {
-      for (const f of finalizedFiles) await deleteSnapshot(f);
+      const newBaseTouched = allTouchedFiles(toKeep);
+      for (const f of newBaseTouched) {
+        if (finalizeTouched.has(f)) {
+          await deleteSnapshot(CACHE_DIR, f);
+          await ensureSnapshot(CACHE_DIR, f);
+        }
+      }
+      await replay();
     }
   }
 
   async function finalizeForAnnotation(annotationId) {
-    const toFinalize = scripts.filter((s) => s.meta.annotationId === annotationId);
-    const toKeep = scripts.filter((s) => s.meta.annotationId !== annotationId);
-    await finalizeScripts(toFinalize, toKeep);
-  }
-
-  async function finalizeOneTweak(marker) {
-    const toFinalize = scripts.filter((s) => s.meta.id === marker);
-    const toKeep = scripts.filter((s) => s.meta.id !== marker);
-    await finalizeScripts(toFinalize, toKeep);
-  }
-
-  async function dismissTweak(marker) {
-    const idx = scripts.findIndex((s) => s.meta.id === marker);
-    if (idx < 0) return;
-    const [dismissed] = scripts.splice(idx, 1);
-
-    const dismissedFiles = new Set(await dryRun(dismissed, dismissed.meta.value));
-
-    if (scripts.length > 0) {
-      await replayAllTweaks();
-      const keepFiles = new Set();
-      for (const s of scripts) for (const f of await dryRun(s, s.meta.value)) keepFiles.add(f);
-      for (const f of dismissedFiles) {
-        if (!keepFiles.has(f)) await deleteSnapshot(f);
-      }
-    } else {
-      for (const f of dismissedFiles) {
-        const orig = await readSnapshot(f);
-        if (orig !== null) {
-          await writeFile(f, orig, 'utf-8');
-          await deleteSnapshot(f);
-        }
-      }
-    }
-
-    await rm(dismissed.scriptPath, { force: true });
-  }
-
-  // ── Script discovery & schema ─────────────────────────────────────────────
-
-  async function discoverScripts() {
-    try {
-      const files = await fg(`${SCRIPTS_DIR}/*.mjs`, { onlyFiles: true, absolute: true });
-      const result = [];
-      for (const filePath of files.sort()) {
-        try {
-          const mod = await import(pathToFileURL(filePath).href + `?t=${Date.now()}`);
-          const meta = mod.meta;
-          if (!meta?.id || !meta?.label) {
-            console.warn(`[design-bridge] ${filePath}: missing meta.id or meta.label — skipped`);
-            continue;
-          }
-          result.push({ meta, defaultValue: meta.value, scriptPath: filePath });
-        } catch (e) {
-          console.warn(`[design-bridge] failed to load ${filePath}:`, e);
-        }
-      }
-      return result;
-    } catch {
-      return [];
-    }
-  }
-
-  function buildSchema() {
-    return scripts.map(({ meta }) => ({
-      marker: meta.id,
-      label: meta.label,
-      type: meta.type ?? 'string',
-      value: meta.value,
-      min: meta.min,
-      max: meta.max,
-      step: meta.step,
-      options: meta.options,
-      annotationId: meta.annotationId,
-    }));
-  }
-
-  async function reloadScripts(onReloaded) {
-    scripts = await discoverScripts();
-    console.log(`[design-bridge] reloaded — ${scripts.length} tweak(s)`);
-    onReloaded?.();
-  }
-
-  function watchScripts(onReloaded) {
-    try {
-      let debounce = null;
-      const watcher = watch(SCRIPTS_DIR, { recursive: false }, (event, filename) => {
-        if (!filename?.endsWith('.mjs')) return;
-        clearTimeout(debounce);
-        debounce = setTimeout(() => reloadScripts(onReloaded), 100);
-      });
-      return watcher;
-    } catch {
-      /* scripts dir doesn't exist yet — watcher will be absent until reloaded */
-      return null;
-    }
-  }
-
-  async function discardAll() {
-    await resetAllTweaks();
-    try {
-      await rm(SCRIPTS_DIR, { recursive: true, force: true });
-    } catch {
-      /* ignore */
-    }
-    try {
-      await rm(CACHE_DIR, { recursive: true, force: true });
-    } catch {
-      /* ignore */
-    }
-    scripts = [];
+    await finalizeAnnotations([annotationId]);
   }
 
   async function finalizeAll() {
-    try {
-      await rm(SCRIPTS_DIR, { recursive: true, force: true });
-    } catch {
-      /* ignore */
-    }
+    const all = tweakableAnnotations();
+    await finalizeAnnotations(all.map((a) => a.id));
     try {
       await rm(CACHE_DIR, { recursive: true, force: true });
     } catch {
       /* ignore */
     }
-    scripts = [];
+  }
+
+  async function discardAnnotation(annotationId) {
+    const annotations = tweakableAnnotations();
+    const target = annotations.find((a) => a.id === annotationId);
+    if (!target) return;
+
+    const remaining = annotations.filter((a) => a.id !== annotationId);
+    const touched = allTouchedFiles([target]);
+    const keepTouched = allTouchedFiles(remaining);
+
+    activeValues.delete(annotationId);
+
+    if (remaining.length > 0) {
+      await replay();
+      for (const f of touched) {
+        if (!keepTouched.has(f)) await deleteSnapshot(CACHE_DIR, f);
+      }
+    } else {
+      await restoreAll(touched);
+      await clearSnapshots(touched);
+    }
+
+    await deleteAnnotationArtifacts(target);
+  }
+
+  async function discardAll() {
+    const annotations = tweakableAnnotations();
+    const touched = allTouchedFiles(annotations);
+    activeValues.clear();
+    await restoreAll(touched);
+    await clearSnapshots(touched);
+    for (const ann of annotations) await deleteAnnotationArtifacts(ann);
+    try {
+      await rm(CACHE_DIR, { recursive: true, force: true });
+    } catch {
+      /* ignore */
+    }
+  }
+
+  async function deleteAnnotationArtifacts(ann) {
+    for (const action of ann.actions ?? []) {
+      if (action.type === 'content-edit') {
+        await rm(resolve(SCRIPTS_DIR, `${action.scriptId}.mjs`), { force: true });
+      }
+      if (action.type === 'file-create') {
+        await rm(resolve(FILES_DIR, action.fileId), { force: true });
+      }
+    }
+  }
+
+  // ── Schema builder ───────────────────────────────────────────────────────
+
+  function buildSchema() {
+    return tweakableAnnotations().map((ann) => ({
+      marker: ann.id,
+      annotationId: ann.id,
+      label: ann.knob.label,
+      type: ann.knob.type ?? 'string',
+      value: activeValues.has(ann.id) ? activeValues.get(ann.id) : ann.knob.value,
+      min: ann.knob.min,
+      max: ann.knob.max,
+      step: ann.knob.step,
+      options: ann.knob.options,
+    }));
+  }
+
+  // ── Script / file asset CRUD (called from HTTP routes) ───────────────────
+
+  async function writeScript(scriptId, code) {
+    if (!isValidId(scriptId)) throw new Error(`invalid script id: "${scriptId}"`);
+    await mkdir(SCRIPTS_DIR, { recursive: true });
+    await writeFile(resolve(SCRIPTS_DIR, `${scriptId}.mjs`), code, 'utf-8');
+  }
+
+  async function readScript(scriptId) {
+    if (!isValidId(scriptId)) throw new Error(`invalid script id: "${scriptId}"`);
+    return readFile(resolve(SCRIPTS_DIR, `${scriptId}.mjs`), 'utf-8');
+  }
+
+  async function deleteScript(scriptId) {
+    if (!isValidId(scriptId)) throw new Error(`invalid script id: "${scriptId}"`);
+    await rm(resolve(SCRIPTS_DIR, `${scriptId}.mjs`), { force: true });
+  }
+
+  async function writeFileAsset(fileId, content) {
+    if (!isValidId(fileId)) throw new Error(`invalid file id: "${fileId}"`);
+    await mkdir(FILES_DIR, { recursive: true });
+    await writeFile(resolve(FILES_DIR, fileId), content, 'utf-8');
+  }
+
+  async function deleteFileAsset(fileId) {
+    if (!isValidId(fileId)) throw new Error(`invalid file id: "${fileId}"`);
+    await rm(resolve(FILES_DIR, fileId), { force: true });
   }
 
   return {
-    getScripts: () => scripts,
-    setScripts: (s) => {
-      scripts = s;
-    },
     buildSchema,
-    discoverScripts: async () => {
-      scripts = await discoverScripts();
-      return scripts;
-    },
-    watchScripts,
     applyTweakChange,
     resetTweak,
     resetAllTweaks,
-    finalizeAll,
-    discardAll,
     finalizeForAnnotation,
-    finalizeOneTweak,
-    dismissTweak,
+    finalizeAll,
+    discardAnnotation,
+    discardAll,
+    writeScript,
+    readScript,
+    deleteScript,
+    writeFileAsset,
+    deleteFileAsset,
   };
 }
