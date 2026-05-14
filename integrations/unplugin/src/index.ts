@@ -197,6 +197,9 @@ const unpluginFactory = createUnplugin((options: DesignBridgeOptions = {}) => {
   function setupCompilerHooks(compiler: any) {
     rootDir = compiler.context;
 
+    // Do not start the server or patch HTML in production builds.
+    if (compiler.options?.mode === 'production') return;
+
     compiler.hooks.done.tap('design-bridge', () => {
       ensureServer();
     });
@@ -210,21 +213,29 @@ const unpluginFactory = createUnplugin((options: DesignBridgeOptions = {}) => {
       callback();
     });
 
-    // Use compiler.hooks.emit so that html-webpack-plugin has already added
-    // the HTML asset before we patch it.
+    // Use processAssets (PROCESS_ASSETS_STAGE_REPORT) so that html-webpack-plugin
+    // has already added the HTML asset before we patch it, and to avoid the
+    // DEP_WEBPACK_COMPILATION_ASSETS deprecation warning from direct asset mutation.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    compiler.hooks.emit.tap('design-bridge', (compilation: any) => {
-      const assets = compilation.assets as Record<string, any>;
-      for (const [filename, asset] of Object.entries(assets)) {
-        if (!filename.endsWith('.html')) continue;
-        const html: string = asset.source();
-        const injection = buildInjectionHtml(resolvedPort);
-        const patched = html.replace('</head>', `${injection}</head>`);
-        assets[filename] = {
-          source: () => patched,
-          size: () => Buffer.byteLength(patched),
-        };
-      }
+    compiler.hooks.compilation.tap('design-bridge', (compilation: any) => {
+      // PROCESS_ASSETS_STAGE_REPORT = 5000; use +1 to run after html-webpack-plugin.
+      const stage = compiler.webpack?.Compilation?.PROCESS_ASSETS_STAGE_REPORT ?? 5000;
+      compilation.hooks.processAssets.tap(
+        { name: 'design-bridge', stage: stage + 1 },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (assets: Record<string, any>) => {
+          for (const filename of Object.keys(assets)) {
+            if (!filename.endsWith('.html')) continue;
+            const html: string = assets[filename].source();
+            const injection = buildInjectionHtml(resolvedPort);
+            const patched = html.replace('</head>', `${injection}</head>`);
+            compilation.updateAsset(filename, {
+              source: () => patched,
+              size: () => Buffer.byteLength(patched),
+            });
+          }
+        },
+      );
     });
   }
 });

@@ -22,8 +22,12 @@
     "typecheck": "pnpm -r --parallel typecheck",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "verify": "pnpm format:check && pnpm typecheck && pnpm test",
-    "test": "pnpm build:core && pnpm build:integrations && SKIP_BUILD=true pnpm -r --workspace-concurrency=4 run test"
+    "verify": "pnpm format:check && pnpm typecheck && pnpm build && pnpm test",
+    "test": "pnpm build:core && pnpm build:integrations && SKIP_BUILD=true pnpm -r --workspace-concurrency=4 run test",
+    "test:unplugin": "pnpm --filter @design-bridge/unplugin test",
+    "test:next": "pnpm --filter @design-bridge/next test",
+    "test:nuxt": "pnpm --filter @design-bridge/nuxt test",
+    "test:astro": "pnpm --filter @design-bridge/astro test"
   },
   "devDependencies": {
     "prettier": "^3.8.3"

@@ -48,7 +48,7 @@ test.describe('Annotations', () => {
     await createAnnotation(page, 'h1', 'This headline needs a stronger CTA.');
 
     const res = await page.request.get(`${API_BASE}/annotations`);
-    const body = (await res.json()) as { annotations: { comment: string; }[]; };
+    const body = (await res.json()) as { annotations: { comment: string }[] };
     expect(body.annotations.some((a) => a.comment === 'This headline needs a stronger CTA.')).toBe(
       true,
     );
@@ -64,7 +64,7 @@ test.describe('Annotations', () => {
 
     const res = await page.request.get(`${API_BASE}/annotations`);
     expect(res.status()).toBe(200);
-    const body = (await res.json()) as { annotations: { comment: string; }[]; };
+    const body = (await res.json()) as { annotations: { comment: string }[] };
     expect(body.annotations.some((a) => a.comment === 'Persisted comment')).toBe(true);
   });
 
@@ -111,7 +111,7 @@ test.describe('Annotations', () => {
     await expect
       .poll(async () => {
         const res = await page.request.get(`${API_BASE}/annotations`);
-        const body = (await res.json()) as { annotations: { replies?: { text: string; }[]; }[]; };
+        const body = (await res.json()) as { annotations: { replies?: { text: string }[] }[] };
         return body.annotations.some((a) => a.replies?.some((r) => r.text === 'Reply from badge'));
       })
       .toBe(true);
@@ -244,7 +244,7 @@ test.describe('Annotations', () => {
     await expect(page.locator('.empty')).toBeVisible();
 
     const res = await page.request.get(`${API_BASE}/annotations`);
-    const body = (await res.json()) as { annotations: unknown[]; };
+    const body = (await res.json()) as { annotations: unknown[] };
     expect(body.annotations).toHaveLength(0);
   });
 
@@ -284,7 +284,7 @@ test.describe('Annotations', () => {
     await expect(annotationPanel(page)).toHaveCount(0);
 
     const res = await page.request.get(`${API_BASE}/annotations`);
-    const body = (await res.json()) as { annotations: { selectors: string[]; }[]; };
+    const body = (await res.json()) as { annotations: { selectors: string[] }[] };
     const ann = body.annotations.find((a) => a.selectors.length === 2);
     expect(ann).toBeDefined();
   });
@@ -310,7 +310,7 @@ test.describe('Annotations', () => {
 
     const apiRes = await page.request.get(`${API_BASE}/annotations`);
     const body = (await apiRes.json()) as {
-      annotations: { comment: string; source?: { file: string; line: number; column: number; }; }[];
+      annotations: { comment: string; source?: { file: string; line: number; column: number } }[];
     };
     const ann = body.annotations.find((a) => a.comment === 'Has source info');
     expect(ann).toBeDefined();
@@ -348,7 +348,7 @@ test.describe('Annotations', () => {
 
     // Verify 2 selectors stored via API
     const res = await page.request.get(`${API_BASE}/annotations`);
-    const body = (await res.json()) as { annotations: { selectors: string[]; }[]; };
+    const body = (await res.json()) as { annotations: { selectors: string[] }[] };
     const ann = body.annotations.find((a) => a.selectors.length === 2);
     expect(ann).toBeDefined();
   });
@@ -736,7 +736,7 @@ test.describe('Compact UI (redesign)', () => {
       .locator('nav')
       .first()
       .click({ modifiers: ['Alt', 'Shift'] })
-      .catch(() => { });
+      .catch(() => {});
 
     const textarea = draft.locator('textarea[data-role="composer"]');
     await textarea.fill('Multi selector');
@@ -855,7 +855,7 @@ test.describe('Multi-select while draft is open', () => {
     await expect(annotationPanel(page)).toHaveCount(0);
 
     const res = await page.request.get(`${API_BASE}/annotations`);
-    const body = (await res.json()) as { annotations: { comment: string; selectors: string[]; }[]; };
+    const body = (await res.json()) as { annotations: { comment: string; selectors: string[] }[] };
     const newAnn = body.annotations.find((a) => a.comment === 'Multi-select with existing element');
     expect(newAnn).toBeDefined();
     expect(newAnn!.selectors.length).toBe(2);
@@ -867,7 +867,7 @@ test.describe('Multi-select while draft is open', () => {
 /** Inject an annotation directly via the REST API. */
 async function injectAnnotation(
   page: Page,
-  overrides: Record<string, unknown> & { id: string; },
+  overrides: Record<string, unknown> & { id: string },
 ): Promise<void> {
   const ann = {
     selectors: ['h1'],
@@ -938,16 +938,16 @@ test.describe('Tweaks in annotations', () => {
     await expect(page.locator('db-annotation .tweak-label')).toHaveText('Feature icon');
   });
 
-  test('db-knob renders a select with the correct options', async ({ page }) => {
+  test('db-knob renders a wa-select with the correct options', async ({ page }) => {
     await injectAnnotation(page, makeTweakAnnotation('test-knob-select'));
     await page.reload();
     await openAnnotationPanel(page);
-    const select = page.locator('db-annotation db-knob select');
+    const select = page.locator('db-annotation db-knob wa-select');
     await expect(select).toBeVisible();
     // Default value should be 🎨
-    await expect(select).toHaveValue('🎨');
+    await expect(select).toHaveJSProperty('value', '🎨');
     // All three options should be present
-    await expect(select.locator('option')).toHaveCount(3);
+    await expect(select.locator('wa-option')).toHaveCount(3);
   });
 
   test('changing the select dispatches tweak:change and updates schema value', async ({ page }) => {
@@ -955,15 +955,18 @@ test.describe('Tweaks in annotations', () => {
     await page.reload();
     await openAnnotationPanel(page);
 
-    const select = page.locator('db-annotation db-knob select');
+    const select = page.locator('db-annotation db-knob wa-select');
     await expect(select).toBeVisible();
-    await select.selectOption('🔥');
+    await select.evaluate((el) => {
+      (el as HTMLElement & { value: string }).value = '🔥';
+      el.dispatchEvent(new Event('wa-change', { bubbles: true }));
+    });
 
     // Server should update the knob value in the schema
     await expect
       .poll(async () => {
         const res = await page.request.get(`${API_BASE}/tweaks`);
-        const body = (await res.json()) as { knobs: { marker: string; value: string; }[]; };
+        const body = (await res.json()) as { knobs: { marker: string; value: string }[] };
         return body.knobs.find((k) => k.marker === 'test-knob-change')?.value;
       })
       .toBe('🔥');
@@ -991,7 +994,7 @@ test.describe('Tweaks in annotations', () => {
     await expect
       .poll(async () => {
         const res = await page.request.get(`${API_BASE}/tweaks`);
-        const body = (await res.json()) as { knobs: { marker: string; }[]; };
+        const body = (await res.json()) as { knobs: { marker: string }[] };
         return body.knobs.find((k) => k.marker === 'test-knob-accept');
       })
       .toBeUndefined();
@@ -1003,12 +1006,15 @@ test.describe('Tweaks in annotations', () => {
     await openAnnotationPanel(page);
 
     // First change the value
-    const select = page.locator('db-annotation db-knob select');
-    await select.selectOption('🚀');
+    const select = page.locator('db-annotation db-knob wa-select');
+    await select.evaluate((el) => {
+      (el as HTMLElement & { value: string }).value = '🚀';
+      el.dispatchEvent(new Event('wa-change', { bubbles: true }));
+    });
     await expect
       .poll(async () => {
         const res = await page.request.get(`${API_BASE}/tweaks`);
-        const body = (await res.json()) as { knobs: { marker: string; value: string; }[]; };
+        const body = (await res.json()) as { knobs: { marker: string; value: string }[] };
         return body.knobs.find((k) => k.marker === 'test-knob-discard')?.value;
       })
       .toBe('🚀');
@@ -1029,10 +1035,323 @@ test.describe('Tweaks in annotations', () => {
     await expect
       .poll(async () => {
         const res = await page.request.get(`${API_BASE}/tweaks`);
-        const body = (await res.json()) as { knobs: { marker: string; value: string; }[]; };
+        const body = (await res.json()) as { knobs: { marker: string; value: string }[] };
         return body.knobs.find((k) => k.marker === 'test-knob-discard')?.value;
       })
       .toBe('🎨');
+  });
+
+  // ─── Knob type rendering ──────────────────────────────────────────────────
+
+  test('db-knob renders a wa-number-input with the correct value', async ({ page }) => {
+    await injectAnnotation(page, {
+      id: 'test-knob-number',
+      selectors: ['h1'],
+      labels: ['h1'],
+      comment: 'Number knob test',
+      pageUrl: 'http://localhost:5173/',
+      timestamp: Date.now(),
+      createdAt: Date.now(),
+      replies: [],
+      knob: { label: 'Font size', type: 'number', value: 16, min: 8, max: 64, step: 1 },
+      actions: [],
+    });
+    await page.reload();
+    await openAnnotationPanel(page);
+    const input = page.locator('db-annotation db-knob wa-number-input');
+    await expect(input).toBeVisible();
+    await expect(input).toHaveJSProperty('value', '16');
+  });
+
+  test('changing a number input updates schema value', async ({ page }) => {
+    await injectAnnotation(page, {
+      id: 'test-knob-number-change',
+      selectors: ['h1'],
+      labels: ['h1'],
+      comment: 'Number change test',
+      pageUrl: 'http://localhost:5173/',
+      timestamp: Date.now(),
+      createdAt: Date.now(),
+      replies: [],
+      knob: { label: 'Font size', type: 'number', value: 16, min: 8, max: 64, step: 1 },
+      actions: [],
+    });
+    await page.reload();
+    await openAnnotationPanel(page);
+    const input = page.locator('db-annotation db-knob wa-number-input');
+    await input.evaluate((el) => {
+      (el as HTMLElement & { value: number }).value = 24;
+      el.dispatchEvent(new Event('wa-input', { bubbles: true }));
+    });
+    await expect
+      .poll(async () => {
+        const res = await page.request.get(`${API_BASE}/tweaks`);
+        const body = (await res.json()) as { knobs: { marker: string; value: unknown }[] };
+        return body.knobs.find((k) => k.marker === 'test-knob-number-change')?.value;
+      })
+      .toBe('24');
+  });
+
+  test('db-knob renders a wa-color-picker with the correct value', async ({ page }) => {
+    await injectAnnotation(page, {
+      id: 'test-knob-color',
+      selectors: ['h1'],
+      labels: ['h1'],
+      comment: 'Color knob test',
+      pageUrl: 'http://localhost:5173/',
+      timestamp: Date.now(),
+      createdAt: Date.now(),
+      replies: [],
+      knob: { label: 'Brand color', type: 'color', value: '#ff0000' },
+      actions: [],
+    });
+    await page.reload();
+    await openAnnotationPanel(page);
+    const picker = page.locator('db-annotation db-knob wa-color-picker');
+    await expect(picker).toBeVisible();
+    await expect(picker).toHaveJSProperty('value', '#ff0000');
+  });
+
+  test('changing a color picker updates schema value', async ({ page }) => {
+    await injectAnnotation(page, {
+      id: 'test-knob-color-change',
+      selectors: ['h1'],
+      labels: ['h1'],
+      comment: 'Color change test',
+      pageUrl: 'http://localhost:5173/',
+      timestamp: Date.now(),
+      createdAt: Date.now(),
+      replies: [],
+      knob: { label: 'Brand color', type: 'color', value: '#ff0000' },
+      actions: [],
+    });
+    await page.reload();
+    await openAnnotationPanel(page);
+    const picker = page.locator('db-annotation db-knob wa-color-picker');
+    await picker.evaluate((el) => {
+      (el as HTMLElement & { value: string }).value = '#00ff00';
+      el.dispatchEvent(new Event('wa-change', { bubbles: true }));
+    });
+    await expect
+      .poll(async () => {
+        const res = await page.request.get(`${API_BASE}/tweaks`);
+        const body = (await res.json()) as { knobs: { marker: string; value: unknown }[] };
+        return body.knobs.find((k) => k.marker === 'test-knob-color-change')?.value;
+      })
+      .toBe('#00ff00');
+  });
+
+  test('db-knob renders a wa-input for string type with the correct value', async ({ page }) => {
+    await injectAnnotation(page, {
+      id: 'test-knob-string',
+      selectors: ['h1'],
+      labels: ['h1'],
+      comment: 'String knob test',
+      pageUrl: 'http://localhost:5173/',
+      timestamp: Date.now(),
+      createdAt: Date.now(),
+      replies: [],
+      knob: { label: 'Heading text', type: 'string', value: 'Hello world' },
+      actions: [],
+    });
+    await page.reload();
+    await openAnnotationPanel(page);
+    const input = page.locator('db-annotation db-knob wa-input');
+    await expect(input).toBeVisible();
+    await expect(input).toHaveJSProperty('value', 'Hello world');
+  });
+
+  test('changing a string input updates schema value', async ({ page }) => {
+    await injectAnnotation(page, {
+      id: 'test-knob-string-change',
+      selectors: ['h1'],
+      labels: ['h1'],
+      comment: 'String change test',
+      pageUrl: 'http://localhost:5173/',
+      timestamp: Date.now(),
+      createdAt: Date.now(),
+      replies: [],
+      knob: { label: 'Heading text', type: 'string', value: 'Hello world' },
+      actions: [],
+    });
+    await page.reload();
+    await openAnnotationPanel(page);
+    const input = page.locator('db-annotation db-knob wa-input');
+    await input.evaluate((el) => {
+      (el as HTMLElement & { value: string }).value = 'New heading';
+      el.dispatchEvent(new Event('wa-input', { bubbles: true }));
+    });
+    await expect
+      .poll(async () => {
+        const res = await page.request.get(`${API_BASE}/tweaks`);
+        const body = (await res.json()) as { knobs: { marker: string; value: unknown }[] };
+        return body.knobs.find((k) => k.marker === 'test-knob-string-change')?.value;
+      })
+      .toBe('New heading');
+  });
+
+  test('db-knob renders a wa-textarea for textarea type with the correct value', async ({
+    page,
+  }) => {
+    await injectAnnotation(page, {
+      id: 'test-knob-textarea',
+      selectors: ['h1'],
+      labels: ['h1'],
+      comment: 'Textarea knob test',
+      pageUrl: 'http://localhost:5173/',
+      timestamp: Date.now(),
+      createdAt: Date.now(),
+      replies: [],
+      knob: { label: 'Body copy', type: 'textarea', value: 'Initial text' },
+      actions: [],
+    });
+    await page.reload();
+    await openAnnotationPanel(page);
+    const textarea = page.locator('db-annotation db-knob wa-textarea');
+    await expect(textarea).toBeVisible();
+    await expect(textarea).toHaveJSProperty('value', 'Initial text');
+  });
+
+  test('changing a textarea updates schema value', async ({ page }) => {
+    await injectAnnotation(page, {
+      id: 'test-knob-textarea-change',
+      selectors: ['h1'],
+      labels: ['h1'],
+      comment: 'Textarea change test',
+      pageUrl: 'http://localhost:5173/',
+      timestamp: Date.now(),
+      createdAt: Date.now(),
+      replies: [],
+      knob: { label: 'Body copy', type: 'textarea', value: 'Initial text' },
+      actions: [],
+    });
+    await page.reload();
+    await openAnnotationPanel(page);
+    const textarea = page.locator('db-annotation db-knob wa-textarea');
+    await textarea.evaluate((el) => {
+      (el as HTMLElement & { value: string }).value = 'Updated text';
+      el.dispatchEvent(new Event('wa-input', { bubbles: true }));
+    });
+    await expect
+      .poll(async () => {
+        const res = await page.request.get(`${API_BASE}/tweaks`);
+        const body = (await res.json()) as { knobs: { marker: string; value: unknown }[] };
+        return body.knobs.find((k) => k.marker === 'test-knob-textarea-change')?.value;
+      })
+      .toBe('Updated text');
+  });
+
+  test('db-knob renders a wa-switch for boolean type with correct checked state', async ({
+    page,
+  }) => {
+    await injectAnnotation(page, {
+      id: 'test-knob-boolean',
+      selectors: ['h1'],
+      labels: ['h1'],
+      comment: 'Boolean knob test',
+      pageUrl: 'http://localhost:5173/',
+      timestamp: Date.now(),
+      createdAt: Date.now(),
+      replies: [],
+      knob: { label: 'Show badge', type: 'boolean', value: true },
+      actions: [],
+    });
+    await page.reload();
+    await openAnnotationPanel(page);
+    const toggle = page.locator('db-annotation db-knob wa-switch');
+    await expect(toggle).toBeVisible();
+    await expect(toggle).toHaveJSProperty('checked', true);
+  });
+
+  test('toggling a boolean switch updates schema value', async ({ page }) => {
+    await injectAnnotation(page, {
+      id: 'test-knob-boolean-change',
+      selectors: ['h1'],
+      labels: ['h1'],
+      comment: 'Boolean change test',
+      pageUrl: 'http://localhost:5173/',
+      timestamp: Date.now(),
+      createdAt: Date.now(),
+      replies: [],
+      knob: { label: 'Show badge', type: 'boolean', value: true },
+      actions: [],
+    });
+    await page.reload();
+    await openAnnotationPanel(page);
+    const toggle = page.locator('db-annotation db-knob wa-switch');
+    await toggle.evaluate((el) => {
+      (el as HTMLElement & { checked: boolean }).checked = false;
+      el.dispatchEvent(new Event('wa-change', { bubbles: true }));
+    });
+    await expect
+      .poll(async () => {
+        const res = await page.request.get(`${API_BASE}/tweaks`);
+        const body = (await res.json()) as { knobs: { marker: string; value: unknown }[] };
+        return body.knobs.find((k) => k.marker === 'test-knob-boolean-change')?.value;
+      })
+      .toBe('false');
+  });
+
+  test('db-knob renders wa-radio-group for button-group type with the correct options', async ({
+    page,
+  }) => {
+    await injectAnnotation(page, {
+      id: 'test-knob-button-group',
+      selectors: ['h1'],
+      labels: ['h1'],
+      comment: 'Button-group knob test',
+      pageUrl: 'http://localhost:5173/',
+      timestamp: Date.now(),
+      createdAt: Date.now(),
+      replies: [],
+      knob: {
+        label: 'Variant',
+        type: 'button-group',
+        value: 'sm',
+        options: { Small: 'sm', Medium: 'md', Large: 'lg' },
+      },
+      actions: [],
+    });
+    await page.reload();
+    await openAnnotationPanel(page);
+    const group = page.locator('db-annotation db-knob wa-radio-group');
+    await expect(group).toBeVisible();
+    await expect(group).toHaveJSProperty('value', 'sm');
+    await expect(group.locator('wa-radio')).toHaveCount(3);
+  });
+
+  test('changing a button-group radio updates schema value', async ({ page }) => {
+    await injectAnnotation(page, {
+      id: 'test-knob-button-group-change',
+      selectors: ['h1'],
+      labels: ['h1'],
+      comment: 'Button-group change test',
+      pageUrl: 'http://localhost:5173/',
+      timestamp: Date.now(),
+      createdAt: Date.now(),
+      replies: [],
+      knob: {
+        label: 'Variant',
+        type: 'button-group',
+        value: 'sm',
+        options: { Small: 'sm', Medium: 'md', Large: 'lg' },
+      },
+      actions: [],
+    });
+    await page.reload();
+    await openAnnotationPanel(page);
+    const group = page.locator('db-annotation db-knob wa-radio-group');
+    await group.evaluate((el) => {
+      (el as HTMLElement & { value: string }).value = 'lg';
+      el.dispatchEvent(new Event('wa-change', { bubbles: true }));
+    });
+    await expect
+      .poll(async () => {
+        const res = await page.request.get(`${API_BASE}/tweaks`);
+        const body = (await res.json()) as { knobs: { marker: string; value: unknown }[] };
+        return body.knobs.find((k) => k.marker === 'test-knob-button-group-change')?.value;
+      })
+      .toBe('lg');
   });
 
   test('annotation persists to disk as JSON file after injection', async ({ page }) => {
@@ -1045,7 +1364,7 @@ test.describe('Tweaks in annotations', () => {
     await expect(page.locator('db-annotation')).toBeAttached();
     const res2 = await page.request.get(`${API_BASE}/annotations/persist-json-test`);
     expect(res2.status()).toBe(200);
-    const ann = (await res2.json()) as { comment: string; };
+    const ann = (await res2.json()) as { comment: string };
     expect(ann.comment).toBe('JSON file test');
   });
 });

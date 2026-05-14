@@ -551,7 +551,7 @@ export class DbAnnotation extends LitElement {
     const url = wsUrl
       ? wsUrl.replace(/^ws:\/\//, 'http://').replace(/\/design-bridge$/, '/')
       : `http://${location.host}/`;
-    navigator.clipboard.writeText(url).catch(() => { });
+    navigator.clipboard.writeText(url).catch(() => {});
   }
 
   private _resolve(): void {
@@ -571,7 +571,7 @@ export class DbAnnotation extends LitElement {
     dispatchIntent({ type: 'tweak:discard-annotation', annotationId: this.annotation.id });
   }
 
-  private _onKnobChange(e: CustomEvent<{ value: string | number | boolean; }>): void {
+  private _onKnobChange(e: CustomEvent<{ value: string | number | boolean }>): void {
     if (!this.annotation) return;
     dispatchIntent({
       type: 'tweak:change',
@@ -631,15 +631,15 @@ export class DbAnnotation extends LitElement {
         <wa-dropdown
           size="s"
           @wa-select=${(e: CustomEvent) => {
-        const val = e.detail.item.value;
-        if (val === 'paths') {
-          this._showPaths = !this._showPaths;
-        } else if (val === 'copy-link') {
-          this._copyReviewLink();
-        } else if (val === 'delete') {
-          this._delete();
-        }
-      }}
+            const val = e.detail.item.value;
+            if (val === 'paths') {
+              this._showPaths = !this._showPaths;
+            } else if (val === 'copy-link') {
+              this._copyReviewLink();
+            } else if (val === 'delete') {
+              this._delete();
+            }
+          }}
         >
           <wa-button slot="trigger" appearance="plain" size="s" title="More options">···</wa-button>
           <wa-dropdown-item value="paths"
@@ -655,8 +655,8 @@ export class DbAnnotation extends LitElement {
           size="s"
           title="Close"
           @click=${() => {
-        this._open = false;
-      }}
+            this._open = false;
+          }}
           >✕</wa-button
         >
       </div>
@@ -699,7 +699,7 @@ export class DbAnnotation extends LitElement {
     return html`
       <div class="chips-bar">
         ${selectors.map(
-      (sel, i) => html`
+          (sel, i) => html`
             <wa-tag
               variant="brand"
               appearance="outlined"
@@ -708,18 +708,18 @@ export class DbAnnotation extends LitElement {
               style="font-family:var(--wa-font-family-code);max-width:160px;overflow:hidden;text-overflow:ellipsis;"
               ?with-remove=${editable}
               @wa-remove=${editable
-          ? (e: Event) => {
-            e.stopPropagation();
-            this._removeChip(i);
-          }
-          : undefined}
+                ? (e: Event) => {
+                    e.stopPropagation();
+                    this._removeChip(i);
+                  }
+                : undefined}
             >
               ${sel}
             </wa-tag>
           `,
-    )}
+        )}
         ${source
-        ? html`
+          ? html`
               <wa-tag
                 variant="brand"
                 appearance="outlined"
@@ -729,7 +729,7 @@ export class DbAnnotation extends LitElement {
                 >📍 ${source.file}:${source.line}:${source.column}</wa-tag
               >
             `
-        : ''}
+          : ''}
       </div>
     `;
   }
@@ -800,16 +800,16 @@ export class DbAnnotation extends LitElement {
                 placeholder=${isDraft ? 'Add a comment\u2026' : 'Reply\u2026'}
                 .value=${isDraft ? this._draft : this._replyDraft}
                 @input=${(e: Event) => {
-        const v = (e.target as HTMLTextAreaElement).value;
-        if (isDraft) this._draft = v;
-        else this._replyDraft = v;
-      }}
+                  const v = (e.target as HTMLTextAreaElement).value;
+                  if (isDraft) this._draft = v;
+                  else this._replyDraft = v;
+                }}
                 @keydown=${isDraft ? this._onComposerKeyDown : this._onReplyKeyDown}
               ></textarea>
               <div class="composer-row">
                 ${isDraft
-        ? this._renderSendBtn(canSendNew, () => this._saveNew())
-        : this._renderSendBtn(canSendReply, () => this._saveReply())}
+                  ? this._renderSendBtn(canSendNew, () => this._saveNew())
+                  : this._renderSendBtn(canSendReply, () => this._saveReply())}
               </div>
             </div>
           </div>

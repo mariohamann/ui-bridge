@@ -12,15 +12,15 @@ import type { Annotation } from '@design-bridge/protocol';
 
 // ── Intent types ──────────────────────────────────────────────────────────────
 
-export type TweakChangeIntent = { type: 'tweak:change'; marker: string; value: string; };
-export type TweakRevertIntent = { type: 'tweak:revert'; };
-export type TweakApplyIntent = { type: 'tweak:apply'; markers: string[]; };
-export type TweakDiscardIntent = { type: 'tweak:discard'; };
+export type TweakChangeIntent = { type: 'tweak:change'; marker: string; value: string };
+export type TweakRevertIntent = { type: 'tweak:revert' };
+export type TweakApplyIntent = { type: 'tweak:apply'; markers: string[] };
+export type TweakDiscardIntent = { type: 'tweak:discard' };
 export type TweakDiscardAnnotationIntent = {
   type: 'tweak:discard-annotation';
   annotationId: string;
 };
-export type TweakAcceptAnnotationIntent = { type: 'tweak:accept-annotation'; annotationId: string; };
+export type TweakAcceptAnnotationIntent = { type: 'tweak:accept-annotation'; annotationId: string };
 export type TweakAcceptOneIntent = {
   type: 'tweak:accept-one';
   annotationId: string;
@@ -32,16 +32,16 @@ export type TweakDismissOneIntent = {
   marker: string;
 };
 
-export type AnnotationDeleteIntent = { type: 'annotation:delete'; id: string; };
-export type AnnotationClearIntent = { type: 'annotation:clear'; };
-export type AnnotationOpenIntent = { type: 'annotation:open'; id: string; };
-export type AnnotationSaveIntent = { type: 'annotation:save'; annotation: Annotation; };
-export type AnnotationCancelIntent = { type: 'annotation:cancel'; id: string; };
-export type AnnotationResolveIntent = { type: 'annotation:resolve'; id: string; };
-export type AnnotationBadgeClickIntent = { type: 'annotation:badge-click'; id: string; };
+export type AnnotationDeleteIntent = { type: 'annotation:delete'; id: string };
+export type AnnotationClearIntent = { type: 'annotation:clear' };
+export type AnnotationOpenIntent = { type: 'annotation:open'; id: string };
+export type AnnotationSaveIntent = { type: 'annotation:save'; annotation: Annotation };
+export type AnnotationCancelIntent = { type: 'annotation:cancel'; id: string };
+export type AnnotationResolveIntent = { type: 'annotation:resolve'; id: string };
+export type AnnotationBadgeClickIntent = { type: 'annotation:badge-click'; id: string };
 
-export type PanelTabIntent = { type: 'panel:set-tab'; tab: 'tweaks' | 'annotations'; };
-export type PanelCollapseIntent = { type: 'panel:set-collapsed'; collapsed: boolean; };
+export type PanelTabIntent = { type: 'panel:set-tab'; tab: 'tweaks' | 'annotations' };
+export type PanelCollapseIntent = { type: 'panel:set-collapsed'; collapsed: boolean };
 
 export type ComponentIntent =
   | TweakChangeIntent
