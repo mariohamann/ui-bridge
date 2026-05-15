@@ -2,7 +2,7 @@
 /**
  * Design Bridge MCP Server (stdio transport)
  *
- * Exposes Design Bridge annotation and tweak actions as MCP tools, and
+ * Exposes Design Bridge comment and tweak actions as MCP tools, and
  * provides workflow guidance as MCP resources.
  *
  * Port discovery order:
@@ -48,7 +48,7 @@ const GUIDE_WORKFLOW = `# When to Tweak vs. Direct Edit
 
 Use a **tweak** when the user wants to compare options, try multiple variants,
 or explore design alternatives side-by-side in the browser. Tweaks are backed
-by annotations with a live knob — the value can be changed, reset, and accepted
+by comments with a live knob — the value can be changed, reset, and accepted
 or discarded from the browser panel.
 
 Use a **direct edit** when the decision is already clear: bug fixes, structural
@@ -63,7 +63,7 @@ If there is one right answer, edit directly.
 2. Read the target source file to find the exact string to transform.
 3. Write the script file to \`{scriptsDir}/{scriptId}.mjs\` directly using your
    file-write tools. Format: \`export default (content, value) => string\`.
-4. Call \`upsert_annotation\` with \`knob\` + \`actions\` referencing the scriptId.
+4. Call \`upsert_comment\` with \`knob\` + \`actions\` referencing the scriptId.
 5. The browser panel shows the knob immediately — accept (finalizes file changes)
    or discard (reverts) from the panel.
 `;
@@ -163,7 +163,7 @@ export default (content, value) =>
   content.replace(/icon: '[^']*'/, \`icon: '\${value}'\`);
 \`\`\`
 
-Step 2 — register the annotation with the tweak:
+Step 2 — register the comment with the tweak:
 
 \`\`\`json
 {
@@ -196,13 +196,13 @@ Step 2 — register the annotation with the tweak:
 
 const INSTRUCTIONS = `
 Design Bridge bridges design exploration and code. It runs a local server alongside your dev
-server and injects a floating annotation panel into the browser.
+server and injects a floating comment panel into the browser.
 
 ## Core concepts
 
-**Annotations** are lightweight records attached to DOM elements via CSS selectors. They can be
+**Comments** are lightweight records attached to DOM elements via CSS selectors. They can be
 pure comments (design feedback) or carry a **knob** + **actions** (a live tweak). Use
-\`list_annotations\` proactively at the start of a session to discover pending design feedback.
+\`list_comments\` proactively at the start of a session to discover pending design feedback.
 
 **Tweaks** are live knobs backed by transform scripts. When a knob value changes, the engine
 restores the original file from snapshot and replays all active tweaks — the result is
@@ -220,8 +220,8 @@ hot-module-replaced in the browser instantly. The user sees the change live with
 ## Agent scope — read, comment, and tweak only
 
 The agent's role is to **read feedback and create tweaks**. Resolving, accepting, discarding,
-and deleting annotations is the **user's job** — done from the browser panel. Never attempt
-to accept, discard, or delete annotations on the user's behalf.
+and deleting comments is the **user's job** — done from the browser panel. Never attempt
+to accept, discard, or delete comments on the user's behalf.
 
 ## Tweak workflow (always follow this order)
 
@@ -232,15 +232,15 @@ to accept, discard, or delete annotations on the user's behalf.
    - \`content\` is always the ORIGINAL file text (replay model — never pre-tweaked)
    - \`value\` is always a string (coerce inside the function if needed)
    - scriptId must be lowercase kebab-case (e.g. \`hero-button-variant\`)
-4. \`upsert_annotation\` with \`knob\` + \`actions\` referencing the scriptId
+4. \`upsert_comment\` with \`knob\` + \`actions\` referencing the scriptId
 5. The browser panel shows the knob immediately. The user picks the variant and
    accepts or discards it themselves from the panel.
 
-## Reading annotations
+## Reading comments
 
-Annotations are persistent async design feedback and exploration state. At the start of a
-session always call \`list_annotations\` to surface any open feedback or pending tweaks.
-Each annotation may include a \`comment\`, \`replies\` thread, and optionally a \`knob\` (tweak).
+Comments are persistent async design feedback and exploration state. At the start of a
+session always call \`list_comments\` to surface any open feedback or pending tweaks.
+Each comment may include a \`comment\`, \`replies\` thread, and optionally a \`knob\` (tweak).
 
 For detailed regex rules, knob types, HMR behaviour, and full examples see:
 - \`design-bridge://guide/workflow\` — when to tweak vs. direct edit
@@ -283,51 +283,51 @@ server.resource(
 // ── Tools ─────────────────────────────────────────────────────────────────────
 
 server.tool(
-  'list_annotations',
-  `List all annotations stored in Design Bridge.
+  'list_comments',
+  `List all comments stored in Design Bridge.
   Call this proactively at the start of a session to discover pending design feedback and active
-  tweaks. Each annotation may carry a \`knob\` (live tweak), an \`actions\` array, and a \`replies\`
-  thread. Annotations without a \`resolvedAt\` field are still open.`,
+  tweaks. Each comment may carry a \`knob\` (live tweak), an \`actions\` array, and a \`replies\`
+  thread. Comments without a \`resolvedAt\` field are still open.`,
   {},
   async () => {
     const url = await resolveBaseUrl();
-    const data = await apiFetch(url, '/api/annotations');
+    const data = await apiFetch(url, '/api/comments');
     return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
   },
 );
 
 server.tool(
-  'get_annotation',
-  `Get a single annotation by id — includes full knob definition, actions, and reply thread.
+  'get_comment',
+  `Get a single comment by id — includes full knob definition, actions, and reply thread.
   Use this to inspect the details of a specific tweak before accepting or discarding it.`,
-  { id: z.string().describe('Annotation id') },
+  { id: z.string().describe('Comment id') },
   async ({ id }) => {
     const url = await resolveBaseUrl();
-    const data = await apiFetch(url, `/api/annotations/${encodeURIComponent(id)}`);
+    const data = await apiFetch(url, `/api/comments/${encodeURIComponent(id)}`);
     return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
   },
 );
 
 server.tool(
-  'upsert_annotation',
-  `Create or update an annotation. Can optionally attach a live tweak knob.
+  'upsert_comment',
+  `Create or update an comment. Can optionally attach a live tweak knob.
 
-  To create a tweak annotation:
+  To create a tweak comment:
   1. Call get_server_info — note scriptsDir.
   2. Read the target source file to find the exact string to replace.
   3. Write {scriptsDir}/{scriptId}.mjs directly using your file tools.
      Format: export default (content, value) => string  (pure, no imports, no async).
      The scriptId must be lowercase kebab-case.
-  4. Call upsert_annotation with knob + actions referencing the scriptId.
+  4. Call upsert_comment with knob + actions referencing the scriptId.
 
   The browser panel shows the knob immediately. The user can change the value
   live, then accept (permanently writes the file change and deletes the
-  annotation) or discard (reverts the file, keeps the annotation).
+  comment) or discard (reverts the file, keeps the comment).
 
   See resource design-bridge://guide/write-scripts for regex rules, knob types,
   HMR behaviour, and a complete example.`,
   {
-    annotation: z
+    comment: z
       .object({
         id: z.string(),
         selectors: z.array(z.string()),
@@ -358,11 +358,11 @@ server.tool(
           )
           .optional(),
       })
-      .describe('Annotation object'),
+      .describe('Comment object'),
   },
-  async ({ annotation }) => {
+  async ({ comment }) => {
     const url = await resolveBaseUrl();
-    const data = await apiFetch(url, '/api/annotations', { method: 'POST', body: annotation });
+    const data = await apiFetch(url, '/api/comments', { method: 'POST', body: comment });
     return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
   },
 );
@@ -371,7 +371,7 @@ server.tool(
   'get_tweaks',
   `Get the current knobs schema — lists all active tweak knobs with their current values.
   Useful to check which tweaks are live and summarise the current exploration state to the user.
-  Each knob entry includes the annotation id (\`marker\`), label, type, and current value.`,
+  Each knob entry includes the comment id (\`marker\`), label, type, and current value.`,
   {},
   async () => {
     const url = await resolveBaseUrl();
@@ -385,10 +385,10 @@ server.tool(
   `Get the running Design Bridge server's root directory and key paths.
   Call this first when creating a tweak — it tells you where to write script files.
 
-  Returns: { port, root, scriptsDir, annotationsDir }
+  Returns: { port, root, scriptsDir, commentsDir }
   - root: the project root the server is watching
-  - scriptsDir: write {scriptId}.mjs files here BEFORE calling upsert_annotation
-  - annotationsDir: where annotation JSON files are persisted`,
+  - scriptsDir: write {scriptId}.mjs files here BEFORE calling upsert_comment
+  - commentsDir: where comment JSON files are persisted`,
   {},
   async () => {
     const url = await resolveBaseUrl();
@@ -403,7 +403,7 @@ server.tool(
               port: data.port,
               root,
               scriptsDir: `${root}/.design-bridge/scripts`,
-              annotationsDir: `${root}/.design-bridge/annotations`,
+              commentsDir: `${root}/.design-bridge/comments`,
             },
             null,
             2,

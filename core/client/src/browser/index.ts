@@ -1,5 +1,5 @@
 import { initInspector } from './inspector.js';
-import '@design-bridge/components/annotation';
+import '@design-bridge/components/comment';
 import './ws-adapter.js'; // side-effect: wires signal stores ↔ WebSocket
 
 function boot(): void {

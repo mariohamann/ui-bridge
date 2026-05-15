@@ -1,5 +1,5 @@
 /**
- * Annotation end-to-end tests for Design Bridge.
+ * Comment end-to-end tests for Design Bridge.
  */
 
 import { test, expect, type Page, type Locator } from '@playwright/test';
@@ -8,84 +8,84 @@ const DB_PORT = parseInt(process.env.DESIGN_BRIDGE_PORT ?? process.env.DB_PORT ?
 const API_BASE = `http://localhost:${DB_PORT}/api`;
 const REVIEW_URL = `http://localhost:${DB_PORT}/`;
 
-/** The draft or open annotation item's panel (shadow DOM piercing). */
-function annotationPanel(page: Page): Locator {
-  return page.locator('db-annotation .panel:not([hidden])');
+/** The draft or open comment item's panel (shadow DOM piercing). */
+function commentPanel(page: Page): Locator {
+  return page.locator('db-comment .panel:not([hidden])');
 }
 
-async function createAnnotation(page: Page, selector: string, comment: string): Promise<void> {
+async function createComment(page: Page, selector: string, comment: string): Promise<void> {
   await page
     .locator(selector)
     .first()
     .click({ modifiers: ['Alt', 'Shift'] });
-  const panel = annotationPanel(page);
+  const panel = commentPanel(page);
   const input = panel.locator('textarea').first();
   await expect(input).toBeVisible();
   await input.fill(comment);
   await input.press('Enter');
   // Panel closes after save
-  await expect(annotationPanel(page)).toHaveCount(0);
+  await expect(commentPanel(page)).toHaveCount(0);
 }
 
 test.beforeEach(async ({ page }) => {
-  await page.request.delete(`${API_BASE}/annotations`);
+  await page.request.delete(`${API_BASE}/comments`);
   await page.goto('/');
   // Wait for the Design Bridge client to initialise (inspector is ready)
   await page.waitForFunction(() => typeof (window as any).__DB_WS_URL__ === 'string');
 });
 
 test.afterEach(async ({ page }) => {
-  await page.request.delete(`${API_BASE}/annotations`);
+  await page.request.delete(`${API_BASE}/comments`);
 });
 
-test.describe('Annotations', () => {
-  test('review page shows empty state when no annotations exist', async ({ page }) => {
+test.describe('Comments', () => {
+  test('review page shows empty state when no comments exist', async ({ page }) => {
     await page.goto(REVIEW_URL);
     await expect(page.locator('.empty')).toBeVisible();
   });
 
-  test('creates an annotation by clicking a page element with Alt+Shift', async ({ page }) => {
-    await createAnnotation(page, 'h1', 'This headline needs a stronger CTA.');
+  test('creates an comment by clicking a page element with Alt+Shift', async ({ page }) => {
+    await createComment(page, 'h1', 'This headline needs a stronger CTA.');
 
-    const res = await page.request.get(`${API_BASE}/annotations`);
-    const body = (await res.json()) as { annotations: { comment: string }[] };
-    expect(body.annotations.some((a) => a.comment === 'This headline needs a stronger CTA.')).toBe(
+    const res = await page.request.get(`${API_BASE}/comments`);
+    const body = (await res.json()) as { comments: { comment: string }[] };
+    expect(body.comments.some((a) => a.comment === 'This headline needs a stronger CTA.')).toBe(
       true,
     );
   });
 
-  test('annotation badge appears on the annotated element', async ({ page }) => {
-    await createAnnotation(page, 'h1', 'Badge test');
-    await expect(page.locator('db-annotation wa-badge')).toBeVisible();
+  test('comment badge appears on the annotated element', async ({ page }) => {
+    await createComment(page, 'h1', 'Badge test');
+    await expect(page.locator('db-comment wa-badge')).toBeVisible();
   });
 
-  test('annotation is persisted to the server API', async ({ page }) => {
-    await createAnnotation(page, 'h1', 'Persisted comment');
+  test('comment is persisted to the server API', async ({ page }) => {
+    await createComment(page, 'h1', 'Persisted comment');
 
-    const res = await page.request.get(`${API_BASE}/annotations`);
+    const res = await page.request.get(`${API_BASE}/comments`);
     expect(res.status()).toBe(200);
-    const body = (await res.json()) as { annotations: { comment: string }[] };
-    expect(body.annotations.some((a) => a.comment === 'Persisted comment')).toBe(true);
+    const body = (await res.json()) as { comments: { comment: string }[] };
+    expect(body.comments.some((a) => a.comment === 'Persisted comment')).toBe(true);
   });
 
-  test('page reload restores annotations from server', async ({ page }) => {
-    await createAnnotation(page, 'h1', 'Survives reload');
+  test('page reload restores comments from server', async ({ page }) => {
+    await createComment(page, 'h1', 'Survives reload');
 
     await page.reload();
-    await expect(page.locator('db-annotation')).toBeAttached();
-    await expect(page.locator('db-annotation wa-badge')).toBeVisible();
+    await expect(page.locator('db-comment')).toBeAttached();
+    await expect(page.locator('db-comment wa-badge')).toBeVisible();
   });
 
   test('badge reappears on the correct element after reload', async ({ page }) => {
-    await createAnnotation(page, 'h1', 'Pinned to h1');
+    await createComment(page, 'h1', 'Pinned to h1');
 
     const h1Box = await page.locator('h1').first().boundingBox();
     expect(h1Box).not.toBeNull();
 
     await page.reload();
-    await expect(page.locator('db-annotation')).toBeAttached();
+    await expect(page.locator('db-comment')).toBeAttached();
 
-    const badge = page.locator('db-annotation wa-badge').first();
+    const badge = page.locator('db-comment wa-badge').first();
     await expect(badge).toBeVisible();
 
     const badgeBox = await badge.boundingBox();
@@ -95,13 +95,13 @@ test.describe('Annotations', () => {
     expect(badgeBox!.x).toBeGreaterThanOrEqual(0);
   });
 
-  test('can reply to an annotation from the badge', async ({ page }) => {
-    await createAnnotation(page, 'h1', 'Original comment');
+  test('can reply to an comment from the badge', async ({ page }) => {
+    await createComment(page, 'h1', 'Original comment');
 
-    const badge = page.locator('db-annotation wa-badge').first();
+    const badge = page.locator('db-comment wa-badge').first();
     await badge.click();
 
-    const panel = annotationPanel(page);
+    const panel = commentPanel(page);
     const replyInput = panel.locator('textarea[data-role="reply"]');
     await expect(replyInput).toBeVisible();
     await replyInput.fill('Reply from badge');
@@ -110,9 +110,9 @@ test.describe('Annotations', () => {
     // Verify reply was saved to the server
     await expect
       .poll(async () => {
-        const res = await page.request.get(`${API_BASE}/annotations`);
-        const body = (await res.json()) as { annotations: { replies?: { text: string }[] }[] };
-        return body.annotations.some((a) => a.replies?.some((r) => r.text === 'Reply from badge'));
+        const res = await page.request.get(`${API_BASE}/comments`);
+        const body = (await res.json()) as { comments: { replies?: { text: string }[] }[] };
+        return body.comments.some((a) => a.replies?.some((r) => r.text === 'Reply from badge'));
       })
       .toBe(true);
   });
@@ -123,51 +123,51 @@ test.describe('Annotations', () => {
       .first()
       .click({ modifiers: ['Alt', 'Shift'] });
 
-    const panel = annotationPanel(page);
+    const panel = commentPanel(page);
     const composer = panel.locator('textarea[data-role="composer"]');
     await expect(composer).toBeVisible();
     await expect(composer).toBeFocused();
 
     await composer.fill('Focus baseline');
     await composer.press('Enter');
-    await expect(annotationPanel(page)).toHaveCount(0);
+    await expect(commentPanel(page)).toHaveCount(0);
 
-    const badge = page.locator('db-annotation wa-badge').first();
+    const badge = page.locator('db-comment wa-badge').first();
     await badge.click();
 
-    const openPanel = annotationPanel(page);
+    const openPanel = commentPanel(page);
     const reply = openPanel.locator('textarea[data-role="reply"]');
     await expect(reply).toBeVisible();
     await expect(reply).toBeFocused();
   });
 
-  test('clicking outside the annotation panel closes it', async ({ page }) => {
+  test('clicking outside the comment panel closes it', async ({ page }) => {
     await page
       .locator('h1')
       .first()
       .click({ modifiers: ['Alt', 'Shift'] });
 
-    const panel = annotationPanel(page);
+    const panel = commentPanel(page);
     await expect(panel.locator('textarea[data-role="composer"]')).toBeVisible();
 
     await page.locator('main').click({ position: { x: 8, y: 8 } });
-    await expect(annotationPanel(page)).toHaveCount(0);
+    await expect(commentPanel(page)).toHaveCount(0);
   });
 
-  test('resolving from the annotation panel removes the annotation', async ({ page }) => {
-    await createAnnotation(page, 'h1', 'Resolve me');
+  test('resolving from the comment panel removes the comment', async ({ page }) => {
+    await createComment(page, 'h1', 'Resolve me');
 
-    const badge = page.locator('db-annotation wa-badge').first();
+    const badge = page.locator('db-comment wa-badge').first();
     await badge.click();
 
-    const panel = annotationPanel(page);
+    const panel = commentPanel(page);
     await panel.locator('wa-button[title="Resolve"]').click();
 
-    await expect(page.locator('db-annotation wa-badge')).toHaveCount(0);
+    await expect(page.locator('db-comment wa-badge')).toHaveCount(0);
   });
 
-  test('deletes an annotation via the review page discard button', async ({ page }) => {
-    await createAnnotation(page, 'h1', 'To be deleted');
+  test('deletes an comment via the review page discard button', async ({ page }) => {
+    await createComment(page, 'h1', 'To be deleted');
 
     await page.goto(REVIEW_URL);
     await expect(page.locator('.row')).toHaveCount(1);
@@ -179,22 +179,22 @@ test.describe('Annotations', () => {
     await expect(page.locator('.empty')).toBeVisible();
   });
 
-  test('deletes a single annotation via the delete button in the panel', async ({ page }) => {
-    await createAnnotation(page, 'h1', 'Panel delete test');
+  test('deletes a single comment via the delete button in the panel', async ({ page }) => {
+    await createComment(page, 'h1', 'Panel delete test');
 
-    const badge = page.locator('db-annotation wa-badge').first();
+    const badge = page.locator('db-comment wa-badge').first();
     await badge.click();
 
-    const panel = annotationPanel(page);
+    const panel = commentPanel(page);
     await panel.locator('wa-button[title="More options"]').click();
     await page.locator('wa-dropdown-item[variant="danger"]').click();
-    await expect(annotationPanel(page)).toHaveCount(0);
-    await expect(page.locator('db-annotation wa-badge')).toHaveCount(0);
+    await expect(commentPanel(page)).toHaveCount(0);
+    await expect(page.locator('db-comment wa-badge')).toHaveCount(0);
   });
 
-  test('review page can resolve all annotations', async ({ page }) => {
+  test('review page can resolve all comments', async ({ page }) => {
     for (const selector of ['h1', 'p']) {
-      await createAnnotation(page, selector, `Comment on ${selector}`);
+      await createComment(page, selector, `Comment on ${selector}`);
     }
 
     await page.goto(REVIEW_URL);
@@ -211,11 +211,11 @@ test.describe('Annotations', () => {
     await expect(page.locator('.empty')).toBeVisible();
   });
 
-  test('clicking a row in the review page opens the annotation panel in the app', async ({
+  test('clicking a row in the review page opens the comment panel in the app', async ({
     page,
     context,
   }) => {
-    await createAnnotation(page, 'h1', 'Focus via review page');
+    await createComment(page, 'h1', 'Focus via review page');
 
     // Open the review page in a second tab while the app stays open
     const reviewPage = await context.newPage();
@@ -225,17 +225,17 @@ test.describe('Annotations', () => {
     await expect(reviewPage.locator('.row')).toHaveCount(1);
     await expect(reviewPage.locator('.dot.ok')).toBeVisible();
 
-    // Click the row body — this sends annotation:focus via WS
+    // Click the row body — this sends comment:focus via WS
     await reviewPage.locator('.row .body').first().click();
 
-    // The app page should open the annotation panel for that annotation
-    await expect(annotationPanel(page)).toBeVisible();
+    // The app page should open the comment panel for that comment
+    await expect(commentPanel(page)).toBeVisible();
 
     await reviewPage.close();
   });
 
   test('discard on review page is reflected in the server API', async ({ page }) => {
-    await createAnnotation(page, 'h1', 'API clear test');
+    await createComment(page, 'h1', 'API clear test');
 
     await page.goto(REVIEW_URL);
     await page.locator('.row').first().hover();
@@ -243,19 +243,19 @@ test.describe('Annotations', () => {
     await page.locator('wa-dropdown-item[variant="danger"]').first().click();
     await expect(page.locator('.empty')).toBeVisible();
 
-    const res = await page.request.get(`${API_BASE}/annotations`);
-    const body = (await res.json()) as { annotations: unknown[] };
-    expect(body.annotations).toHaveLength(0);
+    const res = await page.request.get(`${API_BASE}/comments`);
+    const body = (await res.json()) as { comments: unknown[] };
+    expect(body.comments).toHaveLength(0);
   });
 
   test('alt+shift+click opens panel with source chip visible after save via "Show paths"', async ({
     page,
   }) => {
-    await createAnnotation(page, 'h1', 'Source chip test');
+    await createComment(page, 'h1', 'Source chip test');
 
-    const badge = page.locator('db-annotation wa-badge').first();
+    const badge = page.locator('db-comment wa-badge').first();
     await badge.click();
-    const p = annotationPanel(page);
+    const p = commentPanel(page);
     await p.locator('wa-button[title="More options"]').click();
     await page.locator('wa-dropdown-item:has-text("Show paths")').click();
     await expect(p.locator('.chips-bar')).toBeVisible();
@@ -269,7 +269,7 @@ test.describe('Annotations', () => {
       .locator('h1')
       .first()
       .click({ modifiers: ['Alt', 'Shift'] });
-    const draft = page.locator('db-annotation .panel:not([hidden])');
+    const draft = page.locator('db-comment .panel:not([hidden])');
     await expect(draft.locator('textarea[data-role="composer"]')).toBeVisible();
 
     await page
@@ -281,15 +281,15 @@ test.describe('Annotations', () => {
     const textarea = draft.locator('textarea[data-role="composer"]');
     await textarea.fill('Two selectors');
     await textarea.press('Enter');
-    await expect(annotationPanel(page)).toHaveCount(0);
+    await expect(commentPanel(page)).toHaveCount(0);
 
-    const res = await page.request.get(`${API_BASE}/annotations`);
-    const body = (await res.json()) as { annotations: { selectors: string[] }[] };
-    const ann = body.annotations.find((a) => a.selectors.length === 2);
+    const res = await page.request.get(`${API_BASE}/comments`);
+    const body = (await res.json()) as { comments: { selectors: string[] }[] };
+    const ann = body.comments.find((a) => a.selectors.length === 2);
     expect(ann).toBeDefined();
   });
 
-  test('annotation saved with source location includes file, line, column', async ({ page }) => {
+  test('comment saved with source location includes file, line, column', async ({ page }) => {
     await page
       .locator('h1')
       .first()
@@ -298,33 +298,33 @@ test.describe('Annotations', () => {
     // Wait for code-inspector to fire and populate draftSource via the public getter
     await expect
       .poll(async () =>
-        page.evaluate(() => (document.querySelector('db-annotation') as any)?.draftSource),
+        page.evaluate(() => (document.querySelector('db-comment') as any)?.draftSource),
       )
       .not.toBeNull();
 
-    const panel = annotationPanel(page);
+    const panel = commentPanel(page);
     const input = panel.locator('textarea').first();
     await input.fill('Has source info');
     await input.press('Enter');
-    await expect(annotationPanel(page)).toHaveCount(0);
+    await expect(commentPanel(page)).toHaveCount(0);
 
-    const apiRes = await page.request.get(`${API_BASE}/annotations`);
+    const apiRes = await page.request.get(`${API_BASE}/comments`);
     const body = (await apiRes.json()) as {
-      annotations: { comment: string; source?: { file: string; line: number; column: number } }[];
+      comments: { comment: string; source?: { file: string; line: number; column: number } }[];
     };
-    const ann = body.annotations.find((a) => a.comment === 'Has source info');
+    const ann = body.comments.find((a) => a.comment === 'Has source info');
     expect(ann).toBeDefined();
     expect(ann!.source?.file).toContain('HeroSection.vue');
     expect(typeof ann!.source?.line).toBe('number');
     expect(typeof ann!.source?.column).toBe('number');
   });
 
-  test('can annotate multiple elements in one annotation via the panel chips', async ({ page }) => {
+  test('can annotate multiple elements in one comment via the panel chips', async ({ page }) => {
     await page
       .locator('h1')
       .first()
       .click({ modifiers: ['Alt', 'Shift'] });
-    const panel = annotationPanel(page);
+    const panel = commentPanel(page);
     await expect(panel.locator('textarea').first()).toBeVisible();
 
     await page
@@ -335,109 +335,107 @@ test.describe('Annotations', () => {
     // Wait until the draft item reports 2 connected selectors via its public property
     await expect
       .poll(async () =>
-        page.evaluate(
-          () => (document.querySelector('db-annotation') as any)?.connectedSelectorCount,
-        ),
+        page.evaluate(() => (document.querySelector('db-comment') as any)?.connectedSelectorCount),
       )
       .toBe(2);
 
     const input = panel.locator('textarea').first();
-    await input.fill('Multi-element annotation');
+    await input.fill('Multi-element comment');
     await input.press('Enter');
-    await expect(annotationPanel(page)).toHaveCount(0);
+    await expect(commentPanel(page)).toHaveCount(0);
 
     // Verify 2 selectors stored via API
-    const res = await page.request.get(`${API_BASE}/annotations`);
-    const body = (await res.json()) as { annotations: { selectors: string[] }[] };
-    const ann = body.annotations.find((a) => a.selectors.length === 2);
+    const res = await page.request.get(`${API_BASE}/comments`);
+    const body = (await res.json()) as { comments: { selectors: string[] }[] };
+    const ann = body.comments.find((a) => a.selectors.length === 2);
     expect(ann).toBeDefined();
   });
 });
 
 test.describe('Single panel + dirty-draft guard', () => {
   test('opening a second panel closes the first', async ({ page }) => {
-    await createAnnotation(page, 'h1', 'First');
-    await createAnnotation(page, 'p', 'Second');
+    await createComment(page, 'h1', 'First');
+    await createComment(page, 'p', 'Second');
 
-    const badges = page.locator('db-annotation wa-badge');
+    const badges = page.locator('db-comment wa-badge');
     await badges.nth(0).click();
-    await expect(annotationPanel(page)).toHaveCount(1);
+    await expect(commentPanel(page)).toHaveCount(1);
 
     // Clicking the second badge should close the first and open the second
     await badges.nth(1).click();
-    await expect(annotationPanel(page)).toHaveCount(1);
+    await expect(commentPanel(page)).toHaveCount(1);
 
-    // Confirm the open panel belongs to the second annotation (contains "Second")
-    await expect(annotationPanel(page).locator('.comment-text')).toContainText('Second');
+    // Confirm the open panel belongs to the second comment (contains "Second")
+    await expect(commentPanel(page).locator('.comment-text')).toContainText('Second');
   });
 
   test('clicking another badge while reply is dirty: first click wobbles, does not close', async ({
     page,
   }) => {
-    await createAnnotation(page, 'h1', 'First');
-    await createAnnotation(page, 'p', 'Second');
+    await createComment(page, 'h1', 'First');
+    await createComment(page, 'p', 'Second');
 
-    const badges = page.locator('db-annotation wa-badge');
+    const badges = page.locator('db-comment wa-badge');
 
     // Open first panel and type an unsaved reply
     await badges.nth(0).click();
-    await annotationPanel(page).locator('textarea[data-role="reply"]').fill('unsaved reply text');
+    await commentPanel(page).locator('textarea[data-role="reply"]').fill('unsaved reply text');
 
     // Click the second badge — panel should remain open (first click only wobbles)
     await badges.nth(1).click();
-    await expect(annotationPanel(page)).toHaveCount(1);
-    await expect(annotationPanel(page).locator('.comment-text')).toContainText('First');
+    await expect(commentPanel(page)).toHaveCount(1);
+    await expect(commentPanel(page).locator('.comment-text')).toContainText('First');
   });
 
   test('clicking another badge twice while reply is dirty: second click switches panel', async ({
     page,
   }) => {
-    await createAnnotation(page, 'h1', 'First');
-    await createAnnotation(page, 'p', 'Second');
+    await createComment(page, 'h1', 'First');
+    await createComment(page, 'p', 'Second');
 
-    const badges = page.locator('db-annotation wa-badge');
+    const badges = page.locator('db-comment wa-badge');
 
     // Open first panel and type an unsaved reply
     await badges.nth(0).click();
-    await annotationPanel(page).locator('textarea[data-role="reply"]').fill('unsaved reply text');
+    await commentPanel(page).locator('textarea[data-role="reply"]').fill('unsaved reply text');
 
     // First click on second badge — should wobble, stay open
     await badges.nth(1).click();
-    await expect(annotationPanel(page)).toHaveCount(1);
-    await expect(annotationPanel(page).locator('.comment-text')).toContainText('First');
+    await expect(commentPanel(page)).toHaveCount(1);
+    await expect(commentPanel(page).locator('.comment-text')).toContainText('First');
 
     // Second click on second badge — should now switch
     await badges.nth(1).click();
-    await expect(annotationPanel(page)).toHaveCount(1);
-    await expect(annotationPanel(page).locator('.comment-text')).toContainText('Second');
+    await expect(commentPanel(page)).toHaveCount(1);
+    await expect(commentPanel(page).locator('.comment-text')).toContainText('Second');
   });
 
   test('review page row click: dirty reply wobbles on first click, switches on second', async ({
     page,
     context,
   }) => {
-    await createAnnotation(page, 'h1', 'First');
-    await createAnnotation(page, 'p', 'Second');
+    await createComment(page, 'h1', 'First');
+    await createComment(page, 'p', 'Second');
 
     // Open first panel and type an unsaved reply
-    await page.locator('db-annotation wa-badge').nth(0).click();
-    await annotationPanel(page).locator('textarea[data-role="reply"]').fill('unsaved reply text');
+    await page.locator('db-comment wa-badge').nth(0).click();
+    await commentPanel(page).locator('textarea[data-role="reply"]').fill('unsaved reply text');
 
     const reviewPage = await context.newPage();
     await reviewPage.goto(REVIEW_URL);
     await expect(reviewPage.locator('.row')).toHaveCount(2);
     await expect(reviewPage.locator('.dot.ok')).toBeVisible();
 
-    // Click the second annotation's row (index 0 — review page sorts newest-first)
+    // Click the second comment's row (index 0 — review page sorts newest-first)
     // First time: should NOT switch (dirty guard)
     await reviewPage.locator('.row').nth(0).locator('.body').click();
-    await expect(annotationPanel(page)).toHaveCount(1);
-    await expect(annotationPanel(page).locator('.comment-text')).toContainText('First');
+    await expect(commentPanel(page)).toHaveCount(1);
+    await expect(commentPanel(page).locator('.comment-text')).toContainText('First');
 
     // Second click on same row — should now switch
     await reviewPage.locator('.row').nth(0).locator('.body').click();
-    await expect(annotationPanel(page)).toHaveCount(1);
-    await expect(annotationPanel(page).locator('.comment-text')).toContainText('Second');
+    await expect(commentPanel(page)).toHaveCount(1);
+    await expect(commentPanel(page).locator('.comment-text')).toContainText('Second');
 
     await reviewPage.close();
   });
@@ -445,12 +443,12 @@ test.describe('Single panel + dirty-draft guard', () => {
 
 test.describe('Badge hover preview', () => {
   test('preview appears on badge hover and shows the comment', async ({ page }) => {
-    await createAnnotation(page, 'h1', 'This headline needs a stronger CTA.');
+    await createComment(page, 'h1', 'This headline needs a stronger CTA.');
 
-    const badge = page.locator('db-annotation wa-badge').first();
+    const badge = page.locator('db-comment wa-badge').first();
     await badge.hover();
 
-    const preview = page.locator('db-annotation .badge-preview');
+    const preview = page.locator('db-comment .badge-preview');
     await expect(preview).toBeVisible();
     await expect(preview.locator('.badge-preview-text')).toHaveText(
       'This headline needs a stronger CTA.',
@@ -458,49 +456,49 @@ test.describe('Badge hover preview', () => {
   });
 
   test('preview is not visible when not hovering', async ({ page }) => {
-    await createAnnotation(page, 'h1', 'Preview hidden at rest');
+    await createComment(page, 'h1', 'Preview hidden at rest');
 
-    const preview = page.locator('db-annotation .badge-preview');
+    const preview = page.locator('db-comment .badge-preview');
     await page.mouse.move(0, 0);
     await expect(preview).not.toHaveClass(/visible/);
   });
 
   test('preview shows reply count when replies exist', async ({ page }) => {
-    await createAnnotation(page, 'h1', 'Original comment');
+    await createComment(page, 'h1', 'Original comment');
 
-    const badge = page.locator('db-annotation wa-badge').first();
+    const badge = page.locator('db-comment wa-badge').first();
     await badge.click();
-    const replyInput = annotationPanel(page).locator('textarea[data-role="reply"]');
+    const replyInput = commentPanel(page).locator('textarea[data-role="reply"]');
     await expect(replyInput).toBeVisible();
     await replyInput.fill('A reply');
     await replyInput.press('Enter');
 
-    await page.locator('db-annotation wa-button[title="Close"]').click();
-    await expect(annotationPanel(page)).toHaveCount(0);
+    await page.locator('db-comment wa-button[title="Close"]').click();
+    await expect(commentPanel(page)).toHaveCount(0);
 
     await badge.hover();
-    const preview = page.locator('db-annotation .badge-preview');
+    const preview = page.locator('db-comment .badge-preview');
     await expect(preview).toBeVisible();
     await expect(preview.locator('.badge-preview-meta')).toHaveText('1 reply');
   });
 
   test('preview is hidden while panel is open', async ({ page }) => {
-    await createAnnotation(page, 'h1', 'Open panel test');
+    await createComment(page, 'h1', 'Open panel test');
 
-    const badge = page.locator('db-annotation wa-badge').first();
+    const badge = page.locator('db-comment wa-badge').first();
     await badge.click();
-    await expect(annotationPanel(page)).toBeVisible();
+    await expect(commentPanel(page)).toBeVisible();
 
-    await expect(page.locator('db-annotation .badge-preview')).toHaveCount(0);
+    await expect(page.locator('db-comment .badge-preview')).toHaveCount(0);
   });
 
   test('preview text wraps to at most 3 lines', async ({ page }) => {
     const long = 'The quick brown fox jumps over the lazy dog. '.repeat(4).trim();
-    await createAnnotation(page, 'h1', long);
+    await createComment(page, 'h1', long);
 
-    const badge = page.locator('db-annotation wa-badge').first();
+    const badge = page.locator('db-comment wa-badge').first();
     await badge.hover();
-    const previewText = page.locator('db-annotation .badge-preview-text').first();
+    const previewText = page.locator('db-comment .badge-preview-text').first();
     await expect(previewText).toBeVisible();
 
     // 12px font × 1.4 line-height × 3 lines ≈ 50px; allow a small margin
@@ -511,11 +509,11 @@ test.describe('Badge hover preview', () => {
 
 test.describe('Panel scrolling & textarea autogrow', () => {
   test('panel scrolls when replies overflow its max-height', async ({ page }) => {
-    await createAnnotation(page, 'h1', 'Overflow test');
+    await createComment(page, 'h1', 'Overflow test');
 
-    const badge = page.locator('db-annotation wa-badge').first();
+    const badge = page.locator('db-comment wa-badge').first();
     await badge.click();
-    const p = page.locator('db-annotation .panel:not([hidden])');
+    const p = page.locator('db-comment .panel:not([hidden])');
 
     // Add enough replies to overflow the panel (max-height is ~88dvh so we need many)
     for (let i = 1; i <= 20; i++) {
@@ -535,11 +533,11 @@ test.describe('Panel scrolling & textarea autogrow', () => {
   });
 
   test('reply textarea remains accessible when panel overflows', async ({ page }) => {
-    await createAnnotation(page, 'h1', 'Scroll position test');
+    await createComment(page, 'h1', 'Scroll position test');
 
-    const badge = page.locator('db-annotation wa-badge').first();
+    const badge = page.locator('db-comment wa-badge').first();
     await badge.click();
-    const p = page.locator('db-annotation .panel:not([hidden])');
+    const p = page.locator('db-comment .panel:not([hidden])');
 
     for (let i = 1; i <= 8; i++) {
       const reply = p.locator('textarea[data-role="reply"]');
@@ -562,7 +560,7 @@ test.describe('Panel scrolling & textarea autogrow', () => {
       .locator('h1')
       .first()
       .click({ modifiers: ['Alt', 'Shift'] });
-    const p = page.locator('db-annotation .panel:not([hidden])');
+    const p = page.locator('db-comment .panel:not([hidden])');
     const textarea = p.locator('textarea[data-role="composer"]');
     await expect(textarea).toBeVisible();
 
@@ -582,7 +580,7 @@ test.describe('Panel scrolling & textarea autogrow', () => {
       .locator('h1')
       .first()
       .click({ modifiers: ['Alt', 'Shift'] });
-    const p = page.locator('db-annotation .panel:not([hidden])');
+    const p = page.locator('db-comment .panel:not([hidden])');
     const textarea = p.locator('textarea[data-role="composer"]');
     await expect(textarea).toBeVisible();
 
@@ -597,12 +595,12 @@ test.describe('Panel scrolling & textarea autogrow', () => {
 });
 
 test.describe('Compact UI (redesign)', () => {
-  test('annotation panel uses Inter font', async ({ page }) => {
+  test('comment panel uses Inter font', async ({ page }) => {
     await page
       .locator('h1')
       .first()
       .click({ modifiers: ['Alt', 'Shift'] });
-    const p = page.locator('db-annotation .panel:not([hidden])');
+    const p = page.locator('db-comment .panel:not([hidden])');
     const fontFamily = await p.evaluate((el) => getComputedStyle(el).fontFamily);
     // WA uses system font stack; verify it's a sans-serif stack
     expect(fontFamily.toLowerCase()).toMatch(/sans-serif|system-ui|ui-sans-serif/);
@@ -613,7 +611,7 @@ test.describe('Compact UI (redesign)', () => {
       .locator('h1')
       .first()
       .click({ modifiers: ['Alt', 'Shift'] });
-    const p = page.locator('db-annotation .panel:not([hidden])');
+    const p = page.locator('db-comment .panel:not([hidden])');
     await expect(p.locator('.btn-cancel, button:has-text("Cancel")')).toHaveCount(0);
   });
 
@@ -622,7 +620,7 @@ test.describe('Compact UI (redesign)', () => {
       .locator('h1')
       .first()
       .click({ modifiers: ['Alt', 'Shift'] });
-    const p = page.locator('db-annotation .panel:not([hidden])');
+    const p = page.locator('db-comment .panel:not([hidden])');
     await expect(p.locator('wa-button[title="Send"]')).toBeVisible();
   });
 
@@ -631,7 +629,7 @@ test.describe('Compact UI (redesign)', () => {
       .locator('h1')
       .first()
       .click({ modifiers: ['Alt', 'Shift'] });
-    const p = page.locator('db-annotation .panel:not([hidden])');
+    const p = page.locator('db-comment .panel:not([hidden])');
     await expect(p.locator('wa-button[title="Send"]')).toHaveAttribute('disabled', '');
   });
 
@@ -640,7 +638,7 @@ test.describe('Compact UI (redesign)', () => {
       .locator('h1')
       .first()
       .click({ modifiers: ['Alt', 'Shift'] });
-    const p = page.locator('db-annotation .panel:not([hidden])');
+    const p = page.locator('db-comment .panel:not([hidden])');
     await p.locator('textarea[data-role="composer"]').fill('hello');
     await expect(p.locator('wa-button[title="Send"]')).toBeEnabled();
   });
@@ -650,7 +648,7 @@ test.describe('Compact UI (redesign)', () => {
       .locator('h1')
       .first()
       .click({ modifiers: ['Alt', 'Shift'] });
-    const p = page.locator('db-annotation .panel:not([hidden])');
+    const p = page.locator('db-comment .panel:not([hidden])');
     await expect(p.locator('.body')).toHaveCount(0);
   });
 
@@ -659,7 +657,7 @@ test.describe('Compact UI (redesign)', () => {
       .locator('h1')
       .first()
       .click({ modifiers: ['Alt', 'Shift'] });
-    const p = page.locator('db-annotation .panel:not([hidden])');
+    const p = page.locator('db-comment .panel:not([hidden])');
     await expect(p.locator('.chips-bar')).toHaveCount(0);
   });
 
@@ -668,7 +666,7 @@ test.describe('Compact UI (redesign)', () => {
       .locator('h1')
       .first()
       .click({ modifiers: ['Alt', 'Shift'] });
-    const p = page.locator('db-annotation .panel:not([hidden])');
+    const p = page.locator('db-comment .panel:not([hidden])');
     const inner = p.locator('.composer-inner');
     await expect(inner).toBeVisible();
     const radius = await inner.evaluate((el) => getComputedStyle(el).borderRadius);
@@ -677,27 +675,27 @@ test.describe('Compact UI (redesign)', () => {
   });
 
   test('view mode: header has Close button, no Cancel button', async ({ page }) => {
-    await createAnnotation(page, 'h1', 'Header test');
-    const badge = page.locator('db-annotation wa-badge').first();
+    await createComment(page, 'h1', 'Header test');
+    const badge = page.locator('db-comment wa-badge').first();
     await badge.click();
-    const p = annotationPanel(page);
+    const p = commentPanel(page);
     await expect(p.locator('wa-button[title="Close"]')).toBeVisible();
     await expect(p.locator('.btn-cancel, button:has-text("Cancel")')).toHaveCount(0);
   });
 
   test('view mode: paths hidden by default', async ({ page }) => {
-    await createAnnotation(page, 'h1', 'Paths hidden test');
-    const badge = page.locator('db-annotation wa-badge').first();
+    await createComment(page, 'h1', 'Paths hidden test');
+    const badge = page.locator('db-comment wa-badge').first();
     await badge.click();
-    const p = annotationPanel(page);
+    const p = commentPanel(page);
     await expect(p.locator('.chips-bar')).toHaveCount(0);
   });
 
   test('view mode: "Show paths" in menu reveals chips bar', async ({ page }) => {
-    await createAnnotation(page, 'h1', 'Show paths test');
-    const badge = page.locator('db-annotation wa-badge').first();
+    await createComment(page, 'h1', 'Show paths test');
+    const badge = page.locator('db-comment wa-badge').first();
     await badge.click();
-    const p = annotationPanel(page);
+    const p = commentPanel(page);
 
     await p.locator('wa-button[title="More options"]').click();
     await page.locator('wa-dropdown-item:has-text("Show paths")').click();
@@ -707,10 +705,10 @@ test.describe('Compact UI (redesign)', () => {
   });
 
   test('view mode: "Hide paths" in menu hides chips bar again', async ({ page }) => {
-    await createAnnotation(page, 'h1', 'Toggle paths test');
-    const badge = page.locator('db-annotation wa-badge').first();
+    await createComment(page, 'h1', 'Toggle paths test');
+    const badge = page.locator('db-comment wa-badge').first();
     await badge.click();
-    const p = annotationPanel(page);
+    const p = commentPanel(page);
 
     await p.locator('wa-button[title="More options"]').click();
     await page.locator('wa-dropdown-item:has-text("Show paths")').click();
@@ -727,7 +725,7 @@ test.describe('Compact UI (redesign)', () => {
       .locator('h1')
       .first()
       .click({ modifiers: ['Alt', 'Shift'] });
-    const draft = page.locator('db-annotation .panel:not([hidden])');
+    const draft = page.locator('db-comment .panel:not([hidden])');
     await page
       .locator('p')
       .first()
@@ -741,11 +739,11 @@ test.describe('Compact UI (redesign)', () => {
     const textarea = draft.locator('textarea[data-role="composer"]');
     await textarea.fill('Multi selector');
     await textarea.press('Enter');
-    await expect(annotationPanel(page)).toHaveCount(0);
+    await expect(commentPanel(page)).toHaveCount(0);
 
-    const badge = page.locator('db-annotation wa-badge').first();
+    const badge = page.locator('db-comment wa-badge').first();
     await badge.click();
-    const p = annotationPanel(page);
+    const p = commentPanel(page);
     await p.locator('wa-button[title="More options"]').click();
     await page.locator('wa-dropdown-item:has-text("Show paths")').click();
 
@@ -760,14 +758,14 @@ test.describe('Compact UI (redesign)', () => {
       .locator('h1')
       .first()
       .click({ modifiers: ['Alt', 'Shift'] });
-    const draft = page.locator('db-annotation .panel:not([hidden])');
+    const draft = page.locator('db-comment .panel:not([hidden])');
     const textarea = draft.locator('textarea[data-role="composer"]');
     await textarea.fill('Chip font test');
     await textarea.press('Enter');
 
-    const badge = page.locator('db-annotation wa-badge').first();
+    const badge = page.locator('db-comment wa-badge').first();
     await badge.click();
-    const p = annotationPanel(page);
+    const p = commentPanel(page);
     await p.locator('wa-button[title="More options"]').click();
     await page.locator('wa-dropdown-item:has-text("Show paths")').click();
 
@@ -779,20 +777,20 @@ test.describe('Compact UI (redesign)', () => {
   });
 });
 
-test.describe('Element highlight on annotation create', () => {
+test.describe('Element highlight on comment create', () => {
   test('target element gets amber outline when draft opens', async ({ page }) => {
     await page
       .locator('h1')
       .first()
       .click({ modifiers: ['Alt', 'Shift'] });
-    await expect(annotationPanel(page)).toBeVisible();
+    await expect(commentPanel(page)).toBeVisible();
 
     const highlighted = page.locator('[data-db-related]');
     await expect(highlighted).not.toHaveCount(0);
   });
 
-  test('outline clears after saving the annotation', async ({ page }) => {
-    await createAnnotation(page, 'h1', 'Outline clears on save');
+  test('outline clears after saving the comment', async ({ page }) => {
+    await createComment(page, 'h1', 'Outline clears on save');
     await expect(page.locator('[data-db-related]')).toHaveCount(0);
   });
 
@@ -804,7 +802,7 @@ test.describe('Element highlight on annotation create', () => {
     await expect(page.locator('[data-db-related]')).not.toHaveCount(0);
 
     await page.locator('main').click({ position: { x: 8, y: 8 } });
-    await expect(annotationPanel(page)).toHaveCount(0);
+    await expect(commentPanel(page)).toHaveCount(0);
     await expect(page.locator('[data-db-related]')).toHaveCount(0);
   });
 
@@ -827,52 +825,52 @@ test.describe('Multi-select while draft is open', () => {
   test('clicking an already-annotated element while draft is open adds it to draft', async ({
     page,
   }) => {
-    // Create a saved annotation on h1
-    await createAnnotation(page, 'h1', 'Existing annotation');
-    await expect(page.locator('db-annotation wa-badge')).toHaveCount(1);
+    // Create a saved comment on h1
+    await createComment(page, 'h1', 'Existing comment');
+    await expect(page.locator('db-comment wa-badge')).toHaveCount(1);
 
     // Start a new draft on p
     await page
       .locator('p')
       .first()
       .click({ modifiers: ['Alt', 'Shift'] });
-    const draft = annotationPanel(page);
+    const draft = commentPanel(page);
     await expect(draft).toBeVisible();
 
-    // Click h1 (already annotated) while draft is open — should add to draft, not open old annotation
+    // Click h1 (already annotated) while draft is open — should add to draft, not open old comment
     await page
       .locator('h1')
       .first()
       .click({ modifiers: ['Alt', 'Shift'] });
 
-    // Still just one open panel (the draft), not the existing annotation's panel
-    await expect(page.locator('db-annotation .panel:not([hidden])')).toHaveCount(1);
+    // Still just one open panel (the draft), not the existing comment's panel
+    await expect(page.locator('db-comment .panel:not([hidden])')).toHaveCount(1);
 
-    // Save and verify via API that the new annotation has 2 selectors (p + h1)
+    // Save and verify via API that the new comment has 2 selectors (p + h1)
     const textarea = draft.locator('textarea[data-role="composer"]');
     await textarea.fill('Multi-select with existing element');
     await textarea.press('Enter');
-    await expect(annotationPanel(page)).toHaveCount(0);
+    await expect(commentPanel(page)).toHaveCount(0);
 
-    const res = await page.request.get(`${API_BASE}/annotations`);
-    const body = (await res.json()) as { annotations: { comment: string; selectors: string[] }[] };
-    const newAnn = body.annotations.find((a) => a.comment === 'Multi-select with existing element');
+    const res = await page.request.get(`${API_BASE}/comments`);
+    const body = (await res.json()) as { comments: { comment: string; selectors: string[] }[] };
+    const newAnn = body.comments.find((a) => a.comment === 'Multi-select with existing element');
     expect(newAnn).toBeDefined();
     expect(newAnn!.selectors.length).toBe(2);
   });
 });
 
-// ─── Tweak-in-annotation tests ───────────────────────────────────────────────
+// ─── Tweak-in-comment tests ───────────────────────────────────────────────
 
-/** Inject an annotation directly via the REST API. */
-async function injectAnnotation(
+/** Inject an comment directly via the REST API. */
+async function injectComment(
   page: Page,
   overrides: Record<string, unknown> & { id: string },
 ): Promise<void> {
   const ann = {
     selectors: ['h1'],
     labels: ['h1'],
-    comment: 'Test annotation',
+    comment: 'Test comment',
     pageUrl: 'http://localhost:5173/',
     timestamp: Date.now(),
     createdAt: Date.now(),
@@ -880,19 +878,19 @@ async function injectAnnotation(
     linkedTweaks: [],
     ...overrides,
   };
-  const res = await page.request.post(`${API_BASE}/annotations`, { data: ann });
+  const res = await page.request.post(`${API_BASE}/comments`, { data: ann });
   expect(res.status()).toBe(200);
 }
 
-/** Open an annotation's panel by clicking its badge. */
-async function openAnnotationPanel(page: Page): Promise<void> {
-  const badge = page.locator('db-annotation wa-badge').first();
+/** Open an comment's panel by clicking its badge. */
+async function openCommentPanel(page: Page): Promise<void> {
+  const badge = page.locator('db-comment wa-badge').first();
   await badge.waitFor({ state: 'visible' });
   await badge.click();
 }
 
-/** Build an annotation with a select knob and empty actions (UI-only, no file side-effects). */
-function makeTweakAnnotation(id: string): Record<string, unknown> {
+/** Build an comment with a select knob and empty actions (UI-only, no file side-effects). */
+function makeTweakComment(id: string): Record<string, unknown> {
   return {
     id,
     selectors: ['h1'],
@@ -912,37 +910,37 @@ function makeTweakAnnotation(id: string): Record<string, unknown> {
   };
 }
 
-test.describe('Tweaks in annotations', () => {
-  test('tweaks section is not visible when annotation has no knob', async ({ page }) => {
-    await injectAnnotation(page, {
+test.describe('Tweaks in comments', () => {
+  test('tweaks section is not visible when comment has no knob', async ({ page }) => {
+    await injectComment(page, {
       id: 'test-no-tweaks',
       comment: 'No tweaks here',
     });
     await page.reload();
-    await openAnnotationPanel(page);
-    const tweaksSection = page.locator('db-annotation .tweaks-section');
+    await openCommentPanel(page);
+    const tweaksSection = page.locator('db-comment .tweaks-section');
     await expect(tweaksSection).toHaveCount(0);
   });
 
-  test('tweaks section appears when annotation has a knob', async ({ page }) => {
-    await injectAnnotation(page, makeTweakAnnotation('test-with-knob'));
+  test('tweaks section appears when comment has a knob', async ({ page }) => {
+    await injectComment(page, makeTweakComment('test-with-knob'));
     await page.reload();
-    await openAnnotationPanel(page);
-    await expect(page.locator('db-annotation .tweaks-section')).toBeVisible();
+    await openCommentPanel(page);
+    await expect(page.locator('db-comment .tweaks-section')).toBeVisible();
   });
 
   test('tweaks section shows the knob label', async ({ page }) => {
-    await injectAnnotation(page, makeTweakAnnotation('test-knob-label'));
+    await injectComment(page, makeTweakComment('test-knob-label'));
     await page.reload();
-    await openAnnotationPanel(page);
-    await expect(page.locator('db-annotation .tweak-label')).toHaveText('Feature icon');
+    await openCommentPanel(page);
+    await expect(page.locator('db-comment .tweak-label')).toHaveText('Feature icon');
   });
 
   test('db-knob renders a wa-select with the correct options', async ({ page }) => {
-    await injectAnnotation(page, makeTweakAnnotation('test-knob-select'));
+    await injectComment(page, makeTweakComment('test-knob-select'));
     await page.reload();
-    await openAnnotationPanel(page);
-    const select = page.locator('db-annotation db-knob wa-select');
+    await openCommentPanel(page);
+    const select = page.locator('db-comment db-knob wa-select');
     await expect(select).toBeVisible();
     // Default value should be 🎨
     await expect(select).toHaveJSProperty('value', '🎨');
@@ -951,11 +949,11 @@ test.describe('Tweaks in annotations', () => {
   });
 
   test('changing the select dispatches tweak:change and updates schema value', async ({ page }) => {
-    await injectAnnotation(page, makeTweakAnnotation('test-knob-change'));
+    await injectComment(page, makeTweakComment('test-knob-change'));
     await page.reload();
-    await openAnnotationPanel(page);
+    await openCommentPanel(page);
 
-    const select = page.locator('db-annotation db-knob wa-select');
+    const select = page.locator('db-comment db-knob wa-select');
     await expect(select).toBeVisible();
     await select.evaluate((el) => {
       (el as HTMLElement & { value: string }).value = '🔥';
@@ -972,21 +970,21 @@ test.describe('Tweaks in annotations', () => {
       .toBe('🔥');
   });
 
-  test('Accept button finalizes the tweak and removes the annotation', async ({ page }) => {
-    await injectAnnotation(page, makeTweakAnnotation('test-knob-accept'));
+  test('Accept button finalizes the tweak and removes the comment', async ({ page }) => {
+    await injectComment(page, makeTweakComment('test-knob-accept'));
     await page.reload();
-    await openAnnotationPanel(page);
+    await openCommentPanel(page);
 
     const acceptBtn = page.locator(
-      'db-annotation wa-button[title="Accept tweak and resolve annotation"]',
+      'db-comment wa-button[title="Accept tweak and resolve comment"]',
     );
     await expect(acceptBtn).toBeVisible();
     await acceptBtn.click();
 
-    // Annotation should be gone from the API
+    // Comment should be gone from the API
     await expect
       .poll(async () => {
-        return (await page.request.get(`${API_BASE}/annotations/test-knob-accept`)).status();
+        return (await page.request.get(`${API_BASE}/comments/test-knob-accept`)).status();
       })
       .toBe(404);
 
@@ -1000,13 +998,13 @@ test.describe('Tweaks in annotations', () => {
       .toBeUndefined();
   });
 
-  test('Discard button removes knob from schema but keeps annotation', async ({ page }) => {
-    await injectAnnotation(page, makeTweakAnnotation('test-knob-discard'));
+  test('Discard button removes knob from schema but keeps comment', async ({ page }) => {
+    await injectComment(page, makeTweakComment('test-knob-discard'));
     await page.reload();
-    await openAnnotationPanel(page);
+    await openCommentPanel(page);
 
     // First change the value
-    const select = page.locator('db-annotation db-knob wa-select');
+    const select = page.locator('db-comment db-knob wa-select');
     await select.evaluate((el) => {
       (el as HTMLElement & { value: string }).value = '🚀';
       el.dispatchEvent(new Event('wa-change', { bubbles: true }));
@@ -1020,14 +1018,14 @@ test.describe('Tweaks in annotations', () => {
       .toBe('🚀');
 
     // Now discard
-    const discardBtn = page.locator('db-annotation wa-button[title="Discard tweak"]');
+    const discardBtn = page.locator('db-comment wa-button[title="Discard tweak"]');
     await expect(discardBtn).toBeVisible();
     await discardBtn.click();
 
-    // Annotation should still exist
+    // Comment should still exist
     await expect
       .poll(async () => {
-        return (await page.request.get(`${API_BASE}/annotations/test-knob-discard`)).status();
+        return (await page.request.get(`${API_BASE}/comments/test-knob-discard`)).status();
       })
       .toBe(200);
 
@@ -1044,7 +1042,7 @@ test.describe('Tweaks in annotations', () => {
   // ─── Knob type rendering ──────────────────────────────────────────────────
 
   test('db-knob renders a wa-number-input with the correct value', async ({ page }) => {
-    await injectAnnotation(page, {
+    await injectComment(page, {
       id: 'test-knob-number',
       selectors: ['h1'],
       labels: ['h1'],
@@ -1057,14 +1055,14 @@ test.describe('Tweaks in annotations', () => {
       actions: [],
     });
     await page.reload();
-    await openAnnotationPanel(page);
-    const input = page.locator('db-annotation db-knob wa-number-input');
+    await openCommentPanel(page);
+    const input = page.locator('db-comment db-knob wa-number-input');
     await expect(input).toBeVisible();
     await expect(input).toHaveJSProperty('value', '16');
   });
 
   test('changing a number input updates schema value', async ({ page }) => {
-    await injectAnnotation(page, {
+    await injectComment(page, {
       id: 'test-knob-number-change',
       selectors: ['h1'],
       labels: ['h1'],
@@ -1077,8 +1075,8 @@ test.describe('Tweaks in annotations', () => {
       actions: [],
     });
     await page.reload();
-    await openAnnotationPanel(page);
-    const input = page.locator('db-annotation db-knob wa-number-input');
+    await openCommentPanel(page);
+    const input = page.locator('db-comment db-knob wa-number-input');
     await input.evaluate((el) => {
       (el as HTMLElement & { value: number }).value = 24;
       el.dispatchEvent(new Event('wa-input', { bubbles: true }));
@@ -1093,7 +1091,7 @@ test.describe('Tweaks in annotations', () => {
   });
 
   test('db-knob renders a wa-color-picker with the correct value', async ({ page }) => {
-    await injectAnnotation(page, {
+    await injectComment(page, {
       id: 'test-knob-color',
       selectors: ['h1'],
       labels: ['h1'],
@@ -1106,14 +1104,14 @@ test.describe('Tweaks in annotations', () => {
       actions: [],
     });
     await page.reload();
-    await openAnnotationPanel(page);
-    const picker = page.locator('db-annotation db-knob wa-color-picker');
+    await openCommentPanel(page);
+    const picker = page.locator('db-comment db-knob wa-color-picker');
     await expect(picker).toBeVisible();
     await expect(picker).toHaveJSProperty('value', '#ff0000');
   });
 
   test('changing a color picker updates schema value', async ({ page }) => {
-    await injectAnnotation(page, {
+    await injectComment(page, {
       id: 'test-knob-color-change',
       selectors: ['h1'],
       labels: ['h1'],
@@ -1126,8 +1124,8 @@ test.describe('Tweaks in annotations', () => {
       actions: [],
     });
     await page.reload();
-    await openAnnotationPanel(page);
-    const picker = page.locator('db-annotation db-knob wa-color-picker');
+    await openCommentPanel(page);
+    const picker = page.locator('db-comment db-knob wa-color-picker');
     await picker.evaluate((el) => {
       (el as HTMLElement & { value: string }).value = '#00ff00';
       el.dispatchEvent(new Event('wa-change', { bubbles: true }));
@@ -1142,7 +1140,7 @@ test.describe('Tweaks in annotations', () => {
   });
 
   test('db-knob renders a wa-input for string type with the correct value', async ({ page }) => {
-    await injectAnnotation(page, {
+    await injectComment(page, {
       id: 'test-knob-string',
       selectors: ['h1'],
       labels: ['h1'],
@@ -1155,14 +1153,14 @@ test.describe('Tweaks in annotations', () => {
       actions: [],
     });
     await page.reload();
-    await openAnnotationPanel(page);
-    const input = page.locator('db-annotation db-knob wa-input');
+    await openCommentPanel(page);
+    const input = page.locator('db-comment db-knob wa-input');
     await expect(input).toBeVisible();
     await expect(input).toHaveJSProperty('value', 'Hello world');
   });
 
   test('changing a string input updates schema value', async ({ page }) => {
-    await injectAnnotation(page, {
+    await injectComment(page, {
       id: 'test-knob-string-change',
       selectors: ['h1'],
       labels: ['h1'],
@@ -1175,8 +1173,8 @@ test.describe('Tweaks in annotations', () => {
       actions: [],
     });
     await page.reload();
-    await openAnnotationPanel(page);
-    const input = page.locator('db-annotation db-knob wa-input');
+    await openCommentPanel(page);
+    const input = page.locator('db-comment db-knob wa-input');
     await input.evaluate((el) => {
       (el as HTMLElement & { value: string }).value = 'New heading';
       el.dispatchEvent(new Event('wa-input', { bubbles: true }));
@@ -1193,7 +1191,7 @@ test.describe('Tweaks in annotations', () => {
   test('db-knob renders a wa-textarea for textarea type with the correct value', async ({
     page,
   }) => {
-    await injectAnnotation(page, {
+    await injectComment(page, {
       id: 'test-knob-textarea',
       selectors: ['h1'],
       labels: ['h1'],
@@ -1206,14 +1204,14 @@ test.describe('Tweaks in annotations', () => {
       actions: [],
     });
     await page.reload();
-    await openAnnotationPanel(page);
-    const textarea = page.locator('db-annotation db-knob wa-textarea');
+    await openCommentPanel(page);
+    const textarea = page.locator('db-comment db-knob wa-textarea');
     await expect(textarea).toBeVisible();
     await expect(textarea).toHaveJSProperty('value', 'Initial text');
   });
 
   test('changing a textarea updates schema value', async ({ page }) => {
-    await injectAnnotation(page, {
+    await injectComment(page, {
       id: 'test-knob-textarea-change',
       selectors: ['h1'],
       labels: ['h1'],
@@ -1226,8 +1224,8 @@ test.describe('Tweaks in annotations', () => {
       actions: [],
     });
     await page.reload();
-    await openAnnotationPanel(page);
-    const textarea = page.locator('db-annotation db-knob wa-textarea');
+    await openCommentPanel(page);
+    const textarea = page.locator('db-comment db-knob wa-textarea');
     await textarea.evaluate((el) => {
       (el as HTMLElement & { value: string }).value = 'Updated text';
       el.dispatchEvent(new Event('wa-input', { bubbles: true }));
@@ -1244,7 +1242,7 @@ test.describe('Tweaks in annotations', () => {
   test('db-knob renders a wa-switch for boolean type with correct checked state', async ({
     page,
   }) => {
-    await injectAnnotation(page, {
+    await injectComment(page, {
       id: 'test-knob-boolean',
       selectors: ['h1'],
       labels: ['h1'],
@@ -1257,14 +1255,14 @@ test.describe('Tweaks in annotations', () => {
       actions: [],
     });
     await page.reload();
-    await openAnnotationPanel(page);
-    const toggle = page.locator('db-annotation db-knob wa-switch');
+    await openCommentPanel(page);
+    const toggle = page.locator('db-comment db-knob wa-switch');
     await expect(toggle).toBeVisible();
     await expect(toggle).toHaveJSProperty('checked', true);
   });
 
   test('toggling a boolean switch updates schema value', async ({ page }) => {
-    await injectAnnotation(page, {
+    await injectComment(page, {
       id: 'test-knob-boolean-change',
       selectors: ['h1'],
       labels: ['h1'],
@@ -1277,8 +1275,8 @@ test.describe('Tweaks in annotations', () => {
       actions: [],
     });
     await page.reload();
-    await openAnnotationPanel(page);
-    const toggle = page.locator('db-annotation db-knob wa-switch');
+    await openCommentPanel(page);
+    const toggle = page.locator('db-comment db-knob wa-switch');
     await toggle.evaluate((el) => {
       (el as HTMLElement & { checked: boolean }).checked = false;
       el.dispatchEvent(new Event('wa-change', { bubbles: true }));
@@ -1295,7 +1293,7 @@ test.describe('Tweaks in annotations', () => {
   test('db-knob renders wa-radio-group for button-group type with the correct options', async ({
     page,
   }) => {
-    await injectAnnotation(page, {
+    await injectComment(page, {
       id: 'test-knob-button-group',
       selectors: ['h1'],
       labels: ['h1'],
@@ -1313,15 +1311,15 @@ test.describe('Tweaks in annotations', () => {
       actions: [],
     });
     await page.reload();
-    await openAnnotationPanel(page);
-    const group = page.locator('db-annotation db-knob wa-radio-group');
+    await openCommentPanel(page);
+    const group = page.locator('db-comment db-knob wa-radio-group');
     await expect(group).toBeVisible();
     await expect(group).toHaveJSProperty('value', 'sm');
     await expect(group.locator('wa-radio')).toHaveCount(3);
   });
 
   test('changing a button-group radio updates schema value', async ({ page }) => {
-    await injectAnnotation(page, {
+    await injectComment(page, {
       id: 'test-knob-button-group-change',
       selectors: ['h1'],
       labels: ['h1'],
@@ -1339,8 +1337,8 @@ test.describe('Tweaks in annotations', () => {
       actions: [],
     });
     await page.reload();
-    await openAnnotationPanel(page);
-    const group = page.locator('db-annotation db-knob wa-radio-group');
+    await openCommentPanel(page);
+    const group = page.locator('db-comment db-knob wa-radio-group');
     await group.evaluate((el) => {
       (el as HTMLElement & { value: string }).value = 'lg';
       el.dispatchEvent(new Event('wa-change', { bubbles: true }));
@@ -1354,15 +1352,15 @@ test.describe('Tweaks in annotations', () => {
       .toBe('lg');
   });
 
-  test('annotation persists to disk as JSON file after injection', async ({ page }) => {
-    await injectAnnotation(page, { id: 'persist-json-test', comment: 'JSON file test' });
+  test('comment persists to disk as JSON file after injection', async ({ page }) => {
+    await injectComment(page, { id: 'persist-json-test', comment: 'JSON file test' });
     // Verify it can be retrieved (confirms it was stored)
-    const res = await page.request.get(`${API_BASE}/annotations/persist-json-test`);
+    const res = await page.request.get(`${API_BASE}/comments/persist-json-test`);
     expect(res.status()).toBe(200);
-    // Reload page and confirm annotation survives (loaded from disk)
+    // Reload page and confirm comment survives (loaded from disk)
     await page.reload();
-    await expect(page.locator('db-annotation')).toBeAttached();
-    const res2 = await page.request.get(`${API_BASE}/annotations/persist-json-test`);
+    await expect(page.locator('db-comment')).toBeAttached();
+    const res2 = await page.request.get(`${API_BASE}/comments/persist-json-test`);
     expect(res2.status()).toBe(200);
     const ann = (await res2.json()) as { comment: string };
     expect(ann.comment).toBe('JSON file test');

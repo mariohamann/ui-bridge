@@ -15,8 +15,7 @@ const features = [
   {
     icon: '🔗',
     title: 'Component linking',
-    description:
-      'Map Figma components to source files so annotations always point at the right code.',
+    description: 'Map Figma components to source files so comments always point at the right code.',
   },
   {
     icon: '🛡️',
@@ -33,7 +32,7 @@ const features = [
   {
     icon: '🤝',
     title: 'Team collaboration',
-    description: 'Annotations are synced in real-time across every open tab for your whole team.',
+    description: 'Comments are synced in real-time across every open tab for your whole team.',
   },
 ];
 </script>

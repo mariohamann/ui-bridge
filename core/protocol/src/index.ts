@@ -8,22 +8,22 @@ export type {
   TweakResetMsg,
   TweakResetAllMsg,
   TweakDiscardAllMsg,
-  TweakAcceptAnnotationMsg,
+  TweakAcceptCommentMsg,
   TweakAcceptTweakMsg,
   TweakDismissMsg,
   TweakSchemaMsg,
-  AnnotationSource,
-  AnnotationReply,
-  AnnotationTweakLink,
-  Annotation,
-  AnnotationUpsertMsg,
-  AnnotationDeleteMsg,
-  AnnotationClearMsg,
-  AnnotationsSyncMsg,
+  CommentSource,
+  CommentReply,
+  CommentTweakLink,
+  Comment,
+  CommentUpsertMsg,
+  CommentDeleteMsg,
+  CommentClearMsg,
+  CommentsSyncMsg,
   InspectPickMsg,
 } from './protocol.js';
 
 // ─── Custom element tag names ─────────────────────────────────────────────────
 // Single source of truth — import these instead of using string literals.
-export const DB_ANNOTATION_TAG = 'db-annotation' as const;
+export const DB_COMMENT_TAG = 'db-comment' as const;
 export const DB_SOURCE_INSPECTOR_TAG = 'db-source-inspector' as const;

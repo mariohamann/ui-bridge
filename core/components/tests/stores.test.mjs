@@ -13,8 +13,8 @@ import {
   knobsSignal,
   updateKnobs,
   getKnobByMarker,
-  annotationsSignal,
-  updateAnnotations,
+  commentsSignal,
+  updateComments,
   dispatchIntent,
   onIntent,
 } from '../dist/index.js';
@@ -25,7 +25,7 @@ function makeKnob(marker, overrides = {}) {
   return { marker, label: marker, type: 'string', value: 'default', ...overrides };
 }
 
-function makeAnnotation(id, overrides = {}) {
+function makeComment(id, overrides = {}) {
   return {
     id,
     selectors: ['h1'],
@@ -71,26 +71,26 @@ describe('knobs store', () => {
   });
 });
 
-// ── annotations store ─────────────────────────────────────────────────────────
+// ── comments store ─────────────────────────────────────────────────────────
 
-describe('annotations store', () => {
-  beforeEach(() => updateAnnotations([]));
+describe('comments store', () => {
+  beforeEach(() => updateComments([]));
 
   test('starts empty', () => {
-    assert.deepEqual(annotationsSignal.get(), []);
+    assert.deepEqual(commentsSignal.get(), []);
   });
 
-  test('updateAnnotations replaces the list', () => {
-    const list = [makeAnnotation('a1'), makeAnnotation('a2')];
-    updateAnnotations(list);
-    assert.equal(annotationsSignal.get().length, 2);
-    assert.equal(annotationsSignal.get()[0].id, 'a1');
+  test('updateComments replaces the list', () => {
+    const list = [makeComment('a1'), makeComment('a2')];
+    updateComments(list);
+    assert.equal(commentsSignal.get().length, 2);
+    assert.equal(commentsSignal.get()[0].id, 'a1');
   });
 
-  test('updateAnnotations is a full replacement, not a merge', () => {
-    updateAnnotations([makeAnnotation('old')]);
-    updateAnnotations([makeAnnotation('new1'), makeAnnotation('new2')]);
-    const ids = annotationsSignal.get().map((a) => a.id);
+  test('updateComments is a full replacement, not a merge', () => {
+    updateComments([makeComment('old')]);
+    updateComments([makeComment('new1'), makeComment('new2')]);
+    const ids = commentsSignal.get().map((a) => a.id);
     assert.deepEqual(ids, ['new1', 'new2']);
   });
 });
@@ -149,13 +149,13 @@ describe('intent bus', () => {
       { type: 'tweak:revert' },
       { type: 'tweak:apply', markers: ['a', 'b'] },
       { type: 'tweak:discard' },
-      { type: 'tweak:accept-annotation', annotationId: 'ann1' },
-      { type: 'tweak:accept-one', annotationId: 'ann1', marker: 'm1' },
-      { type: 'tweak:dismiss-one', annotationId: 'ann1', marker: 'm1' },
-      { type: 'annotation:delete', id: 'ann1' },
-      { type: 'annotation:clear' },
-      { type: 'annotation:open', id: 'ann1' },
-      { type: 'panel:set-tab', tab: 'annotations' },
+      { type: 'tweak:accept-comment', commentId: 'ann1' },
+      { type: 'tweak:accept-one', commentId: 'ann1', marker: 'm1' },
+      { type: 'tweak:dismiss-one', commentId: 'ann1', marker: 'm1' },
+      { type: 'comment:delete', id: 'ann1' },
+      { type: 'comment:clear' },
+      { type: 'comment:open', id: 'ann1' },
+      { type: 'panel:set-tab', tab: 'comments' },
       { type: 'panel:set-collapsed', collapsed: true },
     ];
 

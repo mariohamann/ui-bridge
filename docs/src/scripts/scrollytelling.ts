@@ -107,7 +107,7 @@ function animateScene1() {
   });
 }
 
-// Scene 2 — cursor moves to card, element highlights, annotation appears
+// Scene 2 — cursor moves to card, element highlights, comment appears
 function animateScene2() {
   const cursor = document.getElementById('anim-cursor')!;
   const badge = document.getElementById('anim-badge')!;

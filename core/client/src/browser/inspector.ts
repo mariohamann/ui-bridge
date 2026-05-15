@@ -1,7 +1,7 @@
 /**
- * Inspector — annotation state + badge rendering via db-annotation.
+ * Inspector — comment state + badge rendering via db-comment.
  *
- * Each saved annotation gets one persistent <db-annotation> element.
+ * Each saved comment gets one persistent <db-comment> element.
  * Items are reconciled by ID — never destroyed and recreated wholesale.
  * A draft item is created immediately on Alt+Shift+click; it becomes a saved
  * item when the user submits a comment, or is removed on cancel.
@@ -9,12 +9,12 @@
 
 import { sendMessage, onMessage } from './ws-client.js';
 import { finder, idName } from '@medv/finder';
-import type { Annotation } from '@design-bridge/protocol';
-import { DB_ANNOTATION_TAG, DB_SOURCE_INSPECTOR_TAG } from '@design-bridge/protocol';
-import type { DbAnnotation } from '@design-bridge/components';
+import type { Comment } from '@design-bridge/protocol';
+import { DB_COMMENT_TAG, DB_SOURCE_INSPECTOR_TAG } from '@design-bridge/protocol';
+import type { DbComment } from '@design-bridge/components';
 import {
   onIntent,
-  updateAnnotations,
+  updateComments,
   getSourceInfo,
   DB_HIGHLIGHT_COLOR,
 } from '@design-bridge/components';
@@ -35,52 +35,52 @@ function buildSelector(el: Element): string {
 
 // ─── State ───────────────────────────────────────────────────────────────────
 
-const annotations = new Map<string, Annotation>();
+const comments = new Map<string, Comment>();
 const changeListeners = new Set<() => void>();
-const channel = new BroadcastChannel('design-bridge:annotations');
+const channel = new BroadcastChannel('design-bridge:comments');
 
 function notifyChange(): void {
   for (const cb of changeListeners) cb();
   // Push into the shared signal store so any SignalWatcher consumer re-renders
-  updateAnnotations([...annotations.values()]);
+  updateComments([...comments.values()]);
 }
 
-export function getAnnotations(): Annotation[] {
-  return [...annotations.values()];
+export function getComments(): Comment[] {
+  return [...comments.values()];
 }
 
-export function onAnnotationsChange(cb: () => void): () => void {
+export function onCommentsChange(cb: () => void): () => void {
   changeListeners.add(cb);
   return () => changeListeners.delete(cb);
 }
 
-function syncAnnotations(list: Annotation[]): void {
-  annotations.clear();
-  for (const ann of list) annotations.set(ann.id, ann);
+function syncComments(list: Comment[]): void {
+  comments.clear();
+  for (const ann of list) comments.set(ann.id, ann);
   reconcileItems();
   notifyChange();
 }
 
-export function upsertAnnotation(ann: Annotation): void {
-  annotations.set(ann.id, ann);
-  sendMessage({ type: 'annotation:upsert', payload: ann });
-  channel.postMessage({ type: 'annotations:sync', payload: [...annotations.values()] });
+export function upsertComment(ann: Comment): void {
+  comments.set(ann.id, ann);
+  sendMessage({ type: 'comment:upsert', payload: ann });
+  channel.postMessage({ type: 'comments:sync', payload: [...comments.values()] });
   reconcileItems();
   notifyChange();
 }
 
-export function deleteAnnotation(id: string): void {
-  annotations.delete(id);
-  sendMessage({ type: 'annotation:delete', payload: { id } });
-  channel.postMessage({ type: 'annotations:sync', payload: [...annotations.values()] });
+export function deleteComment(id: string): void {
+  comments.delete(id);
+  sendMessage({ type: 'comment:delete', payload: { id } });
+  channel.postMessage({ type: 'comments:sync', payload: [...comments.values()] });
   reconcileItems();
   notifyChange();
 }
 
-export function clearAnnotations(): void {
-  annotations.clear();
-  sendMessage({ type: 'annotation:clear' });
-  channel.postMessage({ type: 'annotations:sync', payload: [] });
+export function clearComments(): void {
+  comments.clear();
+  sendMessage({ type: 'comment:clear' });
+  channel.postMessage({ type: 'comments:sync', payload: [] });
   reconcileItems();
   notifyChange();
 }
@@ -88,13 +88,13 @@ export function clearAnnotations(): void {
 // ─── Item container ───────────────────────────────────────────────────────────
 
 let itemContainer: HTMLElement | null = null;
-const itemEls = new Map<string, DbAnnotation>();
-let draftItem: DbAnnotation | null = null;
+const itemEls = new Map<string, DbComment>();
+let draftItem: DbComment | null = null;
 
-/** ID of the annotation we want to focus on the next click, when the current panel has a dirty draft. */
+/** ID of the comment we want to focus on the next click, when the current panel has a dirty draft. */
 let pendingFocusId: string | null = null;
 
-export function getItemById(id: string): DbAnnotation | undefined {
+export function getItemById(id: string): DbComment | undefined {
   return itemEls.get(id);
 }
 
@@ -106,13 +106,13 @@ function closeAllPanels(): void {
 }
 
 /** Open a saved panel, closing any other open panel first. */
-function openItemPanel(item: DbAnnotation): void {
+function openItemPanel(item: DbComment): void {
   closeAllPanels();
   pendingFocusId = null;
   item.openPanel();
 }
 
-export function getOpenItem(): DbAnnotation | null {
+export function getOpenItem(): DbComment | null {
   if (draftItem) return draftItem;
   for (const item of itemEls.values()) {
     if (item.isOpen) return item;
@@ -121,13 +121,13 @@ export function getOpenItem(): DbAnnotation | null {
 }
 
 /**
- * Focus a saved annotation panel from an external trigger (review page click,
+ * Focus a saved comment panel from an external trigger (review page click,
  * deep-link, etc.). Implements the dirty-draft guard:
  *  - If the currently open panel has unsaved text → wobble it and remember the
- *    requested id; the caller must call focusAnnotation(id) again to confirm.
+ *    requested id; the caller must call focusComment(id) again to confirm.
  *  - On confirm (same id requested twice) → discard the draft and open the new panel.
  */
-export function focusAnnotation(id: string): boolean {
+export function focusComment(id: string): boolean {
   const target = itemEls.get(id);
   if (!target) return false;
 
@@ -163,11 +163,11 @@ export function focusAnnotation(id: string): boolean {
 
 function reconcileItems(): void {
   if (!itemContainer) return;
-  const annList = [...annotations.values()];
+  const annList = [...comments.values()];
 
-  // Remove items whose annotation was deleted
+  // Remove items whose comment was deleted
   for (const [id, el] of itemEls) {
-    if (!annotations.has(id)) {
+    if (!comments.has(id)) {
       el.remove();
       itemEls.delete(id);
     }
@@ -177,11 +177,11 @@ function reconcileItems(): void {
   annList.forEach((ann, i) => {
     let item = itemEls.get(ann.id);
     if (!item) {
-      item = document.createElement('db-annotation') as DbAnnotation;
+      item = document.createElement('db-comment') as DbComment;
       itemContainer!.appendChild(item);
       itemEls.set(ann.id, item);
     }
-    item.annotation = ann;
+    item.comment = ann;
     item.index = i;
   });
 }
@@ -191,7 +191,7 @@ function reconcileItems(): void {
 let lastInspectedEl: Element | null = null;
 
 function isOwnUI(el: Element): boolean {
-  return !!el.closest(DB_ANNOTATION_TAG);
+  return !!el.closest(DB_COMMENT_TAG);
 }
 
 function isInspectorUI(el: Element): boolean {
@@ -287,7 +287,7 @@ function onTrackCode(e: Event): void {
   if (!el || isInspectorUI(el)) return;
 
   const sel = buildSelector(el);
-  const existing = [...annotations.values()].find((a) => a.selectors.includes(sel));
+  const existing = [...comments.values()].find((a) => a.selectors.includes(sel));
   // Prefer event detail source info; fall back to reading DOM attributes directly.
   const detailSource = detail?.path
     ? { file: detail.path, line: detail.line ?? 1, column: detail.column ?? 0 }
@@ -300,7 +300,7 @@ function onTrackCode(e: Event): void {
     draftItem.addDraftSelector(el, buildSelector(el));
     if (source) draftItem.setDraftSource(source);
   } else {
-    const item = document.createElement(DB_ANNOTATION_TAG) as DbAnnotation;
+    const item = document.createElement(DB_COMMENT_TAG) as DbComment;
     itemContainer.appendChild(item);
     draftItem = item;
     item.initDraft(el, buildSelector(el));
@@ -313,22 +313,22 @@ function onTrackCode(e: Event): void {
 // ─── Cross-tab BroadcastChannel ──────────────────────────────────────────────
 
 channel.addEventListener('message', (e) => {
-  const { type, payload } = e.data as { type: string; payload: Annotation[] };
-  if (type === 'annotations:sync') syncAnnotations(payload);
+  const { type, payload } = e.data as { type: string; payload: Comment[] };
+  if (type === 'comments:sync') syncComments(payload);
 });
 
 // ─── WS incoming ─────────────────────────────────────────────────────────────
 
 onMessage((msg) => {
-  if (msg.type === 'annotations:sync') {
-    syncAnnotations(msg.payload);
+  if (msg.type === 'comments:sync') {
+    syncComments(msg.payload);
   } else if (msg.type === 'inspect:pick') {
     if (draftItem) draftItem.setDraftSource(msg.payload);
-  } else if (msg.type === 'annotation:focus') {
-    const opened = focusAnnotation(msg.payload.id);
+  } else if (msg.type === 'comment:focus') {
+    const opened = focusComment(msg.payload.id);
     // Scroll annotated element into view only when the panel actually opened
     if (opened) {
-      const ann = annotations.get(msg.payload.id);
+      const ann = comments.get(msg.payload.id);
       if (ann) {
         for (const sel of ann.selectors) {
           try {
@@ -364,20 +364,20 @@ export function initInspector(): void {
   window.addEventListener('code-inspector:trackCode', onTrackCode);
 
   onIntent((intent) => {
-    if (intent.type === 'annotation:save') {
-      const ann = intent.annotation;
+    if (intent.type === 'comment:save') {
+      const ann = intent.comment;
       if (draftItem) {
         itemEls.set(ann.id, draftItem);
         draftItem = null;
       }
-      upsertAnnotation(ann);
-    } else if (intent.type === 'annotation:cancel') {
+      upsertComment(ann);
+    } else if (intent.type === 'comment:cancel') {
       draftItem?.remove();
       draftItem = null;
-    } else if (intent.type === 'annotation:delete') {
-      deleteAnnotation(intent.id);
-    } else if (intent.type === 'annotation:badge-click') {
-      focusAnnotation(intent.id);
+    } else if (intent.type === 'comment:delete') {
+      deleteComment(intent.id);
+    } else if (intent.type === 'comment:badge-click') {
+      focusComment(intent.id);
     }
   });
 
@@ -400,20 +400,20 @@ export function initInspector(): void {
     { capture: true },
   );
 
-  // Deep-link: ?db-annotation=<id> opens the annotation panel on load
-  const targetId = new URLSearchParams(location.search).get('db-annotation');
+  // Deep-link: ?db-comment=<id> opens the comment panel on load
+  const targetId = new URLSearchParams(location.search).get('db-comment');
   if (targetId) {
     const tryOpen = (): boolean => {
       const item = itemEls.get(targetId);
       if (item) {
-        focusAnnotation(targetId);
+        focusComment(targetId);
         return true;
       }
       return false;
     };
     if (!tryOpen()) {
-      // Wait for the first annotations:sync to arrive and items to be reconciled
-      const unsub = onAnnotationsChange(() => {
+      // Wait for the first comments:sync to arrive and items to be reconciled
+      const unsub = onCommentsChange(() => {
         if (tryOpen()) unsub();
       });
     }

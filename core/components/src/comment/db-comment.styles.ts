@@ -254,4 +254,4 @@ const ANNOTATION_ITEM_LOCAL_STYLES = css`
   }
 `;
 
-export const annotationItemStyles = [designBridgeHostTokenStyles, ANNOTATION_ITEM_LOCAL_STYLES];
+export const commentItemStyles = [designBridgeHostTokenStyles, ANNOTATION_ITEM_LOCAL_STYLES];

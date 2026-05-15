@@ -3,24 +3,19 @@ export { designBridgeHostTokenStyles, DB_HIGHLIGHT_COLOR } from './styles/tokens
 
 // ── Signal stores ─────────────────────────────────────────────────────────────
 export { knobsSignal, updateKnobs, getKnobByMarker } from './state/knobs-store.js';
-export { annotationsSignal, updateAnnotations } from './state/annotations-store.js';
+export { commentsSignal, updateComments } from './state/comments-store.js';
 
 // ── Intent bus ────────────────────────────────────────────────────────────────
 export { dispatchIntent, onIntent } from './state/intents.js';
 export type {
   ComponentIntent,
-  AnnotationSaveIntent,
-  AnnotationCancelIntent,
-  AnnotationResolveIntent,
-  AnnotationBadgeClickIntent,
+  CommentSaveIntent,
+  CommentCancelIntent,
+  CommentResolveIntent,
+  CommentBadgeClickIntent,
 } from './state/intents.js';
 
-// ── Annotation item ───────────────────────────────────────────────────────────
-export { DbAnnotation } from './annotation/db-annotation.js';
-export { DbKnob } from './annotation/db-knob.js';
-export {
-  uid,
-  shortLabel,
-  formatTweakReply,
-  getSourceInfo,
-} from './annotation/db-annotation.utils.js';
+// ── Comment item ───────────────────────────────────────────────────────────
+export { DbComment } from './comment/db-comment.js';
+export { DbKnob } from './comment/db-knob.js';
+export { uid, shortLabel, formatTweakReply, getSourceInfo } from './comment/db-comment.utils.js';

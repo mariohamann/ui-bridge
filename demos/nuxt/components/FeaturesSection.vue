@@ -5,7 +5,7 @@
       <p>Change colors, spacing, and typography in real-time without touching source files.</p>
     </div>
     <div class="db-feature-card">
-      <h3>Annotations</h3>
+      <h3>Comments</h3>
       <p>Leave contextual comments directly on UI elements, linked to your source code.</p>
     </div>
     <div class="db-feature-card">

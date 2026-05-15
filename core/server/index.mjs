@@ -2,8 +2,8 @@
 /**
  * Design Bridge — Standalone Server
  *
- * Orchestrates the tweak engine, annotation store, HTTP server, and WebSocket
- * server. Business logic lives in tweak-engine.mjs and annotation-store.mjs.
+ * Orchestrates the tweak engine, comment store, HTTP server, and WebSocket
+ * server. Business logic lives in tweak-engine.mjs and comment-store.mjs.
  *
  * Usage:
  *   node packages/server/index.mjs --root /path/to/project
@@ -21,7 +21,7 @@ import { WebSocketServer, WebSocket } from 'ws';
 import { resolve } from 'node:path';
 import { createRequire } from 'node:module';
 import { createTweakEngine } from './tweak-engine.mjs';
-import { createAnnotationStore } from './annotation-store.mjs';
+import { createCommentStore } from './comment-store.mjs';
 
 const _require = createRequire(import.meta.url);
 const CLIENT_BUNDLE_PATH = _require.resolve('@design-bridge/client');
@@ -73,8 +73,8 @@ function findFreePort(start, maxAttempts = 10) {
 
 // ── Engine & store ────────────────────────────────────────────────────────────
 
-const store = createAnnotationStore(ROOT);
-// Engine receives a callback so it always reads the latest annotation list.
+const store = createCommentStore(ROOT);
+// Engine receives a callback so it always reads the latest comment list.
 const tweaks = createTweakEngine(ROOT, () => store.all());
 
 // ── Review page HTML ──────────────────────────────────────────────────────────
@@ -84,7 +84,7 @@ const REVIEW_PAGE_HTML = `<!DOCTYPE html>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Design Bridge — Annotations</title>
+  <title>Design Bridge — Comments</title>
   <style>html,body{margin:0;padding:0;background:#1e1e2e;}</style>
 </head>
 <body>
@@ -134,9 +134,8 @@ function broadcast(msg) {
 wss.on('connection', (ws) => {
   const schema = tweaks.buildSchema();
   if (schema.length > 0) ws.send(JSON.stringify({ type: 'tweak:schema', payload: schema }));
-  const annotations = store.all();
-  if (annotations.length > 0)
-    ws.send(JSON.stringify({ type: 'annotations:sync', payload: annotations }));
+  const comments = store.all();
+  if (comments.length > 0) ws.send(JSON.stringify({ type: 'comments:sync', payload: comments }));
 
   ws.on('message', async (raw) => {
     let msg;
@@ -148,7 +147,7 @@ wss.on('connection', (ws) => {
 
     switch (msg.type) {
       case 'tweak:change':
-        // marker === annotation id
+        // marker === comment id
         await tweaks.applyTweakChange(msg.payload.marker, msg.payload.value);
         broadcast({ type: 'tweak:schema', payload: tweaks.buildSchema() });
         break;
@@ -174,48 +173,48 @@ wss.on('connection', (ws) => {
         break;
 
       case 'tweak:discard': {
-        const { annotationId } = msg.payload;
-        await tweaks.discardAnnotation(annotationId);
+        const { commentId } = msg.payload;
+        await tweaks.discardComment(commentId);
         broadcast({ type: 'tweak:schema', payload: tweaks.buildSchema() });
         break;
       }
 
-      case 'tweak:accept-annotation': {
-        const { annotationId } = msg.payload;
-        await tweaks.finalizeForAnnotation(annotationId);
-        store.del(annotationId);
+      case 'tweak:accept-comment': {
+        const { commentId } = msg.payload;
+        await tweaks.finalizeForComment(commentId);
+        store.del(commentId);
         broadcast({ type: 'tweak:schema', payload: tweaks.buildSchema() });
-        broadcast({ type: 'annotations:sync', payload: store.all() });
+        broadcast({ type: 'comments:sync', payload: store.all() });
         break;
       }
 
       case 'tweak:dismiss': {
-        const { annotationId } = msg.payload;
-        await tweaks.discardAnnotation(annotationId);
+        const { commentId } = msg.payload;
+        await tweaks.discardComment(commentId);
         broadcast({ type: 'tweak:schema', payload: tweaks.buildSchema() });
         break;
       }
 
-      case 'annotation:upsert':
+      case 'comment:upsert':
         store.upsert(msg.payload);
-        broadcast({ type: 'annotations:sync', payload: store.all() });
+        broadcast({ type: 'comments:sync', payload: store.all() });
         broadcast({ type: 'tweak:schema', payload: tweaks.buildSchema() });
         break;
 
-      case 'annotation:delete':
+      case 'comment:delete':
         store.del(msg.payload.id);
-        broadcast({ type: 'annotations:sync', payload: store.all() });
+        broadcast({ type: 'comments:sync', payload: store.all() });
         broadcast({ type: 'tweak:schema', payload: tweaks.buildSchema() });
         break;
 
-      case 'annotation:clear':
+      case 'comment:clear':
         await store.clear();
-        broadcast({ type: 'annotations:sync', payload: [] });
+        broadcast({ type: 'comments:sync', payload: [] });
         broadcast({ type: 'tweak:schema', payload: [] });
         break;
 
-      case 'annotation:focus':
-        broadcast({ type: 'annotation:focus', payload: msg.payload });
+      case 'comment:focus':
+        broadcast({ type: 'comment:focus', payload: msg.payload });
         break;
     }
   });
@@ -291,14 +290,14 @@ const httpServer = createServer(async (req, res) => {
     return;
   }
 
-  // ── Annotations ───────────────────────────────────────────────────────────
+  // ── Comments ───────────────────────────────────────────────────────────
 
-  if (req.method === 'GET' && apiPath === '/annotations') {
-    jsonResponse(res, 200, { annotations: store.all() });
+  if (req.method === 'GET' && apiPath === '/comments') {
+    jsonResponse(res, 200, { comments: store.all() });
     return;
   }
 
-  if (req.method === 'POST' && apiPath === '/annotations') {
+  if (req.method === 'POST' && apiPath === '/comments') {
     try {
       const ann = await readBody(req);
       if (!ann?.id) {
@@ -306,7 +305,7 @@ const httpServer = createServer(async (req, res) => {
         return;
       }
       store.upsert(ann);
-      broadcast({ type: 'annotations:sync', payload: store.all() });
+      broadcast({ type: 'comments:sync', payload: store.all() });
       broadcast({ type: 'tweak:schema', payload: tweaks.buildSchema() });
       jsonResponse(res, 200, { ok: true });
     } catch (e) {
@@ -315,15 +314,15 @@ const httpServer = createServer(async (req, res) => {
     return;
   }
 
-  if (req.method === 'DELETE' && apiPath === '/annotations') {
+  if (req.method === 'DELETE' && apiPath === '/comments') {
     await store.clear();
-    broadcast({ type: 'annotations:sync', payload: [] });
+    broadcast({ type: 'comments:sync', payload: [] });
     broadcast({ type: 'tweak:schema', payload: [] });
     jsonResponse(res, 200, { ok: true });
     return;
   }
 
-  const annIdMatch = apiPath.match(/^\/annotations\/([^/]+)$/);
+  const annIdMatch = apiPath.match(/^\/comments\/([^/]+)$/);
   if (annIdMatch) {
     const annId = annIdMatch[1];
     if (req.method === 'GET') {
@@ -337,21 +336,21 @@ const httpServer = createServer(async (req, res) => {
     }
     if (req.method === 'DELETE') {
       store.del(annId);
-      broadcast({ type: 'annotations:sync', payload: store.all() });
+      broadcast({ type: 'comments:sync', payload: store.all() });
       broadcast({ type: 'tweak:schema', payload: tweaks.buildSchema() });
       jsonResponse(res, 200, { ok: true });
       return;
     }
   }
 
-  const acceptAnnMatch = apiPath.match(/^\/annotations\/([^/]+)\/accept$/);
+  const acceptAnnMatch = apiPath.match(/^\/comments\/([^/]+)\/accept$/);
   if (acceptAnnMatch && req.method === 'POST') {
     const annId = acceptAnnMatch[1];
     try {
-      await tweaks.finalizeForAnnotation(annId);
+      await tweaks.finalizeForComment(annId);
       store.del(annId);
       broadcast({ type: 'tweak:schema', payload: tweaks.buildSchema() });
-      broadcast({ type: 'annotations:sync', payload: store.all() });
+      broadcast({ type: 'comments:sync', payload: store.all() });
       jsonResponse(res, 200, { ok: true });
     } catch (e) {
       jsonResponse(res, 400, { error: String(e) });
@@ -359,11 +358,11 @@ const httpServer = createServer(async (req, res) => {
     return;
   }
 
-  const discardAnnMatch = apiPath.match(/^\/annotations\/([^/]+)\/discard$/);
+  const discardAnnMatch = apiPath.match(/^\/comments\/([^/]+)\/discard$/);
   if (discardAnnMatch && req.method === 'POST') {
     const annId = discardAnnMatch[1];
     try {
-      await tweaks.discardAnnotation(annId);
+      await tweaks.discardComment(annId);
       broadcast({ type: 'tweak:schema', payload: tweaks.buildSchema() });
       jsonResponse(res, 200, { ok: true });
     } catch (e) {

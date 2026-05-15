@@ -10,7 +10,7 @@ export type TweakKnobType =
   | 'button-group';
 
 export interface TweakKnob {
-  /** Equals the annotation id that owns this knob. */
+  /** Equals the comment id that owns this knob. */
   marker: string;
   label: string;
   type: TweakKnobType;
@@ -19,7 +19,7 @@ export interface TweakKnob {
   max?: number;
   step?: number;
   options?: Record<string, string>;
-  annotationId?: string;
+  commentId?: string;
 }
 
 // ─── Tweak actions ────────────────────────────────────────────────────────────
@@ -61,7 +61,7 @@ export interface FileDeleteAction {
 export type TweakAction = ContentEditAction | FileCreateAction | FileDeleteAction;
 
 /**
- * Knob definition embedded in an Annotation. Drives the Tweakpane UI.
+ * Knob definition embedded in an Comment. Drives the Tweakpane UI.
  */
 export interface TweakKnobDef {
   label: string;
@@ -73,15 +73,15 @@ export interface TweakKnobDef {
   options?: Record<string, string>;
 }
 
-// ─── Annotations ─────────────────────────────────────────────────────────────
+// ─── Comments ─────────────────────────────────────────────────────────────
 
-export interface AnnotationSource {
+export interface CommentSource {
   file: string;
   line: number;
   column: number;
 }
 
-export interface AnnotationReply {
+export interface CommentReply {
   id: string;
   type: 'comment' | 'tweak';
   text: string;
@@ -89,27 +89,27 @@ export interface AnnotationReply {
   author?: string;
 }
 
-export interface AnnotationTweakLink {
+export interface CommentTweakLink {
   marker: string;
   label?: string;
   lastValue: string;
   linkedAt: number;
 }
 
-export interface Annotation {
+export interface Comment {
   id: string; // stable uuid, set by browser
   selectors: string[]; // CSS selectors of all annotated elements (via @medv/finder)
   labels: string[]; // short human labels matching selectors
   comment: string;
   pageUrl: string;
   timestamp: number;
-  createdAt: number; // timestamp when annotation was first created
+  createdAt: number; // timestamp when comment was first created
   resolvedAt?: number; // timestamp when resolved; undefined = open
-  source?: AnnotationSource; // source location from code-inspector (file:line:column)
-  replies?: AnnotationReply[];
+  source?: CommentSource; // source location from code-inspector (file:line:column)
+  replies?: CommentReply[];
   /** @deprecated Use `knob` + `actions` instead. */
-  linkedTweaks?: AnnotationTweakLink[];
-  /** Knob definition — when present this annotation drives a live tweak. */
+  linkedTweaks?: CommentTweakLink[];
+  /** Knob definition — when present this comment drives a live tweak. */
   knob?: TweakKnobDef;
   /** Ordered list of actions executed when the knob value changes. */
   actions?: TweakAction[];
@@ -142,40 +142,40 @@ export interface TweakDiscardAllMsg {
 
 export interface TweakDiscardMsg {
   type: 'tweak:discard';
-  payload: { annotationId: string };
+  payload: { commentId: string };
 }
 
-export interface TweakAcceptAnnotationMsg {
-  type: 'tweak:accept-annotation';
-  payload: { annotationId: string };
+export interface TweakAcceptCommentMsg {
+  type: 'tweak:accept-comment';
+  payload: { commentId: string };
 }
 
 export interface TweakAcceptTweakMsg {
   type: 'tweak:accept-tweak';
-  payload: { annotationId: string; marker: string };
+  payload: { commentId: string; marker: string };
 }
 
 export interface TweakDismissMsg {
   type: 'tweak:dismiss';
-  payload: { annotationId: string; marker: string };
+  payload: { commentId: string; marker: string };
 }
 
-export interface AnnotationUpsertMsg {
-  type: 'annotation:upsert';
-  payload: Annotation;
+export interface CommentUpsertMsg {
+  type: 'comment:upsert';
+  payload: Comment;
 }
 
-export interface AnnotationDeleteMsg {
-  type: 'annotation:delete';
+export interface CommentDeleteMsg {
+  type: 'comment:delete';
   payload: { id: string };
 }
 
-export interface AnnotationClearMsg {
-  type: 'annotation:clear';
+export interface CommentClearMsg {
+  type: 'comment:clear';
 }
 
-export interface AnnotationFocusMsg {
-  type: 'annotation:focus';
+export interface CommentFocusMsg {
+  type: 'comment:focus';
   payload: { id: string };
 }
 
@@ -186,13 +186,13 @@ export type BrowserMessage =
   | TweakResetAllMsg
   | TweakDiscardAllMsg
   | TweakDiscardMsg
-  | TweakAcceptAnnotationMsg
+  | TweakAcceptCommentMsg
   | TweakAcceptTweakMsg
   | TweakDismissMsg
-  | AnnotationUpsertMsg
-  | AnnotationDeleteMsg
-  | AnnotationClearMsg
-  | AnnotationFocusMsg;
+  | CommentUpsertMsg
+  | CommentDeleteMsg
+  | CommentClearMsg
+  | CommentFocusMsg;
 
 // ─── Server → Browser ────────────────────────────────────────────────────────
 
@@ -201,23 +201,23 @@ export interface TweakSchemaMsg {
   payload: TweakKnob[];
 }
 
-export interface AnnotationsSyncMsg {
-  type: 'annotations:sync';
-  payload: Annotation[];
+export interface CommentsSyncMsg {
+  type: 'comments:sync';
+  payload: Comment[];
 }
 
 export interface InspectPickMsg {
   type: 'inspect:pick';
-  payload: AnnotationSource;
+  payload: CommentSource;
 }
 
-export interface AnnotationFocusBroadcastMsg {
-  type: 'annotation:focus';
+export interface CommentFocusBroadcastMsg {
+  type: 'comment:focus';
   payload: { id: string };
 }
 
 export type ServerMessage =
   | TweakSchemaMsg
-  | AnnotationsSyncMsg
+  | CommentsSyncMsg
   | InspectPickMsg
-  | AnnotationFocusBroadcastMsg;
+  | CommentFocusBroadcastMsg;

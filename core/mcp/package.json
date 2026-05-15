@@ -2,7 +2,7 @@
   "name": "@design-bridge/mcp",
   "version": "0.0.1",
   "type": "module",
-  "description": "Design Bridge MCP server — exposes annotation and tweak actions to AI agents",
+  "description": "Design Bridge MCP server — exposes comment and tweak actions to AI agents",
   "bin": {
     "design-bridge-mcp": "./index.mjs"
   },

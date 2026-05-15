@@ -19,7 +19,7 @@ import type { TweakKnob } from '@design-bridge/protocol';
  *   - Track the current value locally (optimistic UI)
  *   - Fire `db-knob-change` with `{ value }` when the user changes the input
  *
- * The parent (db-annotation) listens to `db-knob-change` and dispatches the
+ * The parent (db-comment) listens to `db-knob-change` and dispatches the
  * appropriate intent. This component has no knowledge of intents or transport.
  *
  * Renders into light DOM (no shadow root) so the parent's styles apply.
@@ -32,7 +32,7 @@ export class DbKnob extends LitElement {
   /** Locally-tracked current value — initialised from knob.value. */
   @state() private _value: string | number | boolean = '';
 
-  // Use light DOM so db-annotation's existing CSS applies directly.
+  // Use light DOM so db-comment's existing CSS applies directly.
   protected createRenderRoot(): HTMLElement {
     return this;
   }

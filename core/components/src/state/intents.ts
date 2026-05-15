@@ -2,13 +2,13 @@
  * Intent bus — decouples UI components from transport.
  *
  * Components dispatch typed intents when users take action (e.g. change a
- * knob, delete an annotation). A transport adapter (ws-adapter.ts in the
+ * knob, delete an comment). A transport adapter (ws-adapter.ts in the
  * client package) subscribes and translates intents into WebSocket messages.
  *
  * No WebSocket or browser-API imports here — this module is transport-agnostic.
  */
 
-import type { Annotation } from '@design-bridge/protocol';
+import type { Comment } from '@design-bridge/protocol';
 
 // ── Intent types ──────────────────────────────────────────────────────────────
 
@@ -16,31 +16,31 @@ export type TweakChangeIntent = { type: 'tweak:change'; marker: string; value: s
 export type TweakRevertIntent = { type: 'tweak:revert' };
 export type TweakApplyIntent = { type: 'tweak:apply'; markers: string[] };
 export type TweakDiscardIntent = { type: 'tweak:discard' };
-export type TweakDiscardAnnotationIntent = {
-  type: 'tweak:discard-annotation';
-  annotationId: string;
+export type TweakDiscardCommentIntent = {
+  type: 'tweak:discard-comment';
+  commentId: string;
 };
-export type TweakAcceptAnnotationIntent = { type: 'tweak:accept-annotation'; annotationId: string };
+export type TweakAcceptCommentIntent = { type: 'tweak:accept-comment'; commentId: string };
 export type TweakAcceptOneIntent = {
   type: 'tweak:accept-one';
-  annotationId: string;
+  commentId: string;
   marker: string;
 };
 export type TweakDismissOneIntent = {
   type: 'tweak:dismiss-one';
-  annotationId: string;
+  commentId: string;
   marker: string;
 };
 
-export type AnnotationDeleteIntent = { type: 'annotation:delete'; id: string };
-export type AnnotationClearIntent = { type: 'annotation:clear' };
-export type AnnotationOpenIntent = { type: 'annotation:open'; id: string };
-export type AnnotationSaveIntent = { type: 'annotation:save'; annotation: Annotation };
-export type AnnotationCancelIntent = { type: 'annotation:cancel'; id: string };
-export type AnnotationResolveIntent = { type: 'annotation:resolve'; id: string };
-export type AnnotationBadgeClickIntent = { type: 'annotation:badge-click'; id: string };
+export type CommentDeleteIntent = { type: 'comment:delete'; id: string };
+export type CommentClearIntent = { type: 'comment:clear' };
+export type CommentOpenIntent = { type: 'comment:open'; id: string };
+export type CommentSaveIntent = { type: 'comment:save'; comment: Comment };
+export type CommentCancelIntent = { type: 'comment:cancel'; id: string };
+export type CommentResolveIntent = { type: 'comment:resolve'; id: string };
+export type CommentBadgeClickIntent = { type: 'comment:badge-click'; id: string };
 
-export type PanelTabIntent = { type: 'panel:set-tab'; tab: 'tweaks' | 'annotations' };
+export type PanelTabIntent = { type: 'panel:set-tab'; tab: 'tweaks' | 'comments' };
 export type PanelCollapseIntent = { type: 'panel:set-collapsed'; collapsed: boolean };
 
 export type ComponentIntent =
@@ -48,17 +48,17 @@ export type ComponentIntent =
   | TweakRevertIntent
   | TweakApplyIntent
   | TweakDiscardIntent
-  | TweakDiscardAnnotationIntent
-  | TweakAcceptAnnotationIntent
+  | TweakDiscardCommentIntent
+  | TweakAcceptCommentIntent
   | TweakAcceptOneIntent
   | TweakDismissOneIntent
-  | AnnotationDeleteIntent
-  | AnnotationClearIntent
-  | AnnotationOpenIntent
-  | AnnotationSaveIntent
-  | AnnotationCancelIntent
-  | AnnotationResolveIntent
-  | AnnotationBadgeClickIntent
+  | CommentDeleteIntent
+  | CommentClearIntent
+  | CommentOpenIntent
+  | CommentSaveIntent
+  | CommentCancelIntent
+  | CommentResolveIntent
+  | CommentBadgeClickIntent
   | PanelTabIntent
   | PanelCollapseIntent;
 

@@ -1,9 +1,9 @@
 /**
- * Tweak Engine — annotation-driven, action-based file transformation system.
+ * Tweak Engine — comment-driven, action-based file transformation system.
  *
  * Architecture:
  *
- *   Annotation (owns the knob + ordered actions[])
+ *   Comment (owns the knob + ordered actions[])
  *     └─ ContentEditAction  → loads .design-bridge/scripts/{scriptId}.mjs
  *                             script: (content: string, value: unknown) => string
  *     └─ FileCreateAction   → writes .design-bridge/files/{fileId} to path
@@ -16,8 +16,8 @@
  *   Discard restores all snapshots and deletes scripts/files/cache artifacts.
  *   Finalize makes changes permanent and clears the snapshot.
  *
- * Use createTweakEngine(rootDir, getAnnotations) to get a bound instance.
- * `getAnnotations` is a callback that returns the current annotation list —
+ * Use createTweakEngine(rootDir, getComments) to get a bound instance.
+ * `getComments` is a callback that returns the current comment list —
  * the engine has no direct reference to the store.
  */
 
@@ -154,30 +154,30 @@ async function executeAction(rootDir, { scripts, files, cache }, action, value) 
 
 /**
  * @param {string} rootDir
- * @param {() => object[]} getAnnotations  — returns current annotation list from the store
+ * @param {() => object[]} getComments  — returns current comment list from the store
  */
-export function createTweakEngine(rootDir, getAnnotations) {
+export function createTweakEngine(rootDir, getComments) {
   const { scripts: SCRIPTS_DIR, files: FILES_DIR, cache: CACHE_DIR } = dirs(rootDir);
 
   /**
-   * In-memory map of annotation id → current knob value (overridden by user).
+   * In-memory map of comment id → current knob value (overridden by user).
    * @type {Map<string, unknown>}
    */
   const activeValues = new Map();
 
   // ── Helpers ─────────────────────────────────────────────────────────────
 
-  function tweakableAnnotations() {
-    return getAnnotations().filter((a) => a.knob && Array.isArray(a.actions));
+  function tweakableComments() {
+    return getComments().filter((a) => a.knob && Array.isArray(a.actions));
   }
 
   function currentValue(ann) {
     return activeValues.has(ann.id) ? activeValues.get(ann.id) : ann.knob.value;
   }
 
-  function allTouchedFiles(annotations) {
+  function allTouchedFiles(comments) {
     const set = new Set();
-    for (const ann of annotations) {
+    for (const ann of comments) {
       for (const action of ann.actions ?? []) {
         for (const f of touchedByAction(rootDir, action)) set.add(f);
       }
@@ -209,17 +209,17 @@ export function createTweakEngine(rootDir, getAnnotations) {
 
   /**
    * Restore all touched files from snapshot, then re-execute all active
-   * annotations in createdAt order.
+   * comments in createdAt order.
    */
   async function replay() {
-    const annotations = tweakableAnnotations();
-    if (annotations.length === 0) return;
+    const comments = tweakableComments();
+    if (comments.length === 0) return;
 
-    const touched = allTouchedFiles(annotations);
+    const touched = allTouchedFiles(comments);
     await snapshotAll(touched);
     await restoreAll(touched);
 
-    const sorted = [...annotations].sort((a, b) => (a.createdAt ?? 0) - (b.createdAt ?? 0));
+    const sorted = [...comments].sort((a, b) => (a.createdAt ?? 0) - (b.createdAt ?? 0));
     for (const ann of sorted) {
       const value = currentValue(ann);
       for (const action of ann.actions ?? []) {
@@ -231,7 +231,7 @@ export function createTweakEngine(rootDir, getAnnotations) {
             value,
           );
         } catch (e) {
-          console.error(`[design-bridge] error executing action for annotation "${ann.id}":`, e);
+          console.error(`[design-bridge] error executing action for comment "${ann.id}":`, e);
         }
       }
     }
@@ -239,29 +239,29 @@ export function createTweakEngine(rootDir, getAnnotations) {
 
   // ── Public API ───────────────────────────────────────────────────────────
 
-  async function applyTweakChange(annotationId, value) {
-    activeValues.set(annotationId, value);
+  async function applyTweakChange(commentId, value) {
+    activeValues.set(commentId, value);
     await replay();
   }
 
-  async function resetTweak(annotationId) {
-    activeValues.delete(annotationId);
+  async function resetTweak(commentId) {
+    activeValues.delete(commentId);
     await replay();
   }
 
   async function resetAllTweaks() {
     activeValues.clear();
-    const annotations = tweakableAnnotations();
-    const touched = allTouchedFiles(annotations);
+    const comments = tweakableComments();
+    const touched = allTouchedFiles(comments);
     await restoreAll(touched);
     await clearSnapshots(touched);
   }
 
-  async function finalizeAnnotations(annotationIds) {
-    if (annotationIds.length === 0) return;
-    const idSet = new Set(annotationIds);
+  async function finalizeComments(commentIds) {
+    if (commentIds.length === 0) return;
+    const idSet = new Set(commentIds);
 
-    const all = tweakableAnnotations();
+    const all = tweakableComments();
     const toFinalize = all.filter((a) => idSet.has(a.id));
     const toKeep = all.filter((a) => !idSet.has(a.id));
 
@@ -284,12 +284,12 @@ export function createTweakEngine(rootDir, getAnnotations) {
             value,
           );
         } catch (e) {
-          console.error(`[design-bridge] finalize error for annotation "${ann.id}":`, e);
+          console.error(`[design-bridge] finalize error for comment "${ann.id}":`, e);
         }
       }
     }
 
-    // Clear snapshots for files only touched by finalized annotations
+    // Clear snapshots for files only touched by finalized comments
     const keepTouched = allTouchedFiles(toKeep);
     const finalizeTouched = allTouchedFiles(toFinalize);
     for (const f of finalizeTouched) {
@@ -298,7 +298,7 @@ export function createTweakEngine(rootDir, getAnnotations) {
 
     // Delete artifacts, remove from active values
     for (const ann of toFinalize) {
-      await deleteAnnotationArtifacts(ann);
+      await deleteCommentArtifacts(ann);
       activeValues.delete(ann.id);
     }
 
@@ -315,13 +315,13 @@ export function createTweakEngine(rootDir, getAnnotations) {
     }
   }
 
-  async function finalizeForAnnotation(annotationId) {
-    await finalizeAnnotations([annotationId]);
+  async function finalizeForComment(commentId) {
+    await finalizeComments([commentId]);
   }
 
   async function finalizeAll() {
-    const all = tweakableAnnotations();
-    await finalizeAnnotations(all.map((a) => a.id));
+    const all = tweakableComments();
+    await finalizeComments(all.map((a) => a.id));
     try {
       await rm(CACHE_DIR, { recursive: true, force: true });
     } catch {
@@ -329,16 +329,16 @@ export function createTweakEngine(rootDir, getAnnotations) {
     }
   }
 
-  async function discardAnnotation(annotationId) {
-    const annotations = tweakableAnnotations();
-    const target = annotations.find((a) => a.id === annotationId);
+  async function discardComment(commentId) {
+    const comments = tweakableComments();
+    const target = comments.find((a) => a.id === commentId);
     if (!target) return;
 
-    const remaining = annotations.filter((a) => a.id !== annotationId);
+    const remaining = comments.filter((a) => a.id !== commentId);
     const touched = allTouchedFiles([target]);
     const keepTouched = allTouchedFiles(remaining);
 
-    activeValues.delete(annotationId);
+    activeValues.delete(commentId);
 
     if (remaining.length > 0) {
       await replay();
@@ -350,16 +350,16 @@ export function createTweakEngine(rootDir, getAnnotations) {
       await clearSnapshots(touched);
     }
 
-    await deleteAnnotationArtifacts(target);
+    await deleteCommentArtifacts(target);
   }
 
   async function discardAll() {
-    const annotations = tweakableAnnotations();
-    const touched = allTouchedFiles(annotations);
+    const comments = tweakableComments();
+    const touched = allTouchedFiles(comments);
     activeValues.clear();
     await restoreAll(touched);
     await clearSnapshots(touched);
-    for (const ann of annotations) await deleteAnnotationArtifacts(ann);
+    for (const ann of comments) await deleteCommentArtifacts(ann);
     try {
       await rm(CACHE_DIR, { recursive: true, force: true });
     } catch {
@@ -367,7 +367,7 @@ export function createTweakEngine(rootDir, getAnnotations) {
     }
   }
 
-  async function deleteAnnotationArtifacts(ann) {
+  async function deleteCommentArtifacts(ann) {
     for (const action of ann.actions ?? []) {
       if (action.type === 'content-edit') {
         await rm(resolve(SCRIPTS_DIR, `${action.scriptId}.mjs`), { force: true });
@@ -381,9 +381,9 @@ export function createTweakEngine(rootDir, getAnnotations) {
   // ── Schema builder ───────────────────────────────────────────────────────
 
   function buildSchema() {
-    return tweakableAnnotations().map((ann) => ({
+    return tweakableComments().map((ann) => ({
       marker: ann.id,
-      annotationId: ann.id,
+      commentId: ann.id,
       label: ann.knob.label,
       type: ann.knob.type ?? 'string',
       value: activeValues.has(ann.id) ? activeValues.get(ann.id) : ann.knob.value,
@@ -428,9 +428,9 @@ export function createTweakEngine(rootDir, getAnnotations) {
     applyTweakChange,
     resetTweak,
     resetAllTweaks,
-    finalizeForAnnotation,
+    finalizeForComment,
     finalizeAll,
-    discardAnnotation,
+    discardComment,
     discardAll,
     writeScript,
     readScript,

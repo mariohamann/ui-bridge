@@ -14,7 +14,7 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const TEST_ROOT = resolve(__dirname, '../.test-root');
-const ANNOTATIONS_DIR = resolve(TEST_ROOT, '.design-bridge', 'annotations');
+const ANNOTATIONS_DIR = resolve(TEST_ROOT, '.design-bridge', 'comments');
 
 const TEST_PORT = parseInt(process.env.DESIGN_BRIDGE_PORT ?? '7379', 10);
 const BASE = `http://localhost:${TEST_PORT}`;
@@ -23,12 +23,12 @@ const WS_URL = `ws://localhost:${TEST_PORT}/design-bridge`;
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
-function makeAnnotation(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+function makeComment(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
     id: `ann-${Date.now()}-${Math.random().toString(36).slice(2)}`,
     selectors: ['h1'],
     labels: ['h1'],
-    comment: 'Test annotation',
+    comment: 'Test comment',
     pageUrl: 'http://localhost:5173/',
     timestamp: Date.now(),
     createdAt: Date.now(),
@@ -97,7 +97,7 @@ function wsSend(url: string, message: unknown, durationMs = 400): Promise<unknow
 // ─── cleanup ──────────────────────────────────────────────────────────────────
 
 test.beforeEach(async ({ request }) => {
-  await request.delete(`${API}/annotations`);
+  await request.delete(`${API}/comments`);
 });
 
 // ─── Health & static ─────────────────────────────────────────────────────────
@@ -123,7 +123,7 @@ test.describe('Health & static routes', () => {
   });
 
   test('OPTIONS * returns 204 (CORS preflight)', async ({ request }) => {
-    const res = await request.fetch(`${API}/annotations`, { method: 'OPTIONS' });
+    const res = await request.fetch(`${API}/comments`, { method: 'OPTIONS' });
     expect(res.status()).toBe(204);
   });
 
@@ -133,64 +133,64 @@ test.describe('Health & static routes', () => {
   });
 });
 
-// ─── Annotation collection endpoints ─────────────────────────────────────────
+// ─── Comment collection endpoints ─────────────────────────────────────────
 
-test.describe('GET /api/annotations', () => {
-  test('returns empty list when no annotations exist', async ({ request }) => {
-    const res = await request.get(`${API}/annotations`);
+test.describe('GET /api/comments', () => {
+  test('returns empty list when no comments exist', async ({ request }) => {
+    const res = await request.get(`${API}/comments`);
     expect(res.status()).toBe(200);
-    const body = (await res.json()) as { annotations: unknown[] };
-    expect(body.annotations).toEqual([]);
+    const body = (await res.json()) as { comments: unknown[] };
+    expect(body.comments).toEqual([]);
   });
 
-  test('returns all stored annotations', async ({ request }) => {
-    const a1 = makeAnnotation({ id: 'list-1', comment: 'First' });
-    const a2 = makeAnnotation({ id: 'list-2', comment: 'Second' });
-    await request.post(`${API}/annotations`, { data: a1 });
-    await request.post(`${API}/annotations`, { data: a2 });
+  test('returns all stored comments', async ({ request }) => {
+    const a1 = makeComment({ id: 'list-1', comment: 'First' });
+    const a2 = makeComment({ id: 'list-2', comment: 'Second' });
+    await request.post(`${API}/comments`, { data: a1 });
+    await request.post(`${API}/comments`, { data: a2 });
 
-    const res = await request.get(`${API}/annotations`);
-    const body = (await res.json()) as { annotations: { id: string }[] };
-    const ids = body.annotations.map((a) => a.id);
+    const res = await request.get(`${API}/comments`);
+    const body = (await res.json()) as { comments: { id: string }[] };
+    const ids = body.comments.map((a) => a.id);
     expect(ids).toContain('list-1');
     expect(ids).toContain('list-2');
   });
 });
 
-test.describe('POST /api/annotations', () => {
-  test('creates an annotation and returns 200', async ({ request }) => {
-    const ann = makeAnnotation({ id: 'create-ok', comment: 'Created' });
-    const res = await request.post(`${API}/annotations`, { data: ann });
+test.describe('POST /api/comments', () => {
+  test('creates an comment and returns 200', async ({ request }) => {
+    const ann = makeComment({ id: 'create-ok', comment: 'Created' });
+    const res = await request.post(`${API}/comments`, { data: ann });
     expect(res.status()).toBe(200);
     const body = (await res.json()) as { ok: boolean };
     expect(body.ok).toBe(true);
 
-    // File must exist at exactly <TEST_ROOT>/.design-bridge/annotations/<id>.json
+    // File must exist at exactly <TEST_ROOT>/.design-bridge/comments/<id>.json
     const expectedPath = resolve(ANNOTATIONS_DIR, 'create-ok.json');
     await expect(access(expectedPath)).resolves.toBeUndefined();
 
-    // No stray files outside the expected annotations directory
+    // No stray files outside the expected comments directory
     const allFiles = await readdir(ANNOTATIONS_DIR);
     expect(allFiles).toContain('create-ok.json');
   });
 
-  test('upserts: posting with same id updates the annotation', async ({ request }) => {
-    const ann = makeAnnotation({ id: 'upsert-id', comment: 'Original' });
-    await request.post(`${API}/annotations`, { data: ann });
-    await request.post(`${API}/annotations`, { data: { ...ann, comment: 'Updated' } });
+  test('upserts: posting with same id updates the comment', async ({ request }) => {
+    const ann = makeComment({ id: 'upsert-id', comment: 'Original' });
+    await request.post(`${API}/comments`, { data: ann });
+    await request.post(`${API}/comments`, { data: { ...ann, comment: 'Updated' } });
 
-    const res = await request.get(`${API}/annotations/upsert-id`);
+    const res = await request.get(`${API}/comments/upsert-id`);
     const body = (await res.json()) as { comment: string };
     expect(body.comment).toBe('Updated');
   });
 
   test('returns 400 when body is missing id', async ({ request }) => {
-    const res = await request.post(`${API}/annotations`, { data: { comment: 'No id' } });
+    const res = await request.post(`${API}/comments`, { data: { comment: 'No id' } });
     expect(res.status()).toBe(400);
   });
 
   test('returns 400 on invalid JSON body', async ({ request }) => {
-    const res = await request.fetch(`${API}/annotations`, {
+    const res = await request.fetch(`${API}/comments`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       data: 'not-json',
@@ -199,37 +199,37 @@ test.describe('POST /api/annotations', () => {
   });
 });
 
-test.describe('DELETE /api/annotations (clear all)', () => {
-  test('removes all annotations and returns 200', async ({ request }) => {
-    await request.post(`${API}/annotations`, { data: makeAnnotation({ id: 'clr-1' }) });
-    await request.post(`${API}/annotations`, { data: makeAnnotation({ id: 'clr-2' }) });
+test.describe('DELETE /api/comments (clear all)', () => {
+  test('removes all comments and returns 200', async ({ request }) => {
+    await request.post(`${API}/comments`, { data: makeComment({ id: 'clr-1' }) });
+    await request.post(`${API}/comments`, { data: makeComment({ id: 'clr-2' }) });
 
-    const del = await request.delete(`${API}/annotations`);
+    const del = await request.delete(`${API}/comments`);
     expect(del.status()).toBe(200);
 
-    const list = await request.get(`${API}/annotations`);
-    const body = (await list.json()) as { annotations: unknown[] };
-    expect(body.annotations).toHaveLength(0);
+    const list = await request.get(`${API}/comments`);
+    const body = (await list.json()) as { comments: unknown[] };
+    expect(body.comments).toHaveLength(0);
 
-    // Annotation files must be gone from the filesystem too
+    // Comment files must be gone from the filesystem too
     const remaining = await readdir(ANNOTATIONS_DIR).catch(() => []);
     expect(remaining.filter((f) => f.endsWith('.json'))).toHaveLength(0);
   });
 
   test('is idempotent on an already-empty store', async ({ request }) => {
-    const res = await request.delete(`${API}/annotations`);
+    const res = await request.delete(`${API}/comments`);
     expect(res.status()).toBe(200);
   });
 });
 
-// ─── Per-annotation endpoints ─────────────────────────────────────────────────
+// ─── Per-comment endpoints ─────────────────────────────────────────────────
 
-test.describe('GET /api/annotations/:id', () => {
-  test('returns the annotation by id', async ({ request }) => {
-    const ann = makeAnnotation({ id: 'get-by-id', comment: 'Fetch me' });
-    await request.post(`${API}/annotations`, { data: ann });
+test.describe('GET /api/comments/:id', () => {
+  test('returns the comment by id', async ({ request }) => {
+    const ann = makeComment({ id: 'get-by-id', comment: 'Fetch me' });
+    await request.post(`${API}/comments`, { data: ann });
 
-    const res = await request.get(`${API}/annotations/get-by-id`);
+    const res = await request.get(`${API}/comments/get-by-id`);
     expect(res.status()).toBe(200);
     const body = (await res.json()) as { id: string; comment: string };
     expect(body.id).toBe('get-by-id');
@@ -237,21 +237,21 @@ test.describe('GET /api/annotations/:id', () => {
   });
 
   test('returns 404 for unknown id', async ({ request }) => {
-    const res = await request.get(`${API}/annotations/does-not-exist`);
+    const res = await request.get(`${API}/comments/does-not-exist`);
     expect(res.status()).toBe(404);
   });
 });
 
-test.describe('DELETE /api/annotations/:id', () => {
-  test('removes only the target annotation', async ({ request }) => {
-    await request.post(`${API}/annotations`, { data: makeAnnotation({ id: 'del-me' }) });
-    await request.post(`${API}/annotations`, { data: makeAnnotation({ id: 'keep-me' }) });
+test.describe('DELETE /api/comments/:id', () => {
+  test('removes only the target comment', async ({ request }) => {
+    await request.post(`${API}/comments`, { data: makeComment({ id: 'del-me' }) });
+    await request.post(`${API}/comments`, { data: makeComment({ id: 'keep-me' }) });
 
-    const del = await request.delete(`${API}/annotations/del-me`);
+    const del = await request.delete(`${API}/comments/del-me`);
     expect(del.status()).toBe(200);
 
-    expect((await request.get(`${API}/annotations/del-me`)).status()).toBe(404);
-    expect((await request.get(`${API}/annotations/keep-me`)).status()).toBe(200);
+    expect((await request.get(`${API}/comments/del-me`)).status()).toBe(404);
+    expect((await request.get(`${API}/comments/keep-me`)).status()).toBe(200);
 
     // Deleted file must not exist on disk; kept file must still be present
     const deletedPath = resolve(ANNOTATIONS_DIR, 'del-me.json');
@@ -261,13 +261,13 @@ test.describe('DELETE /api/annotations/:id', () => {
   });
 });
 
-test.describe('POST /api/annotations/:id/accept', () => {
-  test('removes the annotation after accepting (no active tweaks)', async ({ request }) => {
-    await request.post(`${API}/annotations`, { data: makeAnnotation({ id: 'accept-ann' }) });
+test.describe('POST /api/comments/:id/accept', () => {
+  test('removes the comment after accepting (no active tweaks)', async ({ request }) => {
+    await request.post(`${API}/comments`, { data: makeComment({ id: 'accept-ann' }) });
 
-    const res = await request.post(`${API}/annotations/accept-ann/accept`);
+    const res = await request.post(`${API}/comments/accept-ann/accept`);
     expect(res.status()).toBe(200);
-    expect((await request.get(`${API}/annotations/accept-ann`)).status()).toBe(404);
+    expect((await request.get(`${API}/comments/accept-ann`)).status()).toBe(404);
   });
 });
 
@@ -328,34 +328,34 @@ test.describe('POST /inspect-pick', () => {
   });
 });
 
-// ─── Annotation disk persistence ──────────────────────────────────────────────
+// ─── Comment disk persistence ──────────────────────────────────────────────
 
-test.describe('Annotation persistence', () => {
-  test('annotation is retrievable after a second GET (stored in memory)', async ({ request }) => {
-    const ann = makeAnnotation({ id: 'persist-1', comment: 'Persisted' });
-    await request.post(`${API}/annotations`, { data: ann });
+test.describe('Comment persistence', () => {
+  test('comment is retrievable after a second GET (stored in memory)', async ({ request }) => {
+    const ann = makeComment({ id: 'persist-1', comment: 'Persisted' });
+    await request.post(`${API}/comments`, { data: ann });
 
     // Retrieve twice — confirms it stays in the in-memory store
-    const r1 = (await (await request.get(`${API}/annotations/persist-1`)).json()) as {
+    const r1 = (await (await request.get(`${API}/comments/persist-1`)).json()) as {
       comment: string;
     };
-    const r2 = (await (await request.get(`${API}/annotations/persist-1`)).json()) as {
+    const r2 = (await (await request.get(`${API}/comments/persist-1`)).json()) as {
       comment: string;
     };
     expect(r1.comment).toBe('Persisted');
     expect(r2.comment).toBe('Persisted');
   });
 
-  test('DELETE /api/annotations/:id removes it from subsequent GET /api/annotations', async ({
+  test('DELETE /api/comments/:id removes it from subsequent GET /api/comments', async ({
     request,
   }) => {
-    await request.post(`${API}/annotations`, { data: makeAnnotation({ id: 'gone' }) });
-    await request.delete(`${API}/annotations/gone`);
+    await request.post(`${API}/comments`, { data: makeComment({ id: 'gone' }) });
+    await request.delete(`${API}/comments/gone`);
 
-    const list = (await (await request.get(`${API}/annotations`)).json()) as {
-      annotations: { id: string }[];
+    const list = (await (await request.get(`${API}/comments`)).json()) as {
+      comments: { id: string }[];
     };
-    expect(list.annotations.find((a) => a.id === 'gone')).toBeUndefined();
+    expect(list.comments.find((a) => a.id === 'gone')).toBeUndefined();
   });
 });
 
@@ -364,60 +364,60 @@ test.describe('Annotation persistence', () => {
 test.describe('WebSocket — initial state broadcast', () => {
   test('server accepts a WebSocket connection on /design-bridge', async () => {
     const msgs = await wsMessages(WS_URL);
-    // Server should not error; msgs may be empty (no scripts/annotations)
+    // Server should not error; msgs may be empty (no scripts/comments)
     expect(Array.isArray(msgs)).toBe(true);
   });
 
-  test('server sends annotations:sync on connect when annotations exist', async ({ request }) => {
-    const ann = makeAnnotation({ id: 'ws-init', comment: 'WS init' });
-    await request.post(`${API}/annotations`, { data: ann });
+  test('server sends comments:sync on connect when comments exist', async ({ request }) => {
+    const ann = makeComment({ id: 'ws-init', comment: 'WS init' });
+    await request.post(`${API}/comments`, { data: ann });
 
     const msgs = (await wsMessages(WS_URL, 500)) as { type: string; payload: unknown }[];
-    const sync = msgs.find((m) => m.type === 'annotations:sync');
+    const sync = msgs.find((m) => m.type === 'comments:sync');
     expect(sync).toBeDefined();
     expect(Array.isArray(sync!.payload)).toBe(true);
   });
 });
 
-test.describe('WebSocket — annotation messages', () => {
-  test('annotation:upsert stores the annotation (visible in REST API)', async ({ request }) => {
-    const ann = makeAnnotation({ id: 'ws-upsert', comment: 'Via WS' });
-    await wsSend(WS_URL, { type: 'annotation:upsert', payload: ann });
+test.describe('WebSocket — comment messages', () => {
+  test('comment:upsert stores the comment (visible in REST API)', async ({ request }) => {
+    const ann = makeComment({ id: 'ws-upsert', comment: 'Via WS' });
+    await wsSend(WS_URL, { type: 'comment:upsert', payload: ann });
 
-    const res = await request.get(`${API}/annotations/ws-upsert`);
+    const res = await request.get(`${API}/comments/ws-upsert`);
     expect(res.status()).toBe(200);
     const body = (await res.json()) as { comment: string };
     expect(body.comment).toBe('Via WS');
   });
 
-  test('annotation:delete removes the annotation (no longer in REST API)', async ({ request }) => {
+  test('comment:delete removes the comment (no longer in REST API)', async ({ request }) => {
     // Create via REST, delete via WS
-    await request.post(`${API}/annotations`, { data: makeAnnotation({ id: 'ws-del' }) });
-    await wsSend(WS_URL, { type: 'annotation:delete', payload: { id: 'ws-del' } });
+    await request.post(`${API}/comments`, { data: makeComment({ id: 'ws-del' }) });
+    await wsSend(WS_URL, { type: 'comment:delete', payload: { id: 'ws-del' } });
 
-    const res = await request.get(`${API}/annotations/ws-del`);
+    const res = await request.get(`${API}/comments/ws-del`);
     expect(res.status()).toBe(404);
   });
 
-  test('annotation:clear empties all annotations', async ({ request }) => {
-    await request.post(`${API}/annotations`, { data: makeAnnotation({ id: 'ws-clr-1' }) });
-    await request.post(`${API}/annotations`, { data: makeAnnotation({ id: 'ws-clr-2' }) });
+  test('comment:clear empties all comments', async ({ request }) => {
+    await request.post(`${API}/comments`, { data: makeComment({ id: 'ws-clr-1' }) });
+    await request.post(`${API}/comments`, { data: makeComment({ id: 'ws-clr-2' }) });
 
-    await wsSend(WS_URL, { type: 'annotation:clear' });
+    await wsSend(WS_URL, { type: 'comment:clear' });
 
-    const list = (await (await request.get(`${API}/annotations`)).json()) as {
-      annotations: unknown[];
+    const list = (await (await request.get(`${API}/comments`)).json()) as {
+      comments: unknown[];
     };
-    expect(list.annotations).toHaveLength(0);
+    expect(list.comments).toHaveLength(0);
   });
 
-  test('annotation:upsert triggers annotations:sync broadcast', async ({ request }) => {
-    const ann = makeAnnotation({ id: 'ws-broadcast', comment: 'Broadcast test' });
-    const replies = (await wsSend(WS_URL, { type: 'annotation:upsert', payload: ann })) as {
+  test('comment:upsert triggers comments:sync broadcast', async ({ request }) => {
+    const ann = makeComment({ id: 'ws-broadcast', comment: 'Broadcast test' });
+    const replies = (await wsSend(WS_URL, { type: 'comment:upsert', payload: ann })) as {
       type: string;
     }[];
 
-    const sync = replies.find((m) => m.type === 'annotations:sync');
+    const sync = replies.find((m) => m.type === 'comments:sync');
     expect(sync).toBeDefined();
   });
 });
@@ -521,16 +521,16 @@ test.describe('DELETE /api/files/:id', () => {
   });
 });
 
-// ─── Annotation-driven tweak lifecycle ───────────────────────────────────────
+// ─── Comment-driven tweak lifecycle ───────────────────────────────────────
 
 const FIXTURE_FILE = 'src/components/FeaturesSection.vue';
 
 /**
- * Build an annotation with a select knob and a single content-edit action
+ * Build an comment with a select knob and a single content-edit action
  * targeting the FeaturesSection.vue fixture.
  */
-function makeTweakAnnotation(id: string): Record<string, unknown> {
-  return makeAnnotation({
+function makeTweakComment(id: string): Record<string, unknown> {
+  return makeComment({
     id,
     selectors: ['article:nth-of-type(2) > .feature-icon'],
     labels: ['span.feature-icon'],
@@ -555,21 +555,21 @@ function makeTweakAnnotation(id: string): Record<string, unknown> {
 const ICON_TRANSFORMER_SCRIPT =
   "export default (content, value) => content.replace(/icon: '[^']*'/, `icon: '${value}'`);";
 
-test.describe('Annotation-driven tweak — full lifecycle', () => {
+test.describe('Comment-driven tweak — full lifecycle', () => {
   const ANN_ID = 'tweak-lifecycle';
 
   test.beforeEach(async ({ request }) => {
     // Ensure clean state
-    await request.delete(`${API}/annotations`);
+    await request.delete(`${API}/comments`);
     // Create the transformer script
     await request.post(`${API}/scripts`, {
       data: { id: `${ANN_ID}-icon`, script: ICON_TRANSFORMER_SCRIPT },
     });
   });
 
-  test('POST annotation with knob+actions → GET /api/tweaks returns knob', async ({ request }) => {
-    const ann = makeTweakAnnotation(ANN_ID);
-    await request.post(`${API}/annotations`, { data: ann });
+  test('POST comment with knob+actions → GET /api/tweaks returns knob', async ({ request }) => {
+    const ann = makeTweakComment(ANN_ID);
+    await request.post(`${API}/comments`, { data: ann });
 
     const res = await request.get(`${API}/tweaks`);
     const body = (await res.json()) as { knobs: { marker: string; label: string }[] };
@@ -579,8 +579,8 @@ test.describe('Annotation-driven tweak — full lifecycle', () => {
   });
 
   test('tweak:change via WS transforms the file', async ({ request }) => {
-    const ann = makeTweakAnnotation(ANN_ID);
-    await request.post(`${API}/annotations`, { data: ann });
+    const ann = makeTweakComment(ANN_ID);
+    await request.post(`${API}/comments`, { data: ann });
 
     const replies = (await wsSend(
       WS_URL,
@@ -600,8 +600,8 @@ test.describe('Annotation-driven tweak — full lifecycle', () => {
   });
 
   test('tweak:discard-all restores the original file content', async ({ request }) => {
-    const ann = makeTweakAnnotation(ANN_ID);
-    await request.post(`${API}/annotations`, { data: ann });
+    const ann = makeTweakComment(ANN_ID);
+    await request.post(`${API}/comments`, { data: ann });
 
     // First apply a change
     await wsSend(
@@ -626,11 +626,9 @@ test.describe('Annotation-driven tweak — full lifecycle', () => {
     expect(afterDiscard).not.toContain("icon: '🔥'");
   });
 
-  test('POST /api/annotations/:id/discard restores the file for one annotation', async ({
-    request,
-  }) => {
-    const ann = makeTweakAnnotation(ANN_ID);
-    await request.post(`${API}/annotations`, { data: ann });
+  test('POST /api/comments/:id/discard restores the file for one comment', async ({ request }) => {
+    const ann = makeTweakComment(ANN_ID);
+    await request.post(`${API}/comments`, { data: ann });
 
     await wsSend(
       WS_URL,
@@ -641,7 +639,7 @@ test.describe('Annotation-driven tweak — full lifecycle', () => {
       600,
     );
 
-    const res = await request.post(`${API}/annotations/${ANN_ID}/discard`);
+    const res = await request.post(`${API}/comments/${ANN_ID}/discard`);
     expect(res.status()).toBe(200);
 
     const content = await readFile(resolve(TEST_ROOT, FIXTURE_FILE), 'utf-8');
@@ -649,9 +647,9 @@ test.describe('Annotation-driven tweak — full lifecycle', () => {
     expect(content).not.toContain("icon: '🚀'");
   });
 
-  test('POST /api/annotations/:id/accept finalizes the change permanently', async ({ request }) => {
-    const ann = makeTweakAnnotation(ANN_ID);
-    await request.post(`${API}/annotations`, { data: ann });
+  test('POST /api/comments/:id/accept finalizes the change permanently', async ({ request }) => {
+    const ann = makeTweakComment(ANN_ID);
+    await request.post(`${API}/comments`, { data: ann });
 
     await wsSend(
       WS_URL,
@@ -662,11 +660,11 @@ test.describe('Annotation-driven tweak — full lifecycle', () => {
       600,
     );
 
-    const res = await request.post(`${API}/annotations/${ANN_ID}/accept`);
+    const res = await request.post(`${API}/comments/${ANN_ID}/accept`);
     expect(res.status()).toBe(200);
 
-    // Annotation should be gone
-    expect((await request.get(`${API}/annotations/${ANN_ID}`)).status()).toBe(404);
+    // Comment should be gone
+    expect((await request.get(`${API}/comments/${ANN_ID}`)).status()).toBe(404);
 
     // File content should be permanently changed
     const content = await readFile(resolve(TEST_ROOT, FIXTURE_FILE), 'utf-8');
@@ -680,21 +678,21 @@ test.describe('Annotation-driven tweak — full lifecycle', () => {
   });
 });
 
-test.describe('Annotation-driven tweak — WS schema broadcast', () => {
-  test('annotation:upsert with knob triggers tweak:schema broadcast', async ({ request }) => {
+test.describe('Comment-driven tweak — WS schema broadcast', () => {
+  test('comment:upsert with knob triggers tweak:schema broadcast', async ({ request }) => {
     const scriptId = 'ws-schema-icon';
     await request.post(`${API}/scripts`, {
       data: { id: scriptId, script: ICON_TRANSFORMER_SCRIPT },
     });
 
-    const ann = makeAnnotation({
+    const ann = makeComment({
       id: 'ws-schema-ann',
       knob: { label: 'Icon', type: 'select', value: '🎨', options: { Palette: '🎨' } },
       actions: [{ type: 'content-edit', file: FIXTURE_FILE, scriptId }],
     });
 
     const replies = (await wsSend(WS_URL, {
-      type: 'annotation:upsert',
+      type: 'comment:upsert',
       payload: ann,
     })) as { type: string; payload: { marker: string }[] }[];
 

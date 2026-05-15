@@ -54,8 +54,8 @@ before(async () => {
     stdio: 'pipe',
   });
 
-  serverProc.stderr.on('data', () => { });
-  serverProc.stdout.on('data', () => { });
+  serverProc.stderr.on('data', () => {});
+  serverProc.stdout.on('data', () => {});
 
   await waitForServer();
 
@@ -164,9 +164,9 @@ describe('MCP tools/list', () => {
     assert.ok(res?.result?.tools, 'tools missing');
     const names = res.result.tools.map((t) => t.name);
     const expected = [
-      'list_annotations',
-      'get_annotation',
-      'upsert_annotation',
+      'list_comments',
+      'get_comment',
+      'upsert_comment',
       'get_tweaks',
       'get_server_info',
     ];
@@ -222,74 +222,74 @@ describe('MCP resources/read', () => {
   });
 });
 
-describe('MCP tools/call — list_annotations', () => {
+describe('MCP tools/call — list_comments', () => {
   it('returns an array', async () => {
     const responses = await mcpCall('tools/call', {
-      name: 'list_annotations',
+      name: 'list_comments',
       arguments: {},
     });
     const res = findResponse(responses, 2);
     const text = res?.result?.content?.[0]?.text;
     assert.ok(text, 'no content returned');
     const parsed = JSON.parse(text);
-    assert.ok(Array.isArray(parsed.annotations), 'expected annotations array');
+    assert.ok(Array.isArray(parsed.comments), 'expected comments array');
   });
 });
 
-describe('MCP tools/call — upsert + get + delete annotation', () => {
-  const ANN_ID = 'mcp-test-annotation';
+describe('MCP tools/call — upsert + get + delete comment', () => {
+  const ANN_ID = 'mcp-test-comment';
 
-  it('creates an annotation via upsert_annotation', async () => {
+  it('creates an comment via upsert_comment', async () => {
     const ann = {
       id: ANN_ID,
       selectors: ['h1'],
       labels: ['h1'],
-      comment: 'MCP test annotation',
+      comment: 'MCP test comment',
       pageUrl: 'http://localhost:5173/',
       timestamp: Date.now(),
       createdAt: Date.now(),
       replies: [],
     };
     const responses = await mcpCall('tools/call', {
-      name: 'upsert_annotation',
-      arguments: { annotation: ann },
+      name: 'upsert_comment',
+      arguments: { comment: ann },
     });
     const res = findResponse(responses, 2);
     assert.ok(!res?.error, `error: ${JSON.stringify(res?.error)}`);
 
     // Verify via HTTP
-    const httpRes = await fetch(`${BASE_URL}/api/annotations/${ANN_ID}`);
+    const httpRes = await fetch(`${BASE_URL}/api/comments/${ANN_ID}`);
     assert.equal(httpRes.status, 200);
     const body = await httpRes.json();
-    assert.equal(body.comment, 'MCP test annotation');
+    assert.equal(body.comment, 'MCP test comment');
   });
 
-  it('gets the annotation via get_annotation', async () => {
+  it('gets the comment via get_comment', async () => {
     const responses = await mcpCall('tools/call', {
-      name: 'get_annotation',
+      name: 'get_comment',
       arguments: { id: ANN_ID },
     });
     const res = findResponse(responses, 2);
     const text = res?.result?.content?.[0]?.text;
     const parsed = JSON.parse(text);
     assert.equal(parsed.id, ANN_ID);
-    assert.equal(parsed.comment, 'MCP test annotation');
+    assert.equal(parsed.comment, 'MCP test comment');
   });
 
-  it('cleans up the annotation via HTTP (delete is not an MCP tool)', async () => {
-    const httpRes = await fetch(`${BASE_URL}/api/annotations/${ANN_ID}`, { method: 'DELETE' });
+  it('cleans up the comment via HTTP (delete is not an MCP tool)', async () => {
+    const httpRes = await fetch(`${BASE_URL}/api/comments/${ANN_ID}`, { method: 'DELETE' });
     assert.ok(httpRes.status === 200 || httpRes.status === 204);
 
     // Verify gone
-    const checkRes = await fetch(`${BASE_URL}/api/annotations/${ANN_ID}`);
+    const checkRes = await fetch(`${BASE_URL}/api/comments/${ANN_ID}`);
     assert.equal(checkRes.status, 404);
   });
 });
 
 describe('MCP tools/call — get_server_info + get_tweaks', () => {
-  const ANN_ID = 'mcp-tweak-annotation';
+  const ANN_ID = 'mcp-tweak-comment';
 
-  it('get_server_info returns port, root, scriptsDir, annotationsDir', async () => {
+  it('get_server_info returns port, root, scriptsDir, commentsDir', async () => {
     const responses = await mcpCall('tools/call', {
       name: 'get_server_info',
       arguments: {},
@@ -300,13 +300,10 @@ describe('MCP tools/call — get_server_info + get_tweaks', () => {
     assert.ok(typeof body.port === 'number', 'port should be a number');
     assert.ok(typeof body.root === 'string', 'root should be a string');
     assert.ok(body.scriptsDir.includes('.design-bridge/scripts'), 'scriptsDir incorrect');
-    assert.ok(
-      body.annotationsDir.includes('.design-bridge/annotations'),
-      'annotationsDir incorrect',
-    );
+    assert.ok(body.commentsDir.includes('.design-bridge/comments'), 'commentsDir incorrect');
   });
 
-  it('upserts a tweak annotation and it appears in get_tweaks', async () => {
+  it('upserts a tweak comment and it appears in get_tweaks', async () => {
     const ann = {
       id: ANN_ID,
       selectors: ['h1'],
@@ -331,8 +328,8 @@ describe('MCP tools/call — get_server_info + get_tweaks', () => {
       ],
     };
 
-    // Upsert via HTTP directly for simplicity (annotation creation already tested above)
-    const httpRes = await fetch(`${BASE_URL}/api/annotations`, {
+    // Upsert via HTTP directly for simplicity (comment creation already tested above)
+    const httpRes = await fetch(`${BASE_URL}/api/comments`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(ann),
@@ -350,8 +347,8 @@ describe('MCP tools/call — get_server_info + get_tweaks', () => {
     assert.equal(knob.value, '🎨');
   });
 
-  it('cleans up the tweak annotation', async () => {
-    const httpRes = await fetch(`${BASE_URL}/api/annotations/${ANN_ID}`, { method: 'DELETE' });
+  it('cleans up the tweak comment', async () => {
+    const httpRes = await fetch(`${BASE_URL}/api/comments/${ANN_ID}`, { method: 'DELETE' });
     assert.ok(httpRes.status === 200 || httpRes.status === 204 || httpRes.status === 404);
   });
 });
@@ -407,20 +404,20 @@ describe('resolveBaseUrl — port discovery', () => {
 // ── Integration: MCP uses .port file to reach the server ─────────────────────
 
 describe('Port discovery integration — MCP server finds Design Bridge via .port file', () => {
-  it('list_annotations succeeds when discovered via DESIGN_BRIDGE_ROOT (port file)', async () => {
+  it('list_comments succeeds when discovered via DESIGN_BRIDGE_ROOT (port file)', async () => {
     // mcpCall already uses DESIGN_BRIDGE_ROOT=TEST_ROOT; the .port file was written
     // by the server on startup. This test explicitly verifies the end-to-end path.
     const responses = await mcpCall('tools/call', {
-      name: 'list_annotations',
+      name: 'list_comments',
       arguments: {},
     });
     const res = findResponse(responses, 2);
     assert.ok(!res?.error, `unexpected error: ${JSON.stringify(res?.error)}`);
     const body = JSON.parse(res.result.content[0].text);
-    assert.ok(Array.isArray(body.annotations), 'expected annotations array from discovered server');
+    assert.ok(Array.isArray(body.comments), 'expected comments array from discovered server');
   });
 
-  it('list_annotations succeeds when discovered via DESIGN_BRIDGE_PORT env var', async () => {
+  it('list_comments succeeds when discovered via DESIGN_BRIDGE_PORT env var', async () => {
     const proc = spawn(process.execPath, [MCP_BIN], {
       env: { ...process.env, DESIGN_BRIDGE_PORT: String(TEST_PORT) },
       stdio: ['pipe', 'pipe', 'pipe'],
@@ -443,7 +440,7 @@ describe('Port discovery integration — MCP server finds Design Bridge via .por
         }
       }
     });
-    proc.stderr.on('data', () => { });
+    proc.stderr.on('data', () => {});
 
     const send = (obj) => proc.stdin.write(JSON.stringify(obj) + '\n');
     send({
@@ -461,7 +458,7 @@ describe('Port discovery integration — MCP server finds Design Bridge via .por
       jsonrpc: '2.0',
       id: 2,
       method: 'tools/call',
-      params: { name: 'list_annotations', arguments: {} },
+      params: { name: 'list_comments', arguments: {} },
     });
 
     await new Promise((r) => setTimeout(r, 3_000));
@@ -470,10 +467,10 @@ describe('Port discovery integration — MCP server finds Design Bridge via .por
     const res = responses.find((r) => r.id === 2);
     assert.ok(!res?.error, `unexpected error: ${JSON.stringify(res?.error)}`);
     const body = JSON.parse(res.result.content[0].text);
-    assert.ok(Array.isArray(body.annotations), 'expected annotations array');
+    assert.ok(Array.isArray(body.comments), 'expected comments array');
   });
 
-  it('list_annotations succeeds when discovered via DESIGN_BRIDGE_URL env var', async () => {
+  it('list_comments succeeds when discovered via DESIGN_BRIDGE_URL env var', async () => {
     const proc = spawn(process.execPath, [MCP_BIN], {
       env: { ...process.env, DESIGN_BRIDGE_URL: BASE_URL },
       stdio: ['pipe', 'pipe', 'pipe'],
@@ -496,7 +493,7 @@ describe('Port discovery integration — MCP server finds Design Bridge via .por
         }
       }
     });
-    proc.stderr.on('data', () => { });
+    proc.stderr.on('data', () => {});
 
     const send = (obj) => proc.stdin.write(JSON.stringify(obj) + '\n');
     send({
@@ -514,7 +511,7 @@ describe('Port discovery integration — MCP server finds Design Bridge via .por
       jsonrpc: '2.0',
       id: 2,
       method: 'tools/call',
-      params: { name: 'list_annotations', arguments: {} },
+      params: { name: 'list_comments', arguments: {} },
     });
 
     await new Promise((r) => setTimeout(r, 3_000));
@@ -523,6 +520,6 @@ describe('Port discovery integration — MCP server finds Design Bridge via .por
     const res = responses.find((r) => r.id === 2);
     assert.ok(!res?.error, `unexpected error: ${JSON.stringify(res?.error)}`);
     const body = JSON.parse(res.result.content[0].text);
-    assert.ok(Array.isArray(body.annotations), 'expected annotations array');
+    assert.ok(Array.isArray(body.comments), 'expected comments array');
   });
 });

@@ -3,22 +3,17 @@
  * the shared signal stores and intent bus from @design-bridge/components.
  *
  * Direction A: Server → Browser
- *   onMessage() → update signal stores (knobs, annotations)
+ *   onMessage() → update signal stores (knobs, comments)
  *
  * Direction B: Browser → Server
  *   onIntent() → translate ComponentIntent → BrowserMessage → sendMessage()
  *
- * Nothing in the UI layer (db-annotation) should import
+ * Nothing in the UI layer (db-comment) should import
  * sendMessage or onMessage directly — they express what they want via intents.
  */
 
 import { onMessage, sendMessage } from './ws-client.js';
-import {
-  updateKnobs,
-  updateAnnotations,
-  onIntent,
-  getKnobByMarker,
-} from '@design-bridge/components';
+import { updateKnobs, updateComments, onIntent, getKnobByMarker } from '@design-bridge/components';
 import { getOpenItem } from './inspector.js';
 
 // ── A: Server → stores ───────────────────────────────────────────────────────
@@ -26,10 +21,10 @@ import { getOpenItem } from './inspector.js';
 onMessage((msg) => {
   if (msg.type === 'tweak:schema') {
     updateKnobs(msg.payload);
-  } else if (msg.type === 'annotations:sync') {
-    updateAnnotations(msg.payload);
+  } else if (msg.type === 'comments:sync') {
+    updateComments(msg.payload);
   }
-  // inspect:pick and annotation:focus are handled inside inspector.ts directly
+  // inspect:pick and comment:focus are handled inside inspector.ts directly
   // because they need DOM-level coordination (open draft, scroll element).
 });
 
@@ -42,7 +37,7 @@ onIntent((intent) => {
         type: 'tweak:change',
         payload: { marker: intent.marker, value: intent.value },
       });
-      // Register the value change as a reply on any currently open annotation item
+      // Register the value change as a reply on any currently open comment item
       const label = getKnobByMarker(intent.marker)?.label;
       getOpenItem()?.registerTweakReply(intent.marker, intent.value, label);
       break;
@@ -56,29 +51,29 @@ onIntent((intent) => {
     case 'tweak:discard':
       sendMessage({ type: 'tweak:discard-all' });
       break;
-    case 'tweak:discard-annotation':
-      sendMessage({ type: 'tweak:discard', payload: { annotationId: intent.annotationId } });
+    case 'tweak:discard-comment':
+      sendMessage({ type: 'tweak:discard', payload: { commentId: intent.commentId } });
       break;
-    case 'tweak:accept-annotation':
+    case 'tweak:accept-comment':
       sendMessage({
-        type: 'tweak:accept-annotation',
-        payload: { annotationId: intent.annotationId },
+        type: 'tweak:accept-comment',
+        payload: { commentId: intent.commentId },
       });
       break;
     case 'tweak:accept-one':
       sendMessage({
         type: 'tweak:accept-tweak',
-        payload: { annotationId: intent.annotationId, marker: intent.marker },
+        payload: { commentId: intent.commentId, marker: intent.marker },
       });
       break;
     case 'tweak:dismiss-one':
       sendMessage({
         type: 'tweak:dismiss',
-        payload: { annotationId: intent.annotationId, marker: intent.marker },
+        payload: { commentId: intent.commentId, marker: intent.marker },
       });
       break;
-    // annotation:delete / clear are handled locally by inspector.ts which also
-    // calls sendMessage. Panel dispatches these through the annotation store.
+    // comment:delete / clear are handled locally by inspector.ts which also
+    // calls sendMessage. Panel dispatches these through the comment store.
     default:
       break;
   }

@@ -9,8 +9,8 @@ import '@awesome.me/webawesome/dist/components/tag/tag.js';
 import { LitElement, html } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { SignalWatcher } from '@lit-labs/signals';
-import type { Annotation } from '@design-bridge/protocol';
-import { annotationsSignal } from '../state/annotations-store.js';
+import type { Comment } from '@design-bridge/protocol';
+import { commentsSignal } from '../state/comments-store.js';
 import { dispatchIntent } from '../state/intents.js';
 import { dbReviewStyles } from './db-review.styles.js';
 
@@ -29,7 +29,7 @@ function pageLabel(url: string): string {
   }
 }
 
-function sourceLabel(ann: Annotation): string {
+function sourceLabel(ann: Comment): string {
   if (ann.source?.file) {
     const filename = ann.source.file.split('/').pop() ?? '';
     return filename.replace(/\.[^.]+$/, '');
@@ -37,8 +37,8 @@ function sourceLabel(ann: Annotation): string {
   return ann.labels?.[0] || pageLabel(ann.pageUrl ?? '') || '';
 }
 
-function stableRanks(annotations: Annotation[]): Map<string, number> {
-  const open = [...annotations]
+function stableRanks(comments: Comment[]): Map<string, number> {
+  const open = [...comments]
     .filter((a) => !a.resolvedAt)
     .sort((a, b) => (a.createdAt || a.timestamp || 0) - (b.createdAt || b.timestamp || 0));
   return new Map(open.map((a, i) => [a.id, i + 1]));
@@ -47,9 +47,9 @@ function stableRanks(annotations: Annotation[]): Map<string, number> {
 // ── Component ─────────────────────────────────────────────────────────────────
 
 /**
- * db-review — full-page annotation list.
+ * db-review — full-page comment list.
  *
- * Transport-free: reads annotations from the shared signal store.
+ * Transport-free: reads comments from the shared signal store.
  * All user actions dispatch ComponentIntents to be handled by the entry point
  * (client/review/index.ts) which translates them to WebSocket messages.
  */
@@ -66,31 +66,31 @@ export class DbReview extends _DbReviewBase {
     this.classList.add('wa-dark');
   }
 
-  private _resolve(ann: Annotation): void {
+  private _resolve(ann: Comment): void {
     dispatchIntent({
-      type: 'annotation:save',
-      annotation: { ...ann, resolvedAt: Date.now(), timestamp: Date.now() },
+      type: 'comment:save',
+      comment: { ...ann, resolvedAt: Date.now(), timestamp: Date.now() },
     });
   }
 
-  private _unresolve(ann: Annotation): void {
-    const { resolvedAt: _removed, ...rest } = ann as Annotation & { resolvedAt?: number };
-    dispatchIntent({ type: 'annotation:save', annotation: { ...rest, timestamp: Date.now() } });
+  private _unresolve(ann: Comment): void {
+    const { resolvedAt: _removed, ...rest } = ann as Comment & { resolvedAt?: number };
+    dispatchIntent({ type: 'comment:save', comment: { ...rest, timestamp: Date.now() } });
   }
 
   private _delete(id: string): void {
-    dispatchIntent({ type: 'annotation:delete', id });
+    dispatchIntent({ type: 'comment:delete', id });
   }
 
   private _focus(id: string): void {
-    dispatchIntent({ type: 'annotation:open', id });
+    dispatchIntent({ type: 'comment:open', id });
   }
 
-  private _copyLink(ann: Annotation): void {
+  private _copyLink(ann: Comment): void {
     navigator.clipboard.writeText(ann.pageUrl || location.href).catch(() => {});
   }
 
-  private _renderRow(ann: Annotation, rank: Map<string, number>) {
+  private _renderRow(ann: Comment, rank: Map<string, number>) {
     const resolved = !!ann.resolvedAt;
     const idx = resolved ? null : rank.get(ann.id);
     const ts = ann.createdAt ?? ann.timestamp;
@@ -163,17 +163,17 @@ export class DbReview extends _DbReviewBase {
   }
 
   render() {
-    const annotations = annotationsSignal.get();
-    const sorted = [...annotations].sort(
+    const comments = commentsSignal.get();
+    const sorted = [...comments].sort(
       (a, b) => (b.createdAt || b.timestamp || 0) - (a.createdAt || a.timestamp || 0),
     );
     const visible = this.showResolved ? sorted : sorted.filter((a) => !a.resolvedAt);
-    const openCount = annotations.filter((a) => !a.resolvedAt).length;
-    const rank = stableRanks(annotations);
+    const openCount = comments.filter((a) => !a.resolvedAt).length;
+    const rank = stableRanks(comments);
 
     return html`
       <div class="bar">
-        <span class="bar-title"><strong>Design Bridge</strong> — Annotations</span>
+        <span class="bar-title"><strong>Design Bridge</strong> — Comments</span>
         <wa-badge pill variant=${openCount ? 'brand' : 'neutral'} appearance="filled"
           >${openCount}</wa-badge
         >
@@ -191,11 +191,11 @@ export class DbReview extends _DbReviewBase {
         ${visible.length === 0
           ? html`
               <div class="empty">
-                ${annotations.length === 0
-                  ? html`No annotations yet.<br /><span style="color:var(--wa-color-text-quiet)"
+                ${comments.length === 0
+                  ? html`No comments yet.<br /><span style="color:var(--wa-color-text-quiet)"
                         >Hold Alt+Shift and click any element in your app.</span
                       >`
-                  : 'All annotations resolved.'}
+                  : 'All comments resolved.'}
               </div>
             `
           : visible.map((ann) => this._renderRow(ann, rank))}

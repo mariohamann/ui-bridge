@@ -5,20 +5,20 @@ import '@awesome.me/webawesome/dist/components/dropdown/dropdown.js';
 import '@awesome.me/webawesome/dist/components/tag/tag.js';
 import autosize from 'autosize';
 import type {
-  Annotation,
-  AnnotationReply,
-  AnnotationSource,
-  AnnotationTweakLink,
+  Comment,
+  CommentReply,
+  CommentSource,
+  CommentTweakLink,
   TweakKnob,
 } from '@design-bridge/protocol';
 import { knobsSignal } from '../state/knobs-store.js';
 import './db-knob.js';
 import { LitElement, html, type TemplateResult } from 'lit';
-import { annotationItemStyles } from './db-annotation.styles.js';
+import { commentItemStyles } from './db-comment.styles.js';
 import { computePosition, autoUpdate, flip, shift, offset } from '@floating-ui/dom';
 import { customElement, property, state } from 'lit/decorators.js';
 import { dispatchIntent } from '../state/intents.js';
-import { uid, shortLabel, formatTweakReply } from './db-annotation.utils.js';
+import { uid, shortLabel, formatTweakReply } from './db-comment.utils.js';
 import { DB_HIGHLIGHT_COLOR } from '../styles/tokens.js';
 
 const HIGHLIGHT_ATTR = 'data-db-related';
@@ -26,22 +26,22 @@ const HIGHLIGHT_ATTR = 'data-db-related';
 type ItemMode = 'create' | 'view';
 
 /**
- * db-annotation — one web component per annotation.
+ * db-comment — one web component per comment.
  *
  * Contains both the badge dot and the comment thread panel in a single shadow
  * DOM. The host element is `position:fixed; width:0; height:0` so it takes no
  * space. The badge and panel float inside via inline `position:fixed` styles.
  *
  * Modes:
- *  - create: annotation === null, opened immediately on Alt+Shift+click
- *  - view:   annotation is set, panel opens/closes on badge click
+ *  - create: comment === null, opened immediately on Alt+Shift+click
+ *  - view:   comment is set, panel opens/closes on badge click
  */
-@customElement('db-annotation')
-export class DbAnnotation extends LitElement {
-  static styles = annotationItemStyles;
+@customElement('db-comment')
+export class DbComment extends LitElement {
+  static styles = commentItemStyles;
 
-  /** The saved annotation. null = draft (unsaved, panel auto-opens). */
-  @property({ attribute: false }) annotation: Annotation | null = null;
+  /** The saved comment. null = draft (unsaved, panel auto-opens). */
+  @property({ attribute: false }) comment: Comment | null = null;
   /** Badge number shown to the user. */
   @property({ type: Number }) index = 0;
 
@@ -54,7 +54,7 @@ export class DbAnnotation extends LitElement {
   @state() private _pendingId = '';
   @state() private _pendingSelectors: string[] = [];
   @state() private _pendingLabels: string[] = [];
-  @state() private _pendingSource: AnnotationSource | null = null;
+  @state() private _pendingSource: CommentSource | null = null;
   @state() private _createdAt = 0;
   @state() private _showPaths = false;
 
@@ -79,7 +79,7 @@ export class DbAnnotation extends LitElement {
 
   /**
    * Initialise as a draft item anchored to a DOM element.
-   * Called immediately on Alt+Shift+click — before any annotation is saved.
+   * Called immediately on Alt+Shift+click — before any comment is saved.
    * The caller (inspector) must provide a pre-computed CSS selector string.
    */
   initDraft(el: Element, selector: string): void {
@@ -101,7 +101,7 @@ export class DbAnnotation extends LitElement {
   }
 
   /** Add source info to an open draft (called after code-inspector fires). */
-  setDraftSource(source: AnnotationSource): void {
+  setDraftSource(source: CommentSource): void {
     if (this._mode === 'create') {
       this._pendingSource = source;
     }
@@ -134,7 +134,7 @@ export class DbAnnotation extends LitElement {
     this._focusTextarea();
   }
 
-  /** Close without discarding the annotation. */
+  /** Close without discarding the comment. */
   closePanel(): void {
     this._open = false;
   }
@@ -157,11 +157,11 @@ export class DbAnnotation extends LitElement {
     }, 420);
   }
 
-  /** Register a tweak change as a reply on this annotation. */
+  /** Register a tweak change as a reply on this comment. */
   registerTweakReply(marker: string, value: string, _label?: string): void {
-    if (!this.annotation || !this._open || this._mode !== 'view') return;
+    if (!this.comment || !this._open || this._mode !== 'view') return;
     const text = formatTweakReply(marker, value);
-    const replies = this._normalizeReplies(this.annotation);
+    const replies = this._normalizeReplies(this.comment);
     const idx = replies.findIndex(
       (r) => r.type === 'tweak' && r.text.startsWith(`Tweak ${marker} ->`),
     );
@@ -170,24 +170,24 @@ export class DbAnnotation extends LitElement {
     } else {
       replies.push({ id: uid(), type: 'tweak', text, createdAt: Date.now() });
     }
-    const updated = this._buildAnnotation({ replies });
-    this.annotation = updated;
-    dispatchIntent({ type: 'annotation:save', annotation: updated });
+    const updated = this._buildComment({ replies });
+    this.comment = updated;
+    dispatchIntent({ type: 'comment:save', comment: updated });
   }
 
   get isOpen(): boolean {
     return this._open;
   }
 
-  /** Number of selectors currently connected to this annotation (draft or saved). */
+  /** Number of selectors currently connected to this comment (draft or saved). */
   get connectedSelectorCount(): number {
     return this._mode === 'create'
       ? this._pendingSelectors.length
-      : (this.annotation?.selectors?.length ?? 0);
+      : (this.comment?.selectors?.length ?? 0);
   }
 
   /** The source location attached to the open draft, or null if none yet. */
-  get draftSource(): AnnotationSource | null {
+  get draftSource(): CommentSource | null {
     return this._mode === 'create' ? this._pendingSource : null;
   }
 
@@ -217,8 +217,8 @@ export class DbAnnotation extends LitElement {
   }
 
   updated(changed: Map<string, unknown>): void {
-    if (changed.has('annotation') && this.annotation) {
-      // Switched from draft → saved, or annotation data updated
+    if (changed.has('comment') && this.comment) {
+      // Switched from draft → saved, or comment data updated
       this._mode = 'view';
       this._repositionBadge();
     }
@@ -238,8 +238,8 @@ export class DbAnnotation extends LitElement {
   // ────────────────────────────────────────────────────────────────────────
 
   private _anchorRect(): DOMRect | null {
-    // For saved annotations, look up target element via selectors
-    const selectors = this.annotation?.selectors ?? this._pendingSelectors;
+    // For saved comments, look up target element via selectors
+    const selectors = this.comment?.selectors ?? this._pendingSelectors;
     for (const sel of selectors) {
       try {
         const el = document.querySelector(sel);
@@ -314,7 +314,7 @@ export class DbAnnotation extends LitElement {
   // ────────────────────────────────────────────────────────────────────────
 
   private _highlightRelated(): void {
-    const selectors = this.annotation?.selectors ?? this._pendingSelectors;
+    const selectors = this.comment?.selectors ?? this._pendingSelectors;
     for (const sel of selectors) {
       try {
         document.querySelector(sel)?.setAttribute(HIGHLIGHT_ATTR, '');
@@ -338,7 +338,7 @@ export class DbAnnotation extends LitElement {
 
   private _onBadgeMouseEnter = (): void => {
     this._highlightRelated();
-    if (!this.annotation || this._open) return;
+    if (!this.comment || this._open) return;
     this._hovered = true;
     this._startPreviewAutoUpdate();
   };
@@ -382,7 +382,7 @@ export class DbAnnotation extends LitElement {
   private _onBadgeClick(e: MouseEvent): void {
     e.stopPropagation();
     if (this._mode === 'view') {
-      dispatchIntent({ type: 'annotation:badge-click', id: this.annotation!.id });
+      dispatchIntent({ type: 'comment:badge-click', id: this.comment!.id });
     }
     // In create mode the panel is already open; clicking badge does nothing extra
   }
@@ -434,7 +434,7 @@ export class DbAnnotation extends LitElement {
   // Data helpers
   // ────────────────────────────────────────────────────────────────────────
 
-  private _normalizeReplies(ann: Annotation): AnnotationReply[] {
+  private _normalizeReplies(ann: Comment): CommentReply[] {
     if (ann.replies && ann.replies.length > 0) return [...ann.replies];
     if (!ann.comment?.trim()) return [];
     return [
@@ -447,12 +447,12 @@ export class DbAnnotation extends LitElement {
     ];
   }
 
-  private _buildAnnotation(overrides?: {
+  private _buildComment(overrides?: {
     comment?: string;
-    replies?: AnnotationReply[];
-    linkedTweaks?: AnnotationTweakLink[];
-  }): Annotation {
-    const base = this.annotation;
+    replies?: CommentReply[];
+    linkedTweaks?: CommentTweakLink[];
+  }): Comment {
+    const base = this.comment;
     const replies = overrides?.replies ?? (base ? this._normalizeReplies(base) : []);
     const comment = overrides?.comment ?? base?.comment ?? this._draft.trim();
     const selectors = base?.selectors ?? [...this._pendingSelectors];
@@ -497,23 +497,23 @@ export class DbAnnotation extends LitElement {
     const text = this._draft.trim();
     if (!text) return;
     this._clearHighlight();
-    const ann = this._buildAnnotation({
+    const ann = this._buildComment({
       comment: text,
       replies: [{ id: uid(), type: 'comment', text, createdAt: Date.now() }],
     });
-    this.annotation = ann; // immediately switch to view mode
+    this.comment = ann; // immediately switch to view mode
     this._mode = 'view';
     this._draft = '';
     this._open = false;
-    dispatchIntent({ type: 'annotation:save', annotation: ann });
+    dispatchIntent({ type: 'comment:save', comment: ann });
   }
 
   private _saveReply(): void {
-    if (!this.annotation) return;
+    if (!this.comment) return;
     const text = this._replyDraft.trim();
     if (!text) return;
     const replies = [
-      ...this._normalizeReplies(this.annotation),
+      ...this._normalizeReplies(this.comment),
       {
         id: uid(),
         type: 'comment' as const,
@@ -521,25 +521,25 @@ export class DbAnnotation extends LitElement {
         createdAt: Date.now(),
       },
     ];
-    const updated = this._buildAnnotation({
-      comment: replies[0]?.text ?? this.annotation.comment,
+    const updated = this._buildComment({
+      comment: replies[0]?.text ?? this.comment.comment,
       replies,
-      linkedTweaks: this.annotation.linkedTweaks ?? [],
+      linkedTweaks: this.comment.linkedTweaks ?? [],
     });
-    this.annotation = updated;
+    this.comment = updated;
     this._replyDraft = '';
-    dispatchIntent({ type: 'annotation:save', annotation: updated });
+    dispatchIntent({ type: 'comment:save', comment: updated });
   }
 
   private _cancelDraft(): void {
     this._clearHighlight();
-    dispatchIntent({ type: 'annotation:cancel', id: this._pendingId });
+    dispatchIntent({ type: 'comment:cancel', id: this._pendingId });
     // inspector.ts will remove this element from the DOM
   }
 
   private _delete(): void {
-    if (this.annotation) {
-      dispatchIntent({ type: 'annotation:delete', id: this.annotation.id });
+    if (this.comment) {
+      dispatchIntent({ type: 'comment:delete', id: this.comment.id });
     }
     this._open = false;
   }
@@ -555,27 +555,27 @@ export class DbAnnotation extends LitElement {
   }
 
   private _resolve(): void {
-    if (!this.annotation) return;
-    dispatchIntent({ type: 'annotation:delete', id: this.annotation.id });
+    if (!this.comment) return;
+    dispatchIntent({ type: 'comment:delete', id: this.comment.id });
     this._open = false;
   }
 
   private _acceptAllTweaks(): void {
-    if (!this.annotation) return;
-    dispatchIntent({ type: 'tweak:accept-annotation', annotationId: this.annotation.id });
+    if (!this.comment) return;
+    dispatchIntent({ type: 'tweak:accept-comment', commentId: this.comment.id });
     this._open = false;
   }
 
   private _discardTweak(): void {
-    if (!this.annotation) return;
-    dispatchIntent({ type: 'tweak:discard-annotation', annotationId: this.annotation.id });
+    if (!this.comment) return;
+    dispatchIntent({ type: 'tweak:discard-comment', commentId: this.comment.id });
   }
 
   private _onKnobChange(e: CustomEvent<{ value: string | number | boolean }>): void {
-    if (!this.annotation) return;
+    if (!this.comment) return;
     dispatchIntent({
       type: 'tweak:change',
-      marker: this.annotation.id,
+      marker: this.comment.id,
       value: String(e.detail.value),
     });
   }
@@ -585,13 +585,13 @@ export class DbAnnotation extends LitElement {
   // ────────────────────────────────────────────────────────────────────────
 
   private _renderTweaksSection(): TemplateResult {
-    const knobDef = this.annotation?.knob;
+    const knobDef = this.comment?.knob;
     if (!knobDef) return html``;
     // Build a TweakKnob using the live value from knobsSignal when available.
-    const liveKnob = knobsSignal.get().find((k) => k.marker === this.annotation!.id);
+    const liveKnob = knobsSignal.get().find((k) => k.marker === this.comment!.id);
     const knob: TweakKnob = liveKnob ?? {
-      marker: this.annotation!.id,
-      annotationId: this.annotation!.id,
+      marker: this.comment!.id,
+      commentId: this.comment!.id,
       ...knobDef,
     };
     return html`
@@ -603,7 +603,7 @@ export class DbAnnotation extends LitElement {
             variant="success"
             size="s"
             @click=${this._acceptAllTweaks}
-            title="Accept tweak and resolve annotation"
+            title="Accept tweak and resolve comment"
             >Accept ✓</wa-button
           >
           <wa-button
@@ -645,7 +645,7 @@ export class DbAnnotation extends LitElement {
           <wa-dropdown-item value="paths"
             >${this._showPaths ? 'Hide paths' : 'Show paths'}</wa-dropdown-item
           >
-          <wa-dropdown-item value="copy-link">Copy link to annotation list</wa-dropdown-item>
+          <wa-dropdown-item value="copy-link">Copy link to comment list</wa-dropdown-item>
           <wa-divider></wa-divider>
           <wa-dropdown-item value="delete" variant="danger">Delete</wa-dropdown-item>
         </wa-dropdown>
@@ -676,8 +676,8 @@ export class DbAnnotation extends LitElement {
   }
 
   private _renderReplies(): TemplateResult {
-    if (!this.annotation) return html``;
-    return html`${this._normalizeReplies(this.annotation).map(
+    if (!this.comment) return html``;
+    return html`${this._normalizeReplies(this.comment).map(
       (r) => html`
         <div class="comment-text">${r.text}</div>
         <wa-relative-time
@@ -691,9 +691,8 @@ export class DbAnnotation extends LitElement {
 
   private _renderChipsBar(editable: boolean): TemplateResult {
     const selectors =
-      this._mode === 'create' ? this._pendingSelectors : (this.annotation?.selectors ?? []);
-    const source =
-      this._mode === 'create' ? this._pendingSource : (this.annotation?.source ?? null);
+      this._mode === 'create' ? this._pendingSelectors : (this.comment?.selectors ?? []);
+    const source = this._mode === 'create' ? this._pendingSource : (this.comment?.source ?? null);
     if (!editable && !this._showPaths) return html``;
     if (!selectors.length && !source) return html``;
     return html`
@@ -735,9 +734,9 @@ export class DbAnnotation extends LitElement {
   }
 
   private _renderBadgePreview(): TemplateResult {
-    if (!this.annotation || this._open) return html``;
-    const comment = this.annotation.comment ?? '';
-    const replies = this._normalizeReplies(this.annotation);
+    if (!this.comment || this._open) return html``;
+    const comment = this.comment.comment ?? '';
+    const replies = this._normalizeReplies(this.comment);
     const tweakCount = replies.filter((r) => r.type === 'tweak').length;
     const replyCount = replies.filter((r) => r.type !== 'tweak').length - 1;
     const parts: string[] = [];
@@ -756,7 +755,7 @@ export class DbAnnotation extends LitElement {
 
   render(): TemplateResult {
     const isDraft = this._mode === 'create';
-    const isResolved = !!this.annotation?.resolvedAt;
+    const isResolved = !!this.comment?.resolvedAt;
     const label = isResolved ? '✓' : `${this.index + 1}`;
     const canSendNew = this._draft.trim().length > 0;
     const canSendReply = this._replyDraft.trim().length > 0;
@@ -771,7 +770,7 @@ export class DbAnnotation extends LitElement {
         pill="true"
         class="badge${isResolved ? ' resolved' : isDraft ? ' draft' : ''}"
         style="position:fixed;top:${this._badgeTop}px;left:${this._badgeLeft}px"
-        title=${this.annotation?.comment ?? this._pendingLabels.join(', ')}
+        title=${this.comment?.comment ?? this._pendingLabels.join(', ')}
         @mouseenter=${this._onBadgeMouseEnter}
         @mouseleave=${this._onBadgeMouseLeave}
         @click=${this._onBadgeClick}
@@ -821,6 +820,6 @@ export class DbAnnotation extends LitElement {
 
 declare global {
   interface HTMLElementTagNameMap {
-    'db-annotation': DbAnnotation;
+    'db-comment': DbComment;
   }
 }
