@@ -9,8 +9,7 @@
     "preview": "astro preview"
   },
   "dependencies": {
-    "@design-bridge/components": "workspace:*",
-    "@design-bridge/protocol": "workspace:*",
+    "@design-bridge/astro": "workspace:*",
     "astro": "^6.3.1",
     "gsap": "^3.12.7"
   },

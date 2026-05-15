@@ -16,6 +16,7 @@
 import { createServer } from 'node:http';
 import { createServer as createNetServer } from 'node:net';
 import { readFileSync } from 'node:fs';
+import { mkdir, writeFile, rm } from 'node:fs/promises';
 import { WebSocketServer, WebSocket } from 'ws';
 import { resolve } from 'node:path';
 import { createRequire } from 'node:module';
@@ -467,9 +468,22 @@ await store.load();
 
 // ── Graceful shutdown ─────────────────────────────────────────────────────────
 
+const PORT_FILE = resolve(ROOT, '.design-bridge', '.port');
+
+async function writePortFile(port) {
+  await mkdir(resolve(ROOT, '.design-bridge'), { recursive: true });
+  await writeFile(PORT_FILE, String(port), 'utf-8');
+}
+
+async function removePortFile() {
+  await rm(PORT_FILE, { force: true });
+}
+
 function shutdown() {
-  for (const client of wss.clients) client.terminate();
-  wss.close(() => httpServer.close(() => process.exit(0)));
+  removePortFile().finally(() => {
+    for (const client of wss.clients) client.terminate();
+    wss.close(() => httpServer.close(() => process.exit(0)));
+  });
 }
 process.on('SIGTERM', shutdown);
 process.on('SIGINT', shutdown);
@@ -481,7 +495,8 @@ if (actualPort !== PREFERRED_PORT) {
   );
 }
 
-httpServer.listen(actualPort, () => {
+httpServer.listen(actualPort, async () => {
   console.log(`[design-bridge] server listening on http://localhost:${actualPort} (root: ${ROOT})`);
+  await writePortFile(actualPort);
   process.stdout.write(`DESIGN_BRIDGE_READY:${actualPort}\n`);
 });

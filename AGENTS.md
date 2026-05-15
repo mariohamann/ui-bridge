@@ -10,12 +10,13 @@ The project is a pnpm monorepo with packages split across `core/`, `integrations
 
 **Core packages** (`core/`):
 
-| Package                     | Role                                                                                                                                                                                                                                                          |
-| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `@design-bridge/protocol`   | Shared TypeScript types and WebSocket protocol definitions (knobs, annotations, messages).                                                                                                                                                                    |
-| `@design-bridge/server`     | Node.js server (`server/index.mjs`). Hosts the WebSocket endpoint, runs the tweak engine, and manages the annotation store. Annotations are persisted as individual JSON files in `.design-bridge/annotations/`.                                              |
-| `@design-bridge/components` | Lit web components (`db-annotation`, `db-review`) and the shared signal/intent bus. Transport-agnostic: components read from signal stores and dispatch typed `ComponentIntent`s.                                                                             |
-| `@design-bridge/client`     | Browser entry points. `src/browser/index.ts` boots the inspector and wires the WebSocket adapter (`ws-adapter.ts`), which translates between WebSocket messages and the signal/intent bus. `src/review/index.ts` is the entry for the standalone review page. |
+| Package                     | Role                                                                                                                                                                                                                                                                         |
+| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@design-bridge/protocol`   | Shared TypeScript types and WebSocket protocol definitions (knobs, annotations, messages).                                                                                                                                                                                   |
+| `@design-bridge/server`     | Node.js server (`server/index.mjs`). Hosts the WebSocket endpoint, runs the tweak engine, and manages the annotation store. Annotations are persisted as individual JSON files in `.design-bridge/annotations/`. Writes the bound port to `.design-bridge/.port` on startup. |
+| `@design-bridge/components` | Lit web components (`db-annotation`, `db-knob`, `db-review`) and the shared signal/intent bus. Transport-agnostic: components read from signal stores and dispatch typed `ComponentIntent`s.                                                                                 |
+| `@design-bridge/client`     | Browser entry points. `src/browser/index.ts` boots the inspector and wires the WebSocket adapter (`ws-adapter.ts`), which translates between WebSocket messages and the signal/intent bus. `src/review/index.ts` is the entry for the standalone review page.                |
+| `@design-bridge/mcp`        | Stdio MCP server (`core/mcp/index.mjs`). Exposes annotation and tweak actions as MCP tools and workflow guidance as MCP resources. Auto-discovers the running server via `.design-bridge/.port`.                                                                             |
 
 **Integration packages** (`integrations/`):
 
@@ -28,7 +29,7 @@ The project is a pnpm monorepo with packages split across `core/`, `integrations
 
 ### Capabilities
 
-**Tweaks** — live UI knobs backed by `.mjs` scripts in `.design-bridge/tweaks/`. Each script exports a `meta` object (defining the knob: label, type, default value) and an `apply(value, ctx)` function that rewrites source files on the fly using regex-based `ctx.replaceInFile()`. A snapshot/replay model ensures every knob change starts from the original file, so tweaks compose safely without corrupting source. When the user commits a value (`tweak:finalize`), the change is written permanently; reset restores from the snapshot.
+**Tweaks** — live UI knobs attached to annotations. Each annotation can carry a `knob` definition (label, type, default value) and an `actions` array. A `content-edit` action references a transform script (a pure `(content, value) => string` ES module stored in `.design-bridge/scripts/`) and a target file. The tweak engine uses a snapshot/replay model: on every knob change it restores all touched files from snapshot and replays all active tweaks in order, so each script always sees the original source. When the user accepts an annotation, the change is written permanently; discard restores from snapshot.
 
 **Annotations** — the user can enter inspect mode (Alt+click), click any DOM element in the browser, and attach a comment. Annotations are stored with a stable CSS selector (via `@medv/finder`), a comment, and optionally a source location (file:line:col from code-inspector). They are persisted as per-annotation JSON files in `.design-bridge/annotations/` and synced across clients via WebSocket (`annotations:sync` messages). A standalone `/review` page (`db-review` component) lists all annotations with reply threads, resolve/delete actions, and tweak links. Annotations serve as async design feedback left directly on the running UI — the agent reads and acts on them.
 
@@ -42,6 +43,7 @@ Tests are spread across packages in `core/` and `integrations/`, each with a dif
 
 | Package                     | Runner                                       | What it tests                                        |
 | --------------------------- | -------------------------------------------- | ---------------------------------------------------- |
+| `@design-bridge/mcp`        | Node.js built-in test runner (`node --test`) | MCP tools, resources, and port discovery             |
 | `@design-bridge/components` | Node.js built-in test runner (`node --test`) | Signal stores and intent bus — no browser, no server |
 | `@design-bridge/server`     | Playwright (API-only, no browser)            | HTTP + WebSocket API of the standalone server        |
 | `@design-bridge/client`     | Playwright (Chromium)                        | Annotation UI end-to-end against the Vite dev server |
@@ -62,6 +64,7 @@ pnpm test
 pnpm --filter @design-bridge/client test
 pnpm --filter @design-bridge/server test
 pnpm --filter @design-bridge/components test
+pnpm --filter @design-bridge/mcp test
 pnpm --filter @design-bridge/unplugin test
 pnpm --filter @design-bridge/astro test
 pnpm --filter @design-bridge/next test
@@ -79,13 +82,16 @@ pnpm --filter @design-bridge/unplugin test -- --project=rspack
 pnpm --filter @design-bridge/unplugin test -- --project=rspack -g "injects __DB_WS_URL__"
 ```
 
-**Target a single Node.js test** (components package uses `node --test`):
+**Target a single Node.js test** (components and mcp packages use `node --test`):
 
 The `pnpm test --` passthrough does not reach node's own flags, so invoke node directly:
 
 ```bash
 cd core/components
 node --loader ./tests/css-loader.mjs --test --test-name-pattern "annotations store" tests/stores.test.mjs
+
+cd core/mcp
+node --test --test-name-pattern "returns all 10 tools" tests/mcp.test.mjs
 ```
 
 **Run only tests in a specific file:**
@@ -95,7 +101,7 @@ pnpm --filter @design-bridge/unplugin test -- tests/rspack.spec.ts
 pnpm --filter @design-bridge/client test -- tests/annotations.spec.ts
 ```
 
-**Server tests** spin up a dedicated server instance on port 7379 — the default (`DESIGN_BRIDGE_PORT=7378`, `reuseExistingServer: false`). Each other suite has its own port: unplugin/client → 7378, next → 7380, astro → 7381, nuxt → 7382.
+**Server tests** spin up a dedicated server instance on port 7379 — the default (`DESIGN_BRIDGE_PORT=7378`, `reuseExistingServer: false`). Each other suite has its own port: unplugin/client → 7378, next → 7380, astro → 7381, nuxt → 7382. **MCP tests** use port 7383.
 
 **`core/client` tests** require the Vite dev server (port 5173). The webServer config starts it automatically with `reuseExistingServer: true` — if `integrations/unplugin` tests are already running and have started the server, `core/client` will reuse it.
 
