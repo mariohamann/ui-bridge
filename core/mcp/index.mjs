@@ -46,26 +46,47 @@ async function apiFetch(baseUrl, path, { method = 'GET', body } = {}) {
 
 const GUIDE_WORKFLOW = `# When to Tweak vs. Direct Edit
 
-Use a **tweak** when the user wants to compare options, try multiple variants,
-or explore design alternatives side-by-side in the browser. Tweaks are backed
-by comments with a live knob — the value can be changed, reset, and accepted
-or discarded from the browser panel.
+Design Bridge enables a **conversational design loop** between the user and the LLM,
+anchored to specific DOM elements. Comments are threads; the LLM is a first-class
+participant that can reply with text, code changes, or live tweaks.
 
-Use a **direct edit** when the decision is already clear: bug fixes, structural
-refactors, or any change with a single correct outcome.
+## Conversation flow
 
-**When in doubt:** if the user will want to see options in the browser, tweak.
-If there is one right answer, edit directly.
+1. **User** marks an element in the browser (Alt+click) and writes a comment.
+2. **LLM** reads the thread via \`list_comments\` / \`get_comment\` and responds with one of:
+   - **(a) Text reply** — \`reply_to_comment\` with just \`text\`
+   - **(b) Text + tweak** — \`reply_to_comment\` with \`text\` + \`knob\` + \`actions\` (live UI knob)
+   - **(c) New comment** — \`create_comment\` to annotate a different element
+3. **User** sees the live knob, tries values, then accepts or discards from the panel.
+   - Accept → file change is permanent, knob collapses with "✓ Tweak accepted" badge.
+   - Discard → files restored, knob collapses with "✕ Tweak discarded" badge.
+   - Thread stays open for further replies either way.
+4. If the user is unhappy, they reply again and the LLM can \`reply_to_comment\` with a new tweak.
+   The previous tweak is already resolved, so there is no conflict.
 
-## Workflow for creating a tweak
+## Use a tweak when
 
-1. Call \`get_server_info\` — note the \`scriptsDir\` path.
+- The user wants to compare options or try variants side-by-side in the browser.
+- The decision isn't final — exploring, not committing.
+
+## Use a direct edit when
+
+- The decision is already clear: bug fixes, structural refactors, single correct outcome.
+- The user says "just change it".
+
+## Multiple tweaks at once
+
+Each comment can carry **one knob**. For independent tweaks on the same thread, call
+\`reply_to_comment\` for each one — they become sibling replies. As long as they touch
+different files or different lines, the replay engine composes them correctly.
+
+## Workflow for creating a tweak reply
+
+1. \`get_server_info\` — note \`scriptsDir\`.
 2. Read the target source file to find the exact string to transform.
-3. Write the script file to \`{scriptsDir}/{scriptId}.mjs\` directly using your
-   file-write tools. Format: \`export default (content, value) => string\`.
-4. Call \`upsert_comment\` with \`knob\` + \`actions\` referencing the scriptId.
-5. The browser panel shows the knob immediately — accept (finalizes file changes)
-   or discard (reverts) from the panel.
+3. Write \`{scriptsDir}/{scriptId}.mjs\` — \`export default (content, value) => string\`.
+4. \`reply_to_comment\` with \`text\`, \`knob\`, and \`actions\` referencing the scriptId.
+5. The browser shows the knob inline in the reply thread. The user accepts or discards.
 `;
 
 const GUIDE_WRITE_SCRIPTS = `# How to Write Design Bridge Transform Scripts
@@ -163,18 +184,12 @@ export default (content, value) =>
   content.replace(/icon: '[^']*'/, \`icon: '\${value}'\`);
 \`\`\`
 
-Step 2 — register the comment with the tweak:
+Step 2 — reply to the comment with a tweak:
 
 \`\`\`json
 {
-  "id": "feature-icon-tweak",
-  "selectors": [".feature-icon"],
-  "labels": [".feature-icon"],
-  "comment": "Try different icons",
-  "pageUrl": "http://localhost:5173/",
-  "timestamp": 0,
-  "createdAt": 0,
-  "replies": [],
+  "commentId": "abc-123",
+  "text": "I tried a few icons — use the picker to compare them live.",
   "knob": {
     "label": "Icon",
     "type": "select",
@@ -200,50 +215,40 @@ server and injects a floating comment panel into the browser.
 
 ## Core concepts
 
-**Comments** are lightweight records attached to DOM elements via CSS selectors. They can be
-pure comments (design feedback) or carry a **knob** + **actions** (a live tweak). Use
-\`list_comments\` proactively at the start of a session to discover pending design feedback.
+**Comments** are threads attached to DOM elements via CSS selectors. Each thread can hold
+text replies and live tweaks. The LLM is a first-class participant — it can create comments
+and reply with text, code changes, or live knob tweaks.
 
-**Tweaks** are live knobs backed by transform scripts. When a knob value changes, the engine
+**Tweaks** are live knobs embedded in a reply. When the knob value changes, the engine
 restores the original file from snapshot and replays all active tweaks — the result is
-hot-module-replaced in the browser instantly. The user sees the change live without any commit.
+hot-module-replaced in the browser instantly.
 
-**Always prefer a tweak over a direct edit when:**
-- The user wants to compare variants or alternatives ("try a few button styles", "show me options")
-- The decision isn't final yet — exploring, not committing
-- The user will want to see choices side-by-side in the browser before picking one
+## Agent scope
 
-**Use a direct code edit when:**
-- The change is a bug fix or structural refactor with one correct outcome
-- The user explicitly says "just change it"
+The agent can **read all comments** but can only **create or edit agent-authored content**
+(author='agent'). Resolving, accepting, discarding, and deleting is the **user's job** —
+done from the browser panel. Never attempt those actions on the user's behalf.
 
-## Agent scope — read, comment, and tweak only
+## Conversational flow
 
-The agent's role is to **read feedback and create tweaks**. Resolving, accepting, discarding,
-and deleting comments is the **user's job** — done from the browser panel. Never attempt
-to accept, discard, or delete comments on the user's behalf.
+1. User annotates an element in the browser; a thread is created.
+2. LLM calls \`list_comments\` at session start, then \`reply_to_comment\` to respond.
+3. User accepts or discards the tweak from the panel. The knob collapses with a status badge.
+4. If the user replies again, the LLM can post a new \`reply_to_comment\` with another tweak.
 
-## Tweak workflow (always follow this order)
+## Key tools
 
-1. \`get_server_info\` — get \`scriptsDir\` (absolute path where script files live)
-2. Read the target source file to find the exact string your regex will match
-3. Write \`{scriptsDir}/{scriptId}.mjs\` with: \`export default (content, value) => string\`
-   - Pure function, no imports, no async
-   - \`content\` is always the ORIGINAL file text (replay model — never pre-tweaked)
-   - \`value\` is always a string (coerce inside the function if needed)
-   - scriptId must be lowercase kebab-case (e.g. \`hero-button-variant\`)
-4. \`upsert_comment\` with \`knob\` + \`actions\` referencing the scriptId
-5. The browser panel shows the knob immediately. The user picks the variant and
-   accepts or discards it themselves from the panel.
+- \`create_comment\`      — start a new thread on one or more elements (agent-authored)
+- \`reply_to_comment\`    — add an agent reply (text only, or text + live tweak)
+- \`update_own_comment\`  — edit an agent-authored comment or reply
+- \`close_tweak\`         — retract the agent's pending tweak on a comment
+- \`list_comments\`       — read all threads (call this at session start)
+- \`get_comment\`         — read a single thread with full knob + actions + replies
+- \`get_tweaks\`          — list all live knobs with current values
+- \`get_server_info\`     — get root, scriptsDir, commentsDir paths
 
-## Reading comments
-
-Comments are persistent async design feedback and exploration state. At the start of a
-session always call \`list_comments\` to surface any open feedback or pending tweaks.
-Each comment may include a \`comment\`, \`replies\` thread, and optionally a \`knob\` (tweak).
-
-For detailed regex rules, knob types, HMR behaviour, and full examples see:
-- \`design-bridge://guide/workflow\` — when to tweak vs. direct edit
+For tweak scripts, knob types, HMR behaviour, and complete examples see:
+- \`design-bridge://guide/workflow\` — conversational flow and when to tweak vs. edit
 - \`design-bridge://guide/write-scripts\` — full script authoring reference
 `;
 
@@ -257,7 +262,10 @@ const server = new McpServer(
 server.resource(
   'workflow-guide',
   'design-bridge://guide/workflow',
-  { mimeType: 'text/markdown', description: 'When to tweak vs. direct edit — decision guide' },
+  {
+    mimeType: 'text/markdown',
+    description: 'Conversational design loop — when to tweak vs. direct edit',
+  },
   async () => ({
     contents: [
       { uri: 'design-bridge://guide/workflow', mimeType: 'text/markdown', text: GUIDE_WORKFLOW },
@@ -268,7 +276,11 @@ server.resource(
 server.resource(
   'write-scripts-guide',
   'design-bridge://guide/write-scripts',
-  { mimeType: 'text/markdown', description: 'How to write Design Bridge transform scripts' },
+  {
+    mimeType: 'text/markdown',
+    description:
+      'How to write Design Bridge transform scripts for reply_to_comment / create_comment tweaks',
+  },
   async () => ({
     contents: [
       {
@@ -309,60 +321,166 @@ server.tool(
 );
 
 server.tool(
-  'upsert_comment',
-  `Create or update an comment. Can optionally attach a live tweak knob.
+  'create_comment',
+  `Start a new comment thread on one or more DOM elements (agent-authored).
+  Use this when the LLM proactively wants to annotate an element or respond to user
+  feedback by opening a thread on a specific element.
 
-  To create a tweak comment:
+  Can optionally attach a live tweak knob (knob + actions). If creating a tweak:
   1. Call get_server_info — note scriptsDir.
   2. Read the target source file to find the exact string to replace.
-  3. Write {scriptsDir}/{scriptId}.mjs directly using your file tools.
-     Format: export default (content, value) => string  (pure, no imports, no async).
-     The scriptId must be lowercase kebab-case.
-  4. Call upsert_comment with knob + actions referencing the scriptId.
+  3. Write {scriptsDir}/{scriptId}.mjs using your file tools.
+  4. Include knob + actions in this call.
 
-  The browser panel shows the knob immediately. The user can change the value
-  live, then accept (permanently writes the file change and deletes the
-  comment) or discard (reverts the file, keeps the comment).
+  The comment is stamped author='agent'. You can only edit it later via update_own_comment.
 
-  See resource design-bridge://guide/write-scripts for regex rules, knob types,
-  HMR behaviour, and a complete example.`,
+  See resource design-bridge://guide/write-scripts for script authoring details.`,
   {
-    comment: z
+    selectors: z.array(z.string()).describe('CSS selectors of the annotated elements'),
+    labels: z.array(z.string()).describe('Short human labels matching selectors'),
+    comment: z.string().describe('The comment / opening message of the thread'),
+    pageUrl: z.string().describe('URL of the page where the comment is anchored'),
+    knob: z
       .object({
-        id: z.string(),
-        selectors: z.array(z.string()),
-        labels: z.array(z.string()),
-        comment: z.string(),
-        pageUrl: z.string(),
-        timestamp: z.number(),
-        createdAt: z.number(),
-        replies: z.array(z.unknown()).default([]),
-        knob: z
-          .object({
-            label: z.string(),
-            type: z.enum(['select', 'button-group', 'string', 'number', 'boolean', 'color']),
-            value: z.union([z.string(), z.number(), z.boolean()]),
-            options: z.record(z.string()).optional(),
-            min: z.number().optional(),
-            max: z.number().optional(),
-            step: z.number().optional(),
-          })
-          .optional(),
-        actions: z
-          .array(
-            z.discriminatedUnion('type', [
-              z.object({ type: z.literal('content-edit'), file: z.string(), scriptId: z.string() }),
-              z.object({ type: z.literal('file-create'), path: z.string(), fileId: z.string() }),
-              z.object({ type: z.literal('file-delete'), path: z.string() }),
-            ]),
-          )
-          .optional(),
+        label: z.string(),
+        type: z.enum(['select', 'button-group', 'string', 'number', 'boolean', 'color']),
+        value: z.union([z.string(), z.number(), z.boolean()]),
+        options: z.record(z.string()).optional(),
+        min: z.number().optional(),
+        max: z.number().optional(),
+        step: z.number().optional(),
       })
-      .describe('Comment object'),
+      .optional()
+      .describe('Live tweak knob definition'),
+    actions: z
+      .array(
+        z.discriminatedUnion('type', [
+          z.object({ type: z.literal('content-edit'), file: z.string(), scriptId: z.string() }),
+          z.object({ type: z.literal('file-create'), path: z.string(), fileId: z.string() }),
+          z.object({ type: z.literal('file-delete'), path: z.string() }),
+        ]),
+      )
+      .optional()
+      .describe('Ordered actions to execute when the knob value changes'),
   },
-  async ({ comment }) => {
+  async ({ selectors, labels, comment, pageUrl, knob, actions }) => {
     const url = await resolveBaseUrl();
-    const data = await apiFetch(url, '/api/comments', { method: 'POST', body: comment });
+    const now = Date.now();
+    const id = `agent-${now}-${Math.random().toString(36).slice(2, 8)}`;
+    const payload = {
+      id,
+      selectors,
+      labels,
+      comment,
+      pageUrl,
+      timestamp: now,
+      createdAt: now,
+      author: 'agent',
+      replies: [
+        { id: `${id}-root`, type: 'comment', text: comment, createdAt: now, author: 'agent' },
+      ],
+      ...(knob ? { knob, tweakStatus: 'pending' } : {}),
+      ...(actions ? { actions } : {}),
+    };
+    const data = await apiFetch(url, '/api/comments', { method: 'POST', body: payload });
+    return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
+  },
+);
+
+server.tool(
+  'reply_to_comment',
+  `Add an agent reply to an existing comment thread. This is the primary tool for the LLM
+  to respond to user feedback.
+
+  The reply can be:
+  - Text only (omit knob + actions) — for explanations, questions, or direct edits
+  - Text + tweak (include knob + actions) — for live explorations the user can try in the browser
+
+  If adding a tweak reply:
+  1. Call get_server_info — note scriptsDir.
+  2. Read the target source file to find the exact string to replace.
+  3. Write {scriptsDir}/{scriptId}.mjs using your file tools.
+  4. Include knob + actions in this call.
+
+  The knob appears inline in the thread at the position of this reply.
+  The user accepts or discards from the panel — the knob collapses with a status badge either way.
+  Multiple tweak replies on the same thread are allowed as long as they touch different code.
+
+  See resource design-bridge://guide/write-scripts for script authoring details.`,
+  {
+    commentId: z.string().describe('ID of the existing comment thread to reply to'),
+    text: z.string().describe('The reply text — shown inline in the thread'),
+    knob: z
+      .object({
+        label: z.string(),
+        type: z.enum(['select', 'button-group', 'string', 'number', 'boolean', 'color']),
+        value: z.union([z.string(), z.number(), z.boolean()]),
+        options: z.record(z.string()).optional(),
+        min: z.number().optional(),
+        max: z.number().optional(),
+        step: z.number().optional(),
+      })
+      .optional()
+      .describe('Live tweak knob — if provided, creates a tweak reply'),
+    actions: z
+      .array(
+        z.discriminatedUnion('type', [
+          z.object({ type: z.literal('content-edit'), file: z.string(), scriptId: z.string() }),
+          z.object({ type: z.literal('file-create'), path: z.string(), fileId: z.string() }),
+          z.object({ type: z.literal('file-delete'), path: z.string() }),
+        ]),
+      )
+      .optional()
+      .describe('Ordered actions for the knob — required when knob is provided'),
+  },
+  async ({ commentId, text, knob, actions }) => {
+    const url = await resolveBaseUrl();
+    // Fetch the current comment
+    const existing = await apiFetch(url, `/api/comments/${encodeURIComponent(commentId)}`);
+    const now = Date.now();
+    const replyId = `reply-${now}-${Math.random().toString(36).slice(2, 8)}`;
+    const replies = [
+      ...(existing.replies ?? []),
+      { id: replyId, type: 'comment', text, createdAt: now, author: 'agent' },
+    ];
+    const updated = {
+      ...existing,
+      replies,
+      timestamp: now,
+      ...(knob ? { knob, tweakStatus: 'pending', actions: actions ?? [] } : {}),
+    };
+    const data = await apiFetch(url, '/api/comments', { method: 'POST', body: updated });
+    return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
+  },
+);
+
+server.tool(
+  'update_own_comment',
+  `Update an agent-authored comment. You may only update comments where author='agent'.
+  Attempting to update user-authored comments will return an error.
+
+  Use this to correct the opening message, selectors, or labels of a comment you created.
+  To add a reply, use reply_to_comment instead.`,
+  {
+    id: z.string().describe('ID of the agent-authored comment to update'),
+    comment: z.string().optional().describe('Updated opening message'),
+    selectors: z.array(z.string()).optional().describe('Updated CSS selectors'),
+    labels: z.array(z.string()).optional().describe('Updated labels'),
+  },
+  async ({ id, comment, selectors, labels }) => {
+    const url = await resolveBaseUrl();
+    const existing = await apiFetch(url, `/api/comments/${encodeURIComponent(id)}`);
+    if (existing.author !== 'agent') {
+      throw new Error(`Comment "${id}" is not agent-authored — cannot update.`);
+    }
+    const updated = {
+      ...existing,
+      ...(comment !== undefined ? { comment } : {}),
+      ...(selectors !== undefined ? { selectors } : {}),
+      ...(labels !== undefined ? { labels } : {}),
+      timestamp: Date.now(),
+    };
+    const data = await apiFetch(url, '/api/comments', { method: 'POST', body: updated });
     return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
   },
 );
@@ -381,13 +499,32 @@ server.tool(
 );
 
 server.tool(
+  'close_tweak',
+  `Retract the agent's pending tweak on a comment by discarding the knob and restoring the
+  original files. Use this before posting a new tweak reply to replace an existing one,
+  or when the agent wants to withdraw a suggestion.
+
+  Only works on comments where the knob was created by the agent (tweakStatus='pending').`,
+  {
+    commentId: z.string().describe('ID of the comment whose tweak should be closed'),
+  },
+  async ({ commentId }) => {
+    const url = await resolveBaseUrl();
+    const data = await apiFetch(url, `/api/comments/${encodeURIComponent(commentId)}/discard`, {
+      method: 'POST',
+    });
+    return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
+  },
+);
+
+server.tool(
   'get_server_info',
   `Get the running Design Bridge server's root directory and key paths.
   Call this first when creating a tweak — it tells you where to write script files.
 
   Returns: { port, root, scriptsDir, commentsDir }
   - root: the project root the server is watching
-  - scriptsDir: write {scriptId}.mjs files here BEFORE calling upsert_comment
+  - scriptsDir: write {scriptId}.mjs files here BEFORE calling reply_to_comment / create_comment
   - commentsDir: where comment JSON files are persisted`,
   {},
   async () => {

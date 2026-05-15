@@ -175,14 +175,34 @@ wss.on('connection', (ws) => {
       case 'tweak:discard': {
         const { commentId } = msg.payload;
         await tweaks.discardComment(commentId);
+        // Keep the comment but mark tweak as discarded; strip live knob/actions
+        const discardedByWs = store.get(commentId);
+        if (discardedByWs) {
+          store.upsert({
+            ...discardedByWs,
+            tweakStatus: 'discarded',
+            knob: undefined,
+            actions: undefined,
+          });
+        }
         broadcast({ type: 'tweak:schema', payload: tweaks.buildSchema() });
+        broadcast({ type: 'comments:sync', payload: store.all() });
         break;
       }
 
       case 'tweak:accept-comment': {
         const { commentId } = msg.payload;
         await tweaks.finalizeForComment(commentId);
-        store.del(commentId);
+        // Keep the comment but mark tweak as accepted; strip live knob/actions
+        const accepted = store.get(commentId);
+        if (accepted) {
+          store.upsert({
+            ...accepted,
+            tweakStatus: 'accepted',
+            knob: undefined,
+            actions: undefined,
+          });
+        }
         broadcast({ type: 'tweak:schema', payload: tweaks.buildSchema() });
         broadcast({ type: 'comments:sync', payload: store.all() });
         break;
@@ -191,7 +211,18 @@ wss.on('connection', (ws) => {
       case 'tweak:dismiss': {
         const { commentId } = msg.payload;
         await tweaks.discardComment(commentId);
+        // Keep the comment but mark tweak as discarded; strip live knob/actions
+        const discarded = store.get(commentId);
+        if (discarded) {
+          store.upsert({
+            ...discarded,
+            tweakStatus: 'discarded',
+            knob: undefined,
+            actions: undefined,
+          });
+        }
         broadcast({ type: 'tweak:schema', payload: tweaks.buildSchema() });
+        broadcast({ type: 'comments:sync', payload: store.all() });
         break;
       }
 
@@ -348,7 +379,10 @@ const httpServer = createServer(async (req, res) => {
     const annId = acceptAnnMatch[1];
     try {
       await tweaks.finalizeForComment(annId);
-      store.del(annId);
+      const accepted = store.get(annId);
+      if (accepted) {
+        store.upsert({ ...accepted, tweakStatus: 'accepted', knob: undefined, actions: undefined });
+      }
       broadcast({ type: 'tweak:schema', payload: tweaks.buildSchema() });
       broadcast({ type: 'comments:sync', payload: store.all() });
       jsonResponse(res, 200, { ok: true });
@@ -363,7 +397,17 @@ const httpServer = createServer(async (req, res) => {
     const annId = discardAnnMatch[1];
     try {
       await tweaks.discardComment(annId);
+      const discarded = store.get(annId);
+      if (discarded) {
+        store.upsert({
+          ...discarded,
+          tweakStatus: 'discarded',
+          knob: undefined,
+          actions: undefined,
+        });
+      }
       broadcast({ type: 'tweak:schema', payload: tweaks.buildSchema() });
+      broadcast({ type: 'comments:sync', payload: store.all() });
       jsonResponse(res, 200, { ok: true });
     } catch (e) {
       jsonResponse(res, 400, { error: String(e) });

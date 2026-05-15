@@ -74,7 +74,7 @@ export class DbReview extends _DbReviewBase {
   }
 
   private _unresolve(ann: Comment): void {
-    const { resolvedAt: _removed, ...rest } = ann as Comment & { resolvedAt?: number };
+    const { resolvedAt: _removed, ...rest } = ann as Comment & { resolvedAt?: number; };
     dispatchIntent({ type: 'comment:save', comment: { ...rest, timestamp: Date.now() } });
   }
 
@@ -87,7 +87,7 @@ export class DbReview extends _DbReviewBase {
   }
 
   private _copyLink(ann: Comment): void {
-    navigator.clipboard.writeText(ann.pageUrl || location.href).catch(() => {});
+    navigator.clipboard.writeText(ann.pageUrl || location.href).catch(() => { });
   }
 
   private _renderRow(ann: Comment, rank: Map<string, number>) {
@@ -96,13 +96,15 @@ export class DbReview extends _DbReviewBase {
     const ts = ann.createdAt ?? ann.timestamp;
     const replies = (ann.replies ?? []).filter((r) => r.type === 'comment');
     const extraReplies = replies.length - 1;
+    const isAgent = ann.author === 'agent';
+    const tweakStatus = ann.tweakStatus;
 
     return html`
       <div
         class="row${resolved ? ' resolved' : ''}"
         @click=${(e: Event) => {
-          if (!(e.target as Element).closest('wa-dropdown')) this._focus(ann.id);
-        }}
+        if (!(e.target as Element).closest('wa-dropdown')) this._focus(ann.id);
+      }}
       >
         <!-- Index badge -->
         <wa-badge
@@ -116,25 +118,43 @@ export class DbReview extends _DbReviewBase {
         <div class="body">
           <div class="meta">
             <span class="src-label">${sourceLabel(ann)}</span>
+            ${isAgent
+        ? html`<wa-tag variant="brand" appearance="outlined" size="s" title="Agent-authored"
+                  >✦ Agent</wa-tag
+                >`
+        : ''}
             <wa-relative-time
               sync
               .date=${new Date(ts)}
               style="font-size:var(--wa-font-size-2xs);color:var(--wa-color-text-quiet);"
             ></wa-relative-time>
             ${resolved
-              ? html`<wa-tag variant="success" appearance="outlined" size="s">resolved</wa-tag>`
-              : ''}
+        ? html`<wa-tag variant="success" appearance="outlined" size="s">resolved</wa-tag>`
+        : ''}
+            ${tweakStatus === 'accepted'
+        ? html`<wa-tag variant="success" appearance="outlined" size="s"
+                  >✓ tweak accepted</wa-tag
+                >`
+        : tweakStatus === 'discarded'
+          ? html`<wa-tag variant="warning" appearance="outlined" size="s"
+                    >✕ tweak discarded</wa-tag
+                  >`
+          : tweakStatus === 'pending' && ann.knob
+            ? html`<wa-tag variant="brand" appearance="outlined" size="s"
+                      >⚙ tweak live</wa-tag
+                    >`
+            : ''}
           </div>
           ${ann.comment
-            ? html`<div class="comment">${ann.comment}</div>`
-            : html`<div class="comment empty-comment">No comment</div>`}
+        ? html`<div class="comment">${ann.comment}</div>`
+        : html`<div class="comment empty-comment">No comment</div>`}
           ${extraReplies > 0
-            ? html`<div class="footer">
+        ? html`<div class="footer">
                 <wa-tag variant="neutral" appearance="outlined" size="s"
                   >${extraReplies} repl${extraReplies === 1 ? 'y' : 'ies'}</wa-tag
                 >
               </div>`
-            : ''}
+        : ''}
         </div>
 
         <!-- Per-row actions dropdown -->
@@ -143,17 +163,17 @@ export class DbReview extends _DbReviewBase {
           class="row-menu"
           @click=${(e: Event) => e.stopPropagation()}
           @wa-select=${(e: CustomEvent) => {
-            const val = e.detail.item.value;
-            if (val === 'resolve') this._resolve(ann);
-            else if (val === 'unresolve') this._unresolve(ann);
-            else if (val === 'copy') this._copyLink(ann);
-            else if (val === 'delete') this._delete(ann.id);
-          }}
+        const val = e.detail.item.value;
+        if (val === 'resolve') this._resolve(ann);
+        else if (val === 'unresolve') this._unresolve(ann);
+        else if (val === 'copy') this._copyLink(ann);
+        else if (val === 'delete') this._delete(ann.id);
+      }}
         >
           <wa-button slot="trigger" appearance="plain" size="s" title="More">···</wa-button>
           ${!resolved
-            ? html`<wa-dropdown-item value="resolve">✓ Mark resolved</wa-dropdown-item>`
-            : html`<wa-dropdown-item value="unresolve">↩ Unresolve</wa-dropdown-item>`}
+        ? html`<wa-dropdown-item value="resolve">✓ Mark resolved</wa-dropdown-item>`
+        : html`<wa-dropdown-item value="unresolve">↩ Unresolve</wa-dropdown-item>`}
           <wa-dropdown-item value="copy">Copy page link</wa-dropdown-item>
           <wa-divider></wa-divider>
           <wa-dropdown-item value="delete" variant="danger">Delete</wa-dropdown-item>
@@ -183,22 +203,22 @@ export class DbReview extends _DbReviewBase {
           size="s"
           ?checked=${this.showResolved}
           @wa-change=${(e: Event) => {
-            this.showResolved = (e.target as HTMLInputElement).checked;
-          }}
+        this.showResolved = (e.target as HTMLInputElement).checked;
+      }}
         ></wa-switch>
       </div>
       <div class="list">
         ${visible.length === 0
-          ? html`
+        ? html`
               <div class="empty">
                 ${comments.length === 0
-                  ? html`No comments yet.<br /><span style="color:var(--wa-color-text-quiet)"
+            ? html`No comments yet.<br /><span style="color:var(--wa-color-text-quiet)"
                         >Hold Alt+Shift and click any element in your app.</span
                       >`
-                  : 'All comments resolved.'}
+            : 'All comments resolved.'}
               </div>
             `
-          : visible.map((ann) => this._renderRow(ann, rank))}
+        : visible.map((ann) => this._renderRow(ann, rank))}
       </div>
     `;
   }

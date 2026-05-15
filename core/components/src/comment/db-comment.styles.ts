@@ -252,6 +252,58 @@ const ANNOTATION_ITEM_LOCAL_STYLES = css`
     text-overflow: ellipsis;
     flex-shrink: 0;
   }
+
+  /* ── Tweak status badge (after accept/discard) ── */
+  .tweak-status {
+    display: flex;
+    align-items: center;
+    gap: var(--wa-space-2xs);
+    border-top: 1px solid var(--wa-color-surface-border);
+    padding: var(--wa-space-s) var(--wa-space-s);
+    font-size: var(--wa-font-size-xs);
+    color: var(--wa-color-text-quiet);
+  }
+  .tweak-status-icon {
+    font-size: 14px;
+    flex-shrink: 0;
+  }
+  .tweak-status.accepted .tweak-status-icon {
+    color: var(--wa-color-success);
+  }
+  .tweak-status.discarded .tweak-status-icon {
+    color: var(--wa-color-warning);
+  }
+
+  /* ── Reply author icon ──────────────────────── */
+  .reply-row {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--wa-space-xs);
+    margin-bottom: var(--wa-space-xs);
+  }
+  .reply-author-icon {
+    flex-shrink: 0;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    margin-top: 2px;
+  }
+  .reply-author-icon.agent {
+    background: var(--wa-color-brand-fill-quiet);
+    color: var(--wa-color-brand);
+  }
+  .reply-author-icon.user {
+    background: var(--wa-color-surface-lowered);
+    color: var(--wa-color-text-quiet);
+  }
+  .reply-body {
+    flex: 1;
+    min-width: 0;
+  }
 `;
 
 export const commentItemStyles = [designBridgeHostTokenStyles, ANNOTATION_ITEM_LOCAL_STYLES];

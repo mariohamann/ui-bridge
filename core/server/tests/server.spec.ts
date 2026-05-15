@@ -106,7 +106,7 @@ test.describe('Health & static routes', () => {
   test('GET /health returns ok:true with port and root', async ({ request }) => {
     const res = await request.get(`${BASE}/health`);
     expect(res.status()).toBe(200);
-    const body = (await res.json()) as { ok: boolean; port: number; root: string };
+    const body = (await res.json()) as { ok: boolean; port: number; root: string; };
     expect(body.ok).toBe(true);
     expect(body.port).toBe(7379);
     expect(typeof body.root).toBe('string');
@@ -139,7 +139,7 @@ test.describe('GET /api/comments', () => {
   test('returns empty list when no comments exist', async ({ request }) => {
     const res = await request.get(`${API}/comments`);
     expect(res.status()).toBe(200);
-    const body = (await res.json()) as { comments: unknown[] };
+    const body = (await res.json()) as { comments: unknown[]; };
     expect(body.comments).toEqual([]);
   });
 
@@ -150,7 +150,7 @@ test.describe('GET /api/comments', () => {
     await request.post(`${API}/comments`, { data: a2 });
 
     const res = await request.get(`${API}/comments`);
-    const body = (await res.json()) as { comments: { id: string }[] };
+    const body = (await res.json()) as { comments: { id: string; }[]; };
     const ids = body.comments.map((a) => a.id);
     expect(ids).toContain('list-1');
     expect(ids).toContain('list-2');
@@ -162,7 +162,7 @@ test.describe('POST /api/comments', () => {
     const ann = makeComment({ id: 'create-ok', comment: 'Created' });
     const res = await request.post(`${API}/comments`, { data: ann });
     expect(res.status()).toBe(200);
-    const body = (await res.json()) as { ok: boolean };
+    const body = (await res.json()) as { ok: boolean; };
     expect(body.ok).toBe(true);
 
     // File must exist at exactly <TEST_ROOT>/.design-bridge/comments/<id>.json
@@ -180,7 +180,7 @@ test.describe('POST /api/comments', () => {
     await request.post(`${API}/comments`, { data: { ...ann, comment: 'Updated' } });
 
     const res = await request.get(`${API}/comments/upsert-id`);
-    const body = (await res.json()) as { comment: string };
+    const body = (await res.json()) as { comment: string; };
     expect(body.comment).toBe('Updated');
   });
 
@@ -208,7 +208,7 @@ test.describe('DELETE /api/comments (clear all)', () => {
     expect(del.status()).toBe(200);
 
     const list = await request.get(`${API}/comments`);
-    const body = (await list.json()) as { comments: unknown[] };
+    const body = (await list.json()) as { comments: unknown[]; };
     expect(body.comments).toHaveLength(0);
 
     // Comment files must be gone from the filesystem too
@@ -231,7 +231,7 @@ test.describe('GET /api/comments/:id', () => {
 
     const res = await request.get(`${API}/comments/get-by-id`);
     expect(res.status()).toBe(200);
-    const body = (await res.json()) as { id: string; comment: string };
+    const body = (await res.json()) as { id: string; comment: string; };
     expect(body.id).toBe('get-by-id');
     expect(body.comment).toBe('Fetch me');
   });
@@ -262,12 +262,17 @@ test.describe('DELETE /api/comments/:id', () => {
 });
 
 test.describe('POST /api/comments/:id/accept', () => {
-  test('removes the comment after accepting (no active tweaks)', async ({ request }) => {
+  test('keeps the comment after accepting (no active tweaks) with tweakStatus=accepted', async ({ request }) => {
     await request.post(`${API}/comments`, { data: makeComment({ id: 'accept-ann' }) });
 
     const res = await request.post(`${API}/comments/accept-ann/accept`);
     expect(res.status()).toBe(200);
-    expect((await request.get(`${API}/comments/accept-ann`)).status()).toBe(404);
+    // Comment should still exist
+    const check = await request.get(`${API}/comments/accept-ann`);
+    expect(check.status()).toBe(200);
+    const body = (await check.json()) as { tweakStatus: string; knob: unknown; };
+    expect(body.tweakStatus).toBe('accepted');
+    expect(body.knob).toBeUndefined();
   });
 });
 
@@ -277,7 +282,7 @@ test.describe('GET /api/tweaks', () => {
   test('returns an empty knobs array when no scripts are loaded', async ({ request }) => {
     const res = await request.get(`${API}/tweaks`);
     expect(res.status()).toBe(200);
-    const body = (await res.json()) as { knobs: unknown[] };
+    const body = (await res.json()) as { knobs: unknown[]; };
     expect(Array.isArray(body.knobs)).toBe(true);
     expect(body.knobs).toHaveLength(0);
   });
@@ -291,7 +296,7 @@ test.describe('POST /inspect-pick', () => {
       data: { file: 'src/HeroSection.vue', line: 12, column: 4 },
     });
     expect(res.status()).toBe(200);
-    const body = (await res.json()) as { ok: boolean };
+    const body = (await res.json()) as { ok: boolean; };
     expect(body.ok).toBe(true);
   });
 
@@ -319,8 +324,8 @@ test.describe('POST /inspect-pick', () => {
     await new Promise<void>((resolve) => setTimeout(resolve, 150));
     ws.close();
 
-    const pick = received.find((m: unknown) => (m as { type: string }).type === 'inspect:pick') as
-      | { type: string; payload: unknown }
+    const pick = received.find((m: unknown) => (m as { type: string; }).type === 'inspect:pick') as
+      | { type: string; payload: unknown; }
       | undefined;
     // The broadcast may or may not arrive depending on timing — just verify the POST succeeded.
     // The WS broadcast test is best-effort here; the REST response is the authoritative signal.
@@ -353,7 +358,7 @@ test.describe('Comment persistence', () => {
     await request.delete(`${API}/comments/gone`);
 
     const list = (await (await request.get(`${API}/comments`)).json()) as {
-      comments: { id: string }[];
+      comments: { id: string; }[];
     };
     expect(list.comments.find((a) => a.id === 'gone')).toBeUndefined();
   });
@@ -372,7 +377,7 @@ test.describe('WebSocket — initial state broadcast', () => {
     const ann = makeComment({ id: 'ws-init', comment: 'WS init' });
     await request.post(`${API}/comments`, { data: ann });
 
-    const msgs = (await wsMessages(WS_URL, 500)) as { type: string; payload: unknown }[];
+    const msgs = (await wsMessages(WS_URL, 500)) as { type: string; payload: unknown; }[];
     const sync = msgs.find((m) => m.type === 'comments:sync');
     expect(sync).toBeDefined();
     expect(Array.isArray(sync!.payload)).toBe(true);
@@ -386,7 +391,7 @@ test.describe('WebSocket — comment messages', () => {
 
     const res = await request.get(`${API}/comments/ws-upsert`);
     expect(res.status()).toBe(200);
-    const body = (await res.json()) as { comment: string };
+    const body = (await res.json()) as { comment: string; };
     expect(body.comment).toBe('Via WS');
   });
 
@@ -446,7 +451,7 @@ test.describe('POST /api/scripts', () => {
       },
     });
     expect(res.status()).toBe(201);
-    const body = (await res.json()) as { id: string };
+    const body = (await res.json()) as { id: string; };
     expect(body.id).toBe('icon-swap');
   });
 
@@ -503,7 +508,7 @@ test.describe('POST /api/files', () => {
       data: { id: 'my-asset', content: '<p>hello</p>' },
     });
     expect(res.status()).toBe(201);
-    const body = (await res.json()) as { id: string };
+    const body = (await res.json()) as { id: string; };
     expect(body.id).toBe('my-asset');
   });
 
@@ -572,7 +577,7 @@ test.describe('Comment-driven tweak — full lifecycle', () => {
     await request.post(`${API}/comments`, { data: ann });
 
     const res = await request.get(`${API}/tweaks`);
-    const body = (await res.json()) as { knobs: { marker: string; label: string }[] };
+    const body = (await res.json()) as { knobs: { marker: string; label: string; }[]; };
     const knob = body.knobs.find((k) => k.marker === ANN_ID);
     expect(knob).toBeDefined();
     expect(knob!.label).toBe('Feature icon');
@@ -589,7 +594,7 @@ test.describe('Comment-driven tweak — full lifecycle', () => {
         payload: { marker: ANN_ID, value: '🔥' },
       },
       600,
-    )) as { type: string }[];
+    )) as { type: string; }[];
 
     const schema = replies.find((m) => m.type === 'tweak:schema');
     expect(schema).toBeDefined();
@@ -645,9 +650,16 @@ test.describe('Comment-driven tweak — full lifecycle', () => {
     const content = await readFile(resolve(TEST_ROOT, FIXTURE_FILE), 'utf-8');
     expect(content).toContain("icon: '🎨'");
     expect(content).not.toContain("icon: '🚀'");
+
+    // Comment should still exist with tweakStatus=discarded
+    const check = await request.get(`${API}/comments/${ANN_ID}`);
+    expect(check.status()).toBe(200);
+    const body = (await check.json()) as { tweakStatus: string; knob: unknown; };
+    expect(body.tweakStatus).toBe('discarded');
+    expect(body.knob).toBeUndefined();
   });
 
-  test('POST /api/comments/:id/accept finalizes the change permanently', async ({ request }) => {
+  test('POST /api/comments/:id/accept keeps comment with tweakStatus=accepted and finalizes file', async ({ request }) => {
     const ann = makeTweakComment(ANN_ID);
     await request.post(`${API}/comments`, { data: ann });
 
@@ -663,8 +675,12 @@ test.describe('Comment-driven tweak — full lifecycle', () => {
     const res = await request.post(`${API}/comments/${ANN_ID}/accept`);
     expect(res.status()).toBe(200);
 
-    // Comment should be gone
-    expect((await request.get(`${API}/comments/${ANN_ID}`)).status()).toBe(404);
+    // Comment should still exist (not deleted)
+    const check = await request.get(`${API}/comments/${ANN_ID}`);
+    expect(check.status()).toBe(200);
+    const body = (await check.json()) as { tweakStatus: string; knob: unknown; };
+    expect(body.tweakStatus).toBe('accepted');
+    expect(body.knob).toBeUndefined();
 
     // File content should be permanently changed
     const content = await readFile(resolve(TEST_ROOT, FIXTURE_FILE), 'utf-8');
@@ -672,7 +688,7 @@ test.describe('Comment-driven tweak — full lifecycle', () => {
 
     // Knob should no longer appear in schema
     const knobs = (await (await request.get(`${API}/tweaks`)).json()) as {
-      knobs: { marker: string }[];
+      knobs: { marker: string; }[];
     };
     expect(knobs.knobs.find((k) => k.marker === ANN_ID)).toBeUndefined();
   });
@@ -694,7 +710,7 @@ test.describe('Comment-driven tweak — WS schema broadcast', () => {
     const replies = (await wsSend(WS_URL, {
       type: 'comment:upsert',
       payload: ann,
-    })) as { type: string; payload: { marker: string }[] }[];
+    })) as { type: string; payload: { marker: string; }[]; }[];
 
     const schema = replies.find((m) => m.type === 'tweak:schema');
     expect(schema).toBeDefined();

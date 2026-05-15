@@ -93,6 +93,41 @@ describe('comments store', () => {
     const ids = commentsSignal.get().map((a) => a.id);
     assert.deepEqual(ids, ['new1', 'new2']);
   });
+
+  test('preserves author field on comments', () => {
+    updateComments([
+      makeComment('agent-1', { author: 'agent' }),
+      makeComment('user-1', { author: 'user' }),
+    ]);
+    const comments = commentsSignal.get();
+    assert.equal(comments.find((c) => c.id === 'agent-1')?.author, 'agent');
+    assert.equal(comments.find((c) => c.id === 'user-1')?.author, 'user');
+  });
+
+  test('preserves tweakStatus field on comments', () => {
+    updateComments([
+      makeComment('t1', { tweakStatus: 'pending' }),
+      makeComment('t2', { tweakStatus: 'accepted' }),
+      makeComment('t3', { tweakStatus: 'discarded' }),
+    ]);
+    const comments = commentsSignal.get();
+    assert.equal(comments.find((c) => c.id === 't1')?.tweakStatus, 'pending');
+    assert.equal(comments.find((c) => c.id === 't2')?.tweakStatus, 'accepted');
+    assert.equal(comments.find((c) => c.id === 't3')?.tweakStatus, 'discarded');
+  });
+
+  test('preserves author on individual replies', () => {
+    const comment = makeComment('reply-test', {
+      replies: [
+        { id: 'r1', type: 'comment', text: 'User said this', createdAt: Date.now(), author: 'user' },
+        { id: 'r2', type: 'comment', text: 'Agent replied', createdAt: Date.now(), author: 'agent' },
+      ],
+    });
+    updateComments([comment]);
+    const stored = commentsSignal.get()[0];
+    assert.equal(stored.replies[0].author, 'user');
+    assert.equal(stored.replies[1].author, 'agent');
+  });
 });
 
 // ── intent bus ────────────────────────────────────────────────────────────────

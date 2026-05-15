@@ -14,6 +14,7 @@ export type {
   TweakSchemaMsg,
   CommentSource,
   CommentReply,
+  CommentAuthor,
   CommentTweakLink,
   Comment,
   CommentUpsertMsg,

@@ -54,8 +54,8 @@ before(async () => {
     stdio: 'pipe',
   });
 
-  serverProc.stderr.on('data', () => {});
-  serverProc.stdout.on('data', () => {});
+  serverProc.stderr.on('data', () => { });
+  serverProc.stdout.on('data', () => { });
 
   await waitForServer();
 
@@ -158,7 +158,7 @@ describe('MCP initialize', () => {
 });
 
 describe('MCP tools/list', () => {
-  it('returns all 5 tools', async () => {
+  it('returns all 8 tools', async () => {
     const responses = await mcpCall('tools/list', {});
     const res = findResponse(responses, 2);
     assert.ok(res?.result?.tools, 'tools missing');
@@ -166,14 +166,17 @@ describe('MCP tools/list', () => {
     const expected = [
       'list_comments',
       'get_comment',
-      'upsert_comment',
+      'create_comment',
+      'reply_to_comment',
+      'update_own_comment',
+      'close_tweak',
       'get_tweaks',
       'get_server_info',
     ];
     for (const name of expected) {
       assert.ok(names.includes(name), `tool "${name}" missing`);
     }
-    assert.equal(names.length, 5);
+    assert.equal(names.length, 8);
   });
 });
 
@@ -236,32 +239,206 @@ describe('MCP tools/call — list_comments', () => {
   });
 });
 
-describe('MCP tools/call — upsert + get + delete comment', () => {
-  const ANN_ID = 'mcp-test-comment';
+describe('MCP tools/call — create_comment', () => {
+  const ANN_ID_PREFIX = 'mcp-create-test';
 
-  it('creates an comment via upsert_comment', async () => {
-    const ann = {
-      id: ANN_ID,
-      selectors: ['h1'],
-      labels: ['h1'],
-      comment: 'MCP test comment',
-      pageUrl: 'http://localhost:5173/',
-      timestamp: Date.now(),
-      createdAt: Date.now(),
-      replies: [],
-    };
+  it('creates an agent-authored comment', async () => {
     const responses = await mcpCall('tools/call', {
-      name: 'upsert_comment',
-      arguments: { comment: ann },
+      name: 'create_comment',
+      arguments: {
+        selectors: ['h1'],
+        labels: ['h1'],
+        comment: 'Agent created this thread',
+        pageUrl: 'http://localhost:5173/',
+      },
     });
     const res = findResponse(responses, 2);
     assert.ok(!res?.error, `error: ${JSON.stringify(res?.error)}`);
 
-    // Verify via HTTP
-    const httpRes = await fetch(`${BASE_URL}/api/comments/${ANN_ID}`);
-    assert.equal(httpRes.status, 200);
+    // Verify at least one agent-authored comment exists
+    const httpRes = await fetch(`${BASE_URL}/api/comments`);
     const body = await httpRes.json();
-    assert.equal(body.comment, 'MCP test comment');
+    const agentComments = body.comments.filter((c) => c.author === 'agent');
+    assert.ok(agentComments.length > 0, 'no agent-authored comments found');
+    const created = agentComments.find((c) => c.comment === 'Agent created this thread');
+    assert.ok(created, 'created comment not found');
+    assert.equal(created.author, 'agent');
+    assert.ok(Array.isArray(created.replies) && created.replies.length > 0, 'missing initial reply');
+    assert.equal(created.replies[0].author, 'agent');
+
+    // Cleanup
+    await fetch(`${BASE_URL}/api/comments/${created.id}`, { method: 'DELETE' });
+  });
+
+  it('creates an agent comment with a knob (tweakStatus = pending)', async () => {
+    const responses = await mcpCall('tools/call', {
+      name: 'create_comment',
+      arguments: {
+        selectors: ['h1'],
+        labels: ['h1'],
+        comment: 'Try this tweak',
+        pageUrl: 'http://localhost:5173/',
+        knob: { label: 'Variant', type: 'select', value: 'A', options: { A: 'A', B: 'B' } },
+        actions: [{ type: 'content-edit', file: 'src/App.vue', scriptId: 'test-variant' }],
+      },
+    });
+    const res = findResponse(responses, 2);
+    assert.ok(!res?.error, `error: ${JSON.stringify(res?.error)}`);
+
+    const httpRes = await fetch(`${BASE_URL}/api/comments`);
+    const body = await httpRes.json();
+    const created = body.comments.find(
+      (c) => c.author === 'agent' && c.comment === 'Try this tweak',
+    );
+    assert.ok(created, 'tweak comment not found');
+    assert.equal(created.tweakStatus, 'pending');
+    assert.ok(created.knob, 'knob missing');
+
+    await fetch(`${BASE_URL}/api/comments/${created.id}`, { method: 'DELETE' });
+  });
+});
+
+describe('MCP tools/call — reply_to_comment', () => {
+  let parentId;
+
+  before(async () => {
+    // Create a parent comment via HTTP to reply to
+    const now = Date.now();
+    parentId = `mcp-reply-parent-${now}`;
+    const ann = {
+      id: parentId,
+      selectors: ['p'],
+      labels: ['p'],
+      comment: 'User comment needing response',
+      author: 'user',
+      pageUrl: 'http://localhost:5173/',
+      timestamp: now,
+      createdAt: now,
+      replies: [{ id: `${parentId}-root`, type: 'comment', text: 'User comment needing response', createdAt: now, author: 'user' }],
+    };
+    await fetch(`${BASE_URL}/api/comments`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(ann),
+    });
+  });
+
+  after(async () => {
+    if (parentId) await fetch(`${BASE_URL}/api/comments/${parentId}`, { method: 'DELETE' });
+  });
+
+  it('adds an agent reply to an existing thread', async () => {
+    const responses = await mcpCall('tools/call', {
+      name: 'reply_to_comment',
+      arguments: { commentId: parentId, text: 'Here is my suggestion.' },
+    });
+    const res = findResponse(responses, 2);
+    assert.ok(!res?.error, `error: ${JSON.stringify(res?.error)}`);
+
+    const httpRes = await fetch(`${BASE_URL}/api/comments/${parentId}`);
+    const body = await httpRes.json();
+    const agentReply = body.replies?.find((r) => r.author === 'agent');
+    assert.ok(agentReply, 'agent reply not found in thread');
+    assert.equal(agentReply.text, 'Here is my suggestion.');
+  });
+
+  it('adds an agent reply with a tweak (sets tweakStatus = pending)', async () => {
+    const responses = await mcpCall('tools/call', {
+      name: 'reply_to_comment',
+      arguments: {
+        commentId: parentId,
+        text: 'Try this color tweak.',
+        knob: { label: 'Color', type: 'color', value: '#ff0000' },
+        actions: [{ type: 'content-edit', file: 'src/App.vue', scriptId: 'reply-color' }],
+      },
+    });
+    const res = findResponse(responses, 2);
+    assert.ok(!res?.error, `error: ${JSON.stringify(res?.error)}`);
+
+    const httpRes = await fetch(`${BASE_URL}/api/comments/${parentId}`);
+    const body = await httpRes.json();
+    assert.equal(body.tweakStatus, 'pending', 'tweakStatus should be pending');
+    assert.ok(body.knob, 'knob should be set');
+    assert.equal(body.knob.label, 'Color');
+  });
+});
+
+describe('MCP tools/call — update_own_comment', () => {
+  let agentCommentId;
+  let userCommentId;
+
+  before(async () => {
+    const now = Date.now();
+    agentCommentId = `mcp-agent-own-${now}`;
+    userCommentId = `mcp-user-other-${now}`;
+
+    await fetch(`${BASE_URL}/api/comments`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: agentCommentId, selectors: ['h1'], labels: ['h1'], comment: 'Original agent text',
+        author: 'agent', pageUrl: 'http://localhost:5173/', timestamp: now, createdAt: now, replies: [],
+      }),
+    });
+    await fetch(`${BASE_URL}/api/comments`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: userCommentId, selectors: ['p'], labels: ['p'], comment: 'User comment',
+        author: 'user', pageUrl: 'http://localhost:5173/', timestamp: now, createdAt: now, replies: [],
+      }),
+    });
+  });
+
+  after(async () => {
+    await fetch(`${BASE_URL}/api/comments/${agentCommentId}`, { method: 'DELETE' });
+    await fetch(`${BASE_URL}/api/comments/${userCommentId}`, { method: 'DELETE' });
+  });
+
+  it('updates an agent-authored comment text', async () => {
+    const responses = await mcpCall('tools/call', {
+      name: 'update_own_comment',
+      arguments: { id: agentCommentId, comment: 'Updated agent text' },
+    });
+    const res = findResponse(responses, 2);
+    assert.ok(!res?.error, `error: ${JSON.stringify(res?.error)}`);
+
+    const httpRes = await fetch(`${BASE_URL}/api/comments/${agentCommentId}`);
+    const body = await httpRes.json();
+    assert.equal(body.comment, 'Updated agent text');
+  });
+
+  it('refuses to update a user-authored comment', async () => {
+    const responses = await mcpCall('tools/call', {
+      name: 'update_own_comment',
+      arguments: { id: userCommentId, comment: 'Attempted hijack' },
+    });
+    const res = findResponse(responses, 2);
+    // Should return an error
+    assert.ok(
+      res?.error || res?.result?.isError,
+      'expected an error when updating user comment',
+    );
+  });
+});
+
+describe('MCP tools/call — get_comment (backward compat)', () => {
+  const ANN_ID = 'mcp-getcomment-test';
+
+  before(async () => {
+    const now = Date.now();
+    await fetch(`${BASE_URL}/api/comments`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: ANN_ID, selectors: ['h1'], labels: ['h1'], comment: 'MCP test comment',
+        pageUrl: 'http://localhost:5173/', timestamp: now, createdAt: now, replies: [],
+      }),
+    });
+  });
+
+  after(async () => {
+    await fetch(`${BASE_URL}/api/comments/${ANN_ID}`, { method: 'DELETE' });
   });
 
   it('gets the comment via get_comment', async () => {
@@ -274,15 +451,6 @@ describe('MCP tools/call — upsert + get + delete comment', () => {
     const parsed = JSON.parse(text);
     assert.equal(parsed.id, ANN_ID);
     assert.equal(parsed.comment, 'MCP test comment');
-  });
-
-  it('cleans up the comment via HTTP (delete is not an MCP tool)', async () => {
-    const httpRes = await fetch(`${BASE_URL}/api/comments/${ANN_ID}`, { method: 'DELETE' });
-    assert.ok(httpRes.status === 200 || httpRes.status === 204);
-
-    // Verify gone
-    const checkRes = await fetch(`${BASE_URL}/api/comments/${ANN_ID}`);
-    assert.equal(checkRes.status, 404);
   });
 });
 
@@ -440,7 +608,7 @@ describe('Port discovery integration — MCP server finds Design Bridge via .por
         }
       }
     });
-    proc.stderr.on('data', () => {});
+    proc.stderr.on('data', () => { });
 
     const send = (obj) => proc.stdin.write(JSON.stringify(obj) + '\n');
     send({
@@ -493,7 +661,7 @@ describe('Port discovery integration — MCP server finds Design Bridge via .por
         }
       }
     });
-    proc.stderr.on('data', () => {});
+    proc.stderr.on('data', () => { });
 
     const send = (obj) => proc.stdin.write(JSON.stringify(obj) + '\n');
     send({

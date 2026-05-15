@@ -81,12 +81,16 @@ export interface CommentSource {
   column: number;
 }
 
+export type CommentAuthor = 'user' | 'agent';
+
 export interface CommentReply {
   id: string;
+  /** 'comment' = human/agent text; 'tweak' = auto-generated knob-change record. */
   type: 'comment' | 'tweak';
   text: string;
   createdAt: number;
-  author?: string;
+  /** 'agent' when written by the LLM via MCP; 'user' (or absent) for human replies. */
+  author?: CommentAuthor;
 }
 
 export interface CommentTweakLink {
@@ -107,6 +111,16 @@ export interface Comment {
   resolvedAt?: number; // timestamp when resolved; undefined = open
   source?: CommentSource; // source location from code-inspector (file:line:column)
   replies?: CommentReply[];
+  /** 'agent' when created by the LLM via MCP; 'user' (or absent) for human comments. */
+  author?: CommentAuthor;
+  /**
+   * Lifecycle state of the embedded tweak knob.
+   * 'pending'   — knob is live, not yet acted on.
+   * 'accepted'  — user accepted the tweak; file changes are permanent.
+   * 'discarded' — user discarded the tweak; files were restored.
+   * Absent when the comment carries no knob.
+   */
+  tweakStatus?: 'pending' | 'accepted' | 'discarded';
   /** @deprecated Use `knob` + `actions` instead. */
   linkedTweaks?: CommentTweakLink[];
   /** Knob definition — when present this comment drives a live tweak. */
@@ -119,17 +133,17 @@ export interface Comment {
 
 export interface TweakChangeMsg {
   type: 'tweak:change';
-  payload: { marker: string; value: string };
+  payload: { marker: string; value: string; };
 }
 
 export interface TweakFinalizeMsg {
   type: 'tweak:finalize';
-  payload: { markers: string[] };
+  payload: { markers: string[]; };
 }
 
 export interface TweakResetMsg {
   type: 'tweak:reset';
-  payload: { marker: string };
+  payload: { marker: string; };
 }
 
 export interface TweakResetAllMsg {
@@ -142,22 +156,22 @@ export interface TweakDiscardAllMsg {
 
 export interface TweakDiscardMsg {
   type: 'tweak:discard';
-  payload: { commentId: string };
+  payload: { commentId: string; };
 }
 
 export interface TweakAcceptCommentMsg {
   type: 'tweak:accept-comment';
-  payload: { commentId: string };
+  payload: { commentId: string; };
 }
 
 export interface TweakAcceptTweakMsg {
   type: 'tweak:accept-tweak';
-  payload: { commentId: string; marker: string };
+  payload: { commentId: string; marker: string; };
 }
 
 export interface TweakDismissMsg {
   type: 'tweak:dismiss';
-  payload: { commentId: string; marker: string };
+  payload: { commentId: string; marker: string; };
 }
 
 export interface CommentUpsertMsg {
@@ -167,7 +181,7 @@ export interface CommentUpsertMsg {
 
 export interface CommentDeleteMsg {
   type: 'comment:delete';
-  payload: { id: string };
+  payload: { id: string; };
 }
 
 export interface CommentClearMsg {
@@ -176,7 +190,7 @@ export interface CommentClearMsg {
 
 export interface CommentFocusMsg {
   type: 'comment:focus';
-  payload: { id: string };
+  payload: { id: string; };
 }
 
 export type BrowserMessage =
@@ -213,7 +227,7 @@ export interface InspectPickMsg {
 
 export interface CommentFocusBroadcastMsg {
   type: 'comment:focus';
-  payload: { id: string };
+  payload: { id: string; };
 }
 
 export type ServerMessage =
