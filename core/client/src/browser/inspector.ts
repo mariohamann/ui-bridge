@@ -17,6 +17,7 @@ import {
   updateComments,
   getSourceInfo,
   DB_HIGHLIGHT_COLOR,
+  orphanedIdsSignal,
 } from '@design-bridge/components';
 
 // ─── Selector helper ──────────────────────────────────────────────────────────
@@ -88,6 +89,7 @@ export function clearComments(): void {
 // ─── Item container ───────────────────────────────────────────────────────────
 
 let itemContainer: HTMLElement | null = null;
+let orphanedBar: HTMLElement | null = null;
 const itemEls = new Map<string, DbComment>();
 let draftItem: DbComment | null = null;
 
@@ -161,6 +163,25 @@ export function focusComment(id: string): boolean {
   return true;
 }
 
+function reconcileOrphans(): void {
+  if (!itemContainer) return;
+  // Lazy lookup — bar is appended after initInspector() in index.ts
+  if (!orphanedBar) orphanedBar = document.querySelector('db-orphaned-bar');
+  if (!orphanedBar) return;
+  const orphanedIds = orphanedIdsSignal.get();
+  for (const [id, el] of itemEls) {
+    const isOrphaned = orphanedIds.has(id);
+    const inBar = el.parentElement === orphanedBar;
+    if (isOrphaned && !inBar) {
+      orphanedBar.appendChild(el);
+      el.setAttribute('docked', '');
+    } else if (!isOrphaned && inBar) {
+      itemContainer.appendChild(el);
+      el.removeAttribute('docked');
+    }
+  }
+}
+
 function reconcileItems(): void {
   if (!itemContainer) return;
   const annList = [...comments.values()];
@@ -184,6 +205,11 @@ function reconcileItems(): void {
     item.comment = ann;
     item.index = i;
   });
+
+  // Schedule orphan reconciliation after the next paint so _repositionBadge
+  // has had a chance to run and update orphanedIdsSignal.
+  // Double-rAF: first tick lets Lit queue property updates; second runs after they apply.
+  requestAnimationFrame(() => requestAnimationFrame(reconcileOrphans));
 }
 
 // ─── code-inspector integration ──────────────────────────────────────────────
@@ -279,7 +305,7 @@ function onPointerDownForInspect(e: PointerEvent): void {
 }
 
 function onTrackCode(e: Event): void {
-  const detail = (e as CustomEvent<{ path?: string; line?: number; column?: number; }>).detail;
+  const detail = (e as CustomEvent<{ path?: string; line?: number; column?: number }>).detail;
   hideHighlight();
   if (!itemContainer) return;
 
@@ -315,7 +341,7 @@ function onTrackCode(e: Event): void {
 // ─── Cross-tab BroadcastChannel ──────────────────────────────────────────────
 
 channel.addEventListener('message', (e) => {
-  const { type, payload } = e.data as { type: string; payload: CommentThread[]; };
+  const { type, payload } = e.data as { type: string; payload: CommentThread[] };
   if (type === 'comments:sync') syncComments(payload);
 });
 
@@ -356,6 +382,24 @@ export function initInspector(): void {
   itemContainer.style.cssText =
     'position:fixed;top:0;left:0;pointer-events:none;z-index:2147483645;width:0;height:0;';
   document.body.appendChild(itemContainer);
+
+  orphanedBar = document.querySelector('db-orphaned-bar');
+
+  // Re-reconcile orphans after scroll/resize (same events that trigger _repositionBadge).
+  // One rAF delay ensures _repositionBadge has already updated orphanedIdsSignal.
+  let rafPending = false;
+  const scheduleOrphanReconcile = (): void => {
+    if (rafPending) return;
+    rafPending = true;
+    requestAnimationFrame(() => {
+      rafPending = false;
+      reconcileOrphans();
+    });
+  };
+  window.addEventListener('scroll', scheduleOrphanReconcile, { passive: true, capture: true });
+  window.addEventListener('resize', scheduleOrphanReconcile, { passive: true });
+  // Also fire once on the next tick after all badges have had a chance to reposition.
+  requestAnimationFrame(reconcileOrphans);
 
   document.addEventListener('pointermove', onPointerMoveForInspect as EventListener, {
     capture: true,

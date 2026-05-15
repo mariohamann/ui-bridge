@@ -4,9 +4,41 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
-    "dev": "astro dev",
-    "build": "astro build",
+    "dev": "wireit",
+    "build": "wireit",
     "preview": "astro preview"
+  },
+  "wireit": {
+    "dev": {
+      "command": "astro dev",
+      "service": {
+        "readyWhen": {
+          "lineMatches": "Local\\s+http://localhost"
+        }
+      },
+      "dependencies": [
+        "../integrations/astro:build"
+      ],
+      "files": [
+        "src/**",
+        "astro.config.mjs",
+        "tsconfig.json"
+      ]
+    },
+    "build": {
+      "command": "astro build",
+      "dependencies": [
+        "../integrations/astro:build"
+      ],
+      "files": [
+        "src/**",
+        "astro.config.mjs",
+        "tsconfig.json"
+      ],
+      "output": [
+        "dist/**"
+      ]
+    }
   },
   "dependencies": {
     "@design-bridge/astro": "workspace:*",

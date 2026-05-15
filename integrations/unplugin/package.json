@@ -11,10 +11,26 @@
     }
   },
   "scripts": {
-    "build": "node build.mjs",
+    "build": "wireit",
     "dev": "node build.mjs --watch",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "playwright test"
+  },
+  "wireit": {
+    "build": {
+      "command": "node build.mjs",
+      "dependencies": [
+        "../../core/client:build"
+      ],
+      "files": [
+        "src/**/*.ts",
+        "build.mjs",
+        "tsconfig.build.json"
+      ],
+      "output": [
+        "dist/**"
+      ]
+    }
   },
   "dependencies": {
     "@design-bridge/client": "workspace:*",

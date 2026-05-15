@@ -26,7 +26,7 @@ async function getServerPort(port: number, expectedRoot: string): Promise<number
       signal: AbortSignal.timeout(600),
     });
     if (!resp.ok) return null;
-    const body = (await resp.json()) as { port?: number; root?: string };
+    const body = (await resp.json()) as { port?: number; root?: string; };
     if (body.root && body.root !== expectedRoot) return null;
     return body.port ?? port;
   } catch {
@@ -40,7 +40,7 @@ async function getServerPort(port: number, expectedRoot: string): Promise<number
 function spawnServer(
   rootDir: string,
   preferredPort: number,
-): { child: ChildProcess; ready: Promise<number> } {
+): { child: ChildProcess; ready: Promise<number>; } {
   const serverEntry = _require.resolve('@design-bridge/server');
   const child = spawn(process.execPath, [serverEntry, '--root', rootDir], {
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -117,12 +117,12 @@ const unpluginFactory = createUnplugin((options: DesignBridgeOptions = {}) => {
         return { server: { watch: { ignored: ['**/.design-bridge/.cache/**'] } } };
       },
 
-      async configResolved(config: { root: string }) {
+      async configResolved(config: { root: string; }) {
         rootDir = config.root;
       },
 
       configureServer(server: {
-        httpServer: { once: (event: string, cb: () => void) => void } | null;
+        httpServer: { once: (event: string, cb: () => void) => void; } | null;
         middlewares: {
           use: (
             path: string,
@@ -135,10 +135,11 @@ const unpluginFactory = createUnplugin((options: DesignBridgeOptions = {}) => {
             ) => void,
           ) => void;
         };
+        watcher: { add: (path: string) => void; on: (event: string, cb: (file: string) => void) => void; };
+        ws: { send: (payload: { type: string; }) => void; };
       }) {
         const CLIENT_URL = '/__design-bridge/client.js';
         const clientBundlePath: string = _require.resolve('@design-bridge/client');
-        // readFileSync is now available synchronously in the middleware closure
 
         ensureServer();
 
@@ -146,6 +147,15 @@ const unpluginFactory = createUnplugin((options: DesignBridgeOptions = {}) => {
           if (child && !child.killed) {
             child.kill();
             child = null;
+          }
+        });
+
+        // Watch the client bundle for changes (triggered by esbuild rebuilds)
+        // and send a full-page reload so the browser picks up the new bundle.
+        server.watcher.add(clientBundlePath);
+        server.watcher.on('change', (file) => {
+          if (file === clientBundlePath) {
+            server.ws.send({ type: 'full-reload' });
           }
         });
 
@@ -161,7 +171,7 @@ const unpluginFactory = createUnplugin((options: DesignBridgeOptions = {}) => {
 
       transformIndexHtml: {
         order: 'pre' as const,
-        handler(_html: string, ctx: { server?: unknown }) {
+        handler(_html: string, ctx: { server?: unknown; }) {
           if (!ctx.server) return;
           const wsUrl = `ws://localhost:${resolvedPort}/design-bridge`;
           const CLIENT_URL = '/__design-bridge/client.js';
@@ -281,7 +291,7 @@ export function designBridgeTurbopack(options: DesignBridgeOptions = {}): Record
   // Merge our inject loader into every rule entry that code-inspector produces
   const merged: Record<string, unknown> = {};
   for (const [glob, rule] of Object.entries(codeInspectorRules)) {
-    const existing = (rule as { loaders: unknown[] }).loaders ?? [];
+    const existing = (rule as { loaders: unknown[]; }).loaders ?? [];
     merged[glob] = {
       loaders: [...existing, { loader: loaderPath, options: { port } }],
     };

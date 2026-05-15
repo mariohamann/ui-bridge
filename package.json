@@ -7,13 +7,13 @@
     "node": ">=20.0.0"
   },
   "scripts": {
-    "dev": "node scripts/dev-demo.mjs --integration=astro --server=astro dev --demo=docs",
-    "dev:vite": "node scripts/dev-demo.mjs --integration=unplugin --server=vite dev --demo=demos/vite",
-    "dev:webpack": "node scripts/dev-demo.mjs --integration=unplugin --server=webpack serve --demo=demos/webpack",
-    "dev:rspack": "node scripts/dev-demo.mjs --integration=unplugin --server=rspack serve --demo=demos/rspack",
-    "dev:astro": "node scripts/dev-demo.mjs --integration=astro --server=astro dev --demo=demos/astro",
-    "dev:next": "node scripts/dev-demo.mjs --integration=next --server=next dev --turbo --demo=demos/next",
-    "dev:nuxt": "node scripts/dev-demo.mjs --integration=nuxt --server=nuxt dev --demo=demos/nuxt",
+    "dev": "pnpm --filter @design-bridge/docs dev",
+    "dev:vite": "pnpm --filter design-bridge-demo-vite dev",
+    "dev:webpack": "pnpm --filter design-bridge-demo-webpack dev",
+    "dev:rspack": "pnpm --filter design-bridge-demo-rspack dev",
+    "dev:astro": "pnpm --filter design-bridge-demo-astro dev",
+    "dev:next": "pnpm --filter design-bridge-demo-next dev",
+    "dev:nuxt": "pnpm --filter design-bridge-demo-nuxt dev",
     "docs:build": "pnpm --filter @design-bridge/docs build",
     "build": "pnpm -r build",
     "build:core": "pnpm --filter \"./core/**\" build",
@@ -30,6 +30,7 @@
     "test:astro": "pnpm --filter @design-bridge/astro test"
   },
   "devDependencies": {
-    "prettier": "^3.8.3"
+    "prettier": "^3.8.3",
+    "wireit": "^0.14.12"
   }
 }

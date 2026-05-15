@@ -4,9 +4,27 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node ../../scripts/dev-demo.mjs --integration=unplugin --server=vite --demo=demos/vite",
+    "dev": "wireit",
     "build": "vite build",
     "preview": "vite preview"
+  },
+  "wireit": {
+    "dev": {
+      "command": "vite dev",
+      "service": {
+        "readyWhen": {
+          "lineMatches": "Local\\s+http://localhost"
+        }
+      },
+      "dependencies": [
+        "../../integrations/unplugin:build"
+      ],
+      "files": [
+        "src/**",
+        "vite.config.*",
+        "index.html"
+      ]
+    }
   },
   "dependencies": {
     "@design-bridge/demo-styles": "workspace:*",

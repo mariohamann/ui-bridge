@@ -44,13 +44,33 @@
       "source": "./src/comment/db-comment-utils.ts",
       "import": "./dist/comment/db-comment-utils.js",
       "types": "./dist/comment/db-comment-utils.d.ts"
+    },
+    "./orphaned": {
+      "source": "./src/orphaned/index.ts",
+      "import": "./dist/orphaned/index.js",
+      "types": "./dist/orphaned/index.d.ts"
     }
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "wireit",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "node --loader ./tests/css-loader.mjs --test tests/stores.test.mjs",
     "postinstall": "cp -r node_modules/@awesome.me/webawesome/dist/skills/webawesome ../../.agents/skills"
+  },
+  "wireit": {
+    "build": {
+      "command": "tsc -p tsconfig.json",
+      "dependencies": [
+        "../protocol:build"
+      ],
+      "files": [
+        "src/**/*.ts",
+        "tsconfig.json"
+      ],
+      "output": [
+        "dist/**"
+      ]
+    }
   },
   "dependencies": {
     "@awesome.me/webawesome": "^3.7.0",

@@ -3,8 +3,25 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
-    "dev": "node ../../scripts/dev-demo.mjs --integration=unplugin --server=rspack serve --demo=demos/rspack",
+    "dev": "wireit",
     "build": "rspack build"
+  },
+  "wireit": {
+    "dev": {
+      "command": "rspack serve",
+      "service": {
+        "readyWhen": {
+          "lineMatches": "compiled|Loopback:"
+        }
+      },
+      "dependencies": [
+        "../../integrations/unplugin:build"
+      ],
+      "files": [
+        "src/**",
+        "rspack.config.*"
+      ]
+    }
   },
   "dependencies": {
     "@picocss/pico": "^2.0.0"

@@ -6,13 +6,26 @@
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
+      "source": "./src/index.ts",
       "import": "./dist/index.js",
       "types": "./dist/index.d.ts"
     }
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "wireit",
     "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "wireit": {
+    "build": {
+      "command": "tsc -p tsconfig.json",
+      "files": [
+        "src/**/*.ts",
+        "tsconfig.json"
+      ],
+      "output": [
+        "dist/**"
+      ]
+    }
   },
   "devDependencies": {
     "@types/node": "^25.6.0",

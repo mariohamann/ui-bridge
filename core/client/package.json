@@ -8,9 +8,24 @@
     "./review-page": "./dist/review-page.js"
   },
   "scripts": {
-    "build": "node build.mjs",
+    "build": "wireit",
     "dev": "node build.mjs --watch",
     "test": "playwright test"
+  },
+  "wireit": {
+    "build": {
+      "command": "node build.mjs",
+      "dependencies": [
+        "../components:build"
+      ],
+      "files": [
+        "src/**/*.ts",
+        "build.mjs"
+      ],
+      "output": [
+        "dist/**"
+      ]
+    }
   },
   "devDependencies": {
     "@awesome.me/webawesome": "^3.7.0",

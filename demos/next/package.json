@@ -3,9 +3,27 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
-    "dev": "node ../../scripts/dev-demo.mjs --integration=next --server=next dev --turbo --demo=demos/next",
+    "dev": "wireit",
     "build": "next build",
     "start": "next start"
+  },
+  "wireit": {
+    "dev": {
+      "command": "next dev --turbo",
+      "service": {
+        "readyWhen": {
+          "lineMatches": "Local\\s+http://localhost|Ready in"
+        }
+      },
+      "dependencies": [
+        "../../integrations/next:build"
+      ],
+      "files": [
+        "app/**",
+        "components/**",
+        "next.config.*"
+      ]
+    }
   },
   "dependencies": {
     "@picocss/pico": "^2.0.0",

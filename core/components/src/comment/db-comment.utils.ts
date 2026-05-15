@@ -12,7 +12,7 @@ export function uid(): string {
  *   - code-inspector-plugin (Vite):  data-insp-path="file:line:column"
  *   - Astro dev mode:                data-astro-source-file + data-astro-source-loc="line:column"
  */
-export function getSourceInfo(el: Element): { path: string; line: number; column: number; } | null {
+export function getSourceInfo(el: Element): { path: string; line: number; column: number } | null {
   let node: Element | null = el;
   while (node && node !== document.documentElement) {
     const insp = node.getAttribute('data-insp-path');

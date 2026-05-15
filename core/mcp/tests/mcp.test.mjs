@@ -57,8 +57,8 @@ before(async () => {
     stdio: 'pipe',
   });
 
-  serverProc.stderr.on('data', () => { });
-  serverProc.stdout.on('data', () => { });
+  serverProc.stderr.on('data', () => {});
+  serverProc.stdout.on('data', () => {});
 
   await waitForServer();
 
@@ -678,7 +678,7 @@ describe('Port discovery integration — MCP server finds Design Bridge via .por
         }
       }
     });
-    proc.stderr.on('data', () => { });
+    proc.stderr.on('data', () => {});
 
     const send = (obj) => proc.stdin.write(JSON.stringify(obj) + '\n');
     send({
@@ -731,7 +731,7 @@ describe('Port discovery integration — MCP server finds Design Bridge via .por
         }
       }
     });
-    proc.stderr.on('data', () => { });
+    proc.stderr.on('data', () => {});
 
     const send = (obj) => proc.stdin.write(JSON.stringify(obj) + '\n');
     send({

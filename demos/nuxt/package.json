@@ -3,10 +3,28 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
-    "dev": "node ../../scripts/dev-demo.mjs --integration=nuxt --server=nuxt dev --demo=demos/nuxt",
+    "dev": "wireit",
     "build": "nuxt build",
     "generate": "nuxt generate",
     "preview": "nuxt preview"
+  },
+  "wireit": {
+    "dev": {
+      "command": "nuxt dev",
+      "service": {
+        "readyWhen": {
+          "lineMatches": "Nuxt\\s+\\d|Local\\s+http://localhost"
+        }
+      },
+      "dependencies": [
+        "../../integrations/nuxt:build"
+      ],
+      "files": [
+        "src/**",
+        "nuxt.config.*",
+        "app.vue"
+      ]
+    }
   },
   "dependencies": {
     "@picocss/pico": "^2.0.0",

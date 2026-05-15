@@ -56,7 +56,7 @@ test.describe('Comments', () => {
     await createComment(page, 'h1', 'This headline needs a stronger CTA.');
 
     const res = await page.request.get(`${API_BASE}/comments`);
-    const body = (await res.json()) as { comments: { comments?: { text: string; }[]; }[]; };
+    const body = (await res.json()) as { comments: { comments?: { text: string }[] }[] };
     expect(
       body.comments.some((a) => a.comments?.[0]?.text === 'This headline needs a stronger CTA.'),
     ).toBe(true);
@@ -72,7 +72,7 @@ test.describe('Comments', () => {
 
     const res = await page.request.get(`${API_BASE}/comments`);
     expect(res.status()).toBe(200);
-    const body = (await res.json()) as { comments: { comments?: { text: string; }[]; }[]; };
+    const body = (await res.json()) as { comments: { comments?: { text: string }[] }[] };
     expect(body.comments.some((a) => a.comments?.[0]?.text === 'Persisted comment')).toBe(true);
   });
 
@@ -120,7 +120,7 @@ test.describe('Comments', () => {
       .poll(async () => {
         const res = await page.request.get(`${API_BASE}/comments`);
         const body = (await res.json()) as {
-          comments: { comments?: { type: string; text: string; }[]; }[];
+          comments: { comments?: { type: string; text: string }[] }[];
         };
         return body.comments.some((a) =>
           a.comments?.some((c) => c.type === 'comment' && c.text === 'Reply from badge'),
@@ -261,7 +261,7 @@ test.describe('Comments', () => {
     await expect(page.locator('.empty')).toBeVisible();
 
     const res = await page.request.get(`${API_BASE}/comments`);
-    const body = (await res.json()) as { comments: unknown[]; };
+    const body = (await res.json()) as { comments: unknown[] };
     expect(body.comments).toHaveLength(0);
   });
 
@@ -301,7 +301,7 @@ test.describe('Comments', () => {
     await expect(commentPanel(page)).toHaveCount(0);
 
     const res = await page.request.get(`${API_BASE}/comments`);
-    const body = (await res.json()) as { comments: { elements?: { minimalSelector: string; }[]; }[]; };
+    const body = (await res.json()) as { comments: { elements?: { minimalSelector: string }[] }[] };
     const ann = body.comments.find((a) => (a.elements?.length ?? 0) === 2);
     expect(ann).toBeDefined();
   });
@@ -328,8 +328,8 @@ test.describe('Comments', () => {
     const apiRes = await page.request.get(`${API_BASE}/comments`);
     const body = (await apiRes.json()) as {
       comments: {
-        comments?: { text: string; }[];
-        elements?: { source?: { file: string; line: number; column: number; }; }[];
+        comments?: { text: string }[];
+        elements?: { source?: { file: string; line: number; column: number } }[];
       }[];
     };
     const ann = body.comments.find((a) => a.comments?.[0]?.text === 'Has source info');
@@ -366,7 +366,7 @@ test.describe('Comments', () => {
 
     // Verify 2 selectors stored via API
     const res = await page.request.get(`${API_BASE}/comments`);
-    const body = (await res.json()) as { comments: { elements?: { minimalSelector: string; }[]; }[]; };
+    const body = (await res.json()) as { comments: { elements?: { minimalSelector: string }[] }[] };
     const ann = body.comments.find((a) => (a.elements?.length ?? 0) === 2);
     expect(ann).toBeDefined();
   });
@@ -763,7 +763,7 @@ test.describe('Compact UI (redesign)', () => {
       .locator('nav')
       .first()
       .click({ modifiers: ['Alt', 'Shift'] })
-      .catch(() => { });
+      .catch(() => {});
 
     const textarea = innerTA(draft.locator('wa-textarea[data-role="composer"]'));
     await textarea.fill('Multi selector');
@@ -883,7 +883,7 @@ test.describe('Multi-select while draft is open', () => {
 
     const res = await page.request.get(`${API_BASE}/comments`);
     const body = (await res.json()) as {
-      comments: { comments?: { text: string; }[]; elements?: { minimalSelector: string; }[]; }[];
+      comments: { comments?: { text: string }[]; elements?: { minimalSelector: string }[] }[];
     };
     const newAnn = body.comments.find(
       (a) => a.comments?.[0]?.text === 'Multi-select with existing element',
@@ -898,7 +898,7 @@ test.describe('Multi-select while draft is open', () => {
 /** Inject an comment directly via the REST API using the new CommentThread schema. */
 async function injectComment(
   page: Page,
-  overrides: Record<string, unknown> & { id: string; },
+  overrides: Record<string, unknown> & { id: string },
 ): Promise<void> {
   const id = overrides.id as string;
   const now = Date.now();
@@ -1029,7 +1029,7 @@ test.describe('Tweaks in comments', () => {
     const select = page.locator('db-comment db-knob wa-select');
     await expect(select).toBeVisible();
     await select.evaluate((el) => {
-      (el as HTMLElement & { value: string; }).value = '🔥';
+      (el as HTMLElement & { value: string }).value = '🔥';
       el.dispatchEvent(new Event('wa-change', { bubbles: true }));
     });
 
@@ -1037,7 +1037,7 @@ test.describe('Tweaks in comments', () => {
     await expect
       .poll(async () => {
         const res = await page.request.get(`${API_BASE}/tweaks`);
-        const body = (await res.json()) as { knobs: { marker: string; value: string; }[]; };
+        const body = (await res.json()) as { knobs: { marker: string; value: string }[] };
         return body.knobs.find((k) => k.marker === 'test-knob-change')?.value;
       })
       .toBe('🔥');
@@ -1061,7 +1061,7 @@ test.describe('Tweaks in comments', () => {
       .poll(async () => {
         const res = await page.request.get(`${API_BASE}/comments/test-knob-accept`);
         if (res.status() !== 200) return null;
-        const body = (await res.json()) as { comments?: { type: string; tweakStatus?: string; }[]; };
+        const body = (await res.json()) as { comments?: { type: string; tweakStatus?: string }[] };
         return body.comments?.find((c) => c.type === 'tweak')?.tweakStatus;
       })
       .toBe('accepted');
@@ -1070,7 +1070,7 @@ test.describe('Tweaks in comments', () => {
     await expect
       .poll(async () => {
         const res = await page.request.get(`${API_BASE}/tweaks`);
-        const body = (await res.json()) as { knobs: { marker: string; }[]; };
+        const body = (await res.json()) as { knobs: { marker: string }[] };
         return body.knobs.find((k) => k.marker === 'test-knob-accept');
       })
       .toBeUndefined();
@@ -1090,13 +1090,13 @@ test.describe('Tweaks in comments', () => {
     // First change the value
     const select = page.locator('db-comment db-knob wa-select');
     await select.evaluate((el) => {
-      (el as HTMLElement & { value: string; }).value = '🚀';
+      (el as HTMLElement & { value: string }).value = '🚀';
       el.dispatchEvent(new Event('wa-change', { bubbles: true }));
     });
     await expect
       .poll(async () => {
         const res = await page.request.get(`${API_BASE}/tweaks`);
-        const body = (await res.json()) as { knobs: { marker: string; value: string; }[]; };
+        const body = (await res.json()) as { knobs: { marker: string; value: string }[] };
         return body.knobs.find((k) => k.marker === 'test-knob-discard')?.value;
       })
       .toBe('🚀');
@@ -1117,7 +1117,7 @@ test.describe('Tweaks in comments', () => {
     await expect
       .poll(async () => {
         const res = await page.request.get(`${API_BASE}/tweaks`);
-        const body = (await res.json()) as { knobs: { marker: string; value: string; }[]; };
+        const body = (await res.json()) as { knobs: { marker: string; value: string }[] };
         return body.knobs.find((k) => k.marker === 'test-knob-discard');
       })
       .toBeUndefined();
@@ -1137,7 +1137,7 @@ test.describe('Tweaks in comments', () => {
       .poll(async () => {
         const res = await page.request.get(`${API_BASE}/comments/test-knob-discard-badge`);
         if (res.status() !== 200) return null;
-        const body = (await res.json()) as { comments?: { type: string; tweakStatus?: string; }[]; };
+        const body = (await res.json()) as { comments?: { type: string; tweakStatus?: string }[] };
         return body.comments?.find((c) => c.type === 'tweak')?.tweakStatus;
       })
       .toBe('discarded');
@@ -1161,7 +1161,7 @@ test.describe('Tweaks in comments', () => {
         const res = await page.request.get(`${API_BASE}/comments/test-thread-open-after-accept`);
         if (res.status() !== 200) return null;
         return (
-          (await res.json()) as { comments?: { type: string; tweakStatus?: string; }[]; }
+          (await res.json()) as { comments?: { type: string; tweakStatus?: string }[] }
         ).comments?.find((c) => c.type === 'tweak')?.tweakStatus;
       })
       .toBe('accepted');
@@ -1177,7 +1177,7 @@ test.describe('Tweaks in comments', () => {
     await expect
       .poll(async () => {
         const res = await page.request.get(`${API_BASE}/comments/test-thread-open-after-accept`);
-        const body = (await res.json()) as { comments?: { type: string; text: string; }[]; };
+        const body = (await res.json()) as { comments?: { type: string; text: string }[] };
         return body.comments?.some(
           (c) => c.type === 'comment' && c.text === 'Still can reply after accept',
         );
@@ -1307,13 +1307,13 @@ test.describe('Tweaks in comments', () => {
     await openCommentPanel(page);
     const input = page.locator('db-comment db-knob wa-number-input');
     await input.evaluate((el) => {
-      (el as HTMLElement & { value: number; }).value = 24;
+      (el as HTMLElement & { value: number }).value = 24;
       el.dispatchEvent(new Event('wa-input', { bubbles: true }));
     });
     await expect
       .poll(async () => {
         const res = await page.request.get(`${API_BASE}/tweaks`);
-        const body = (await res.json()) as { knobs: { marker: string; value: unknown; }[]; };
+        const body = (await res.json()) as { knobs: { marker: string; value: unknown }[] };
         return body.knobs.find((k) => k.marker === 'test-knob-number-change')?.value;
       })
       .toBe('24');
@@ -1356,13 +1356,13 @@ test.describe('Tweaks in comments', () => {
     await openCommentPanel(page);
     const picker = page.locator('db-comment db-knob wa-color-picker');
     await picker.evaluate((el) => {
-      (el as HTMLElement & { value: string; }).value = '#00ff00';
+      (el as HTMLElement & { value: string }).value = '#00ff00';
       el.dispatchEvent(new Event('wa-change', { bubbles: true }));
     });
     await expect
       .poll(async () => {
         const res = await page.request.get(`${API_BASE}/tweaks`);
-        const body = (await res.json()) as { knobs: { marker: string; value: unknown; }[]; };
+        const body = (await res.json()) as { knobs: { marker: string; value: unknown }[] };
         return body.knobs.find((k) => k.marker === 'test-knob-color-change')?.value;
       })
       .toBe('#00ff00');
@@ -1405,13 +1405,13 @@ test.describe('Tweaks in comments', () => {
     await openCommentPanel(page);
     const input = page.locator('db-comment db-knob wa-input');
     await input.evaluate((el) => {
-      (el as HTMLElement & { value: string; }).value = 'New heading';
+      (el as HTMLElement & { value: string }).value = 'New heading';
       el.dispatchEvent(new Event('wa-input', { bubbles: true }));
     });
     await expect
       .poll(async () => {
         const res = await page.request.get(`${API_BASE}/tweaks`);
-        const body = (await res.json()) as { knobs: { marker: string; value: unknown; }[]; };
+        const body = (await res.json()) as { knobs: { marker: string; value: unknown }[] };
         return body.knobs.find((k) => k.marker === 'test-knob-string-change')?.value;
       })
       .toBe('New heading');
@@ -1456,13 +1456,13 @@ test.describe('Tweaks in comments', () => {
     await openCommentPanel(page);
     const textarea = page.locator('db-comment db-knob wa-textarea');
     await textarea.evaluate((el) => {
-      (el as HTMLElement & { value: string; }).value = 'Updated text';
+      (el as HTMLElement & { value: string }).value = 'Updated text';
       el.dispatchEvent(new Event('input', { bubbles: true }));
     });
     await expect
       .poll(async () => {
         const res = await page.request.get(`${API_BASE}/tweaks`);
-        const body = (await res.json()) as { knobs: { marker: string; value: unknown; }[]; };
+        const body = (await res.json()) as { knobs: { marker: string; value: unknown }[] };
         return body.knobs.find((k) => k.marker === 'test-knob-textarea-change')?.value;
       })
       .toBe('Updated text');
@@ -1507,13 +1507,13 @@ test.describe('Tweaks in comments', () => {
     await openCommentPanel(page);
     const toggle = page.locator('db-comment db-knob wa-switch');
     await toggle.evaluate((el) => {
-      (el as HTMLElement & { checked: boolean; }).checked = false;
+      (el as HTMLElement & { checked: boolean }).checked = false;
       el.dispatchEvent(new Event('wa-change', { bubbles: true }));
     });
     await expect
       .poll(async () => {
         const res = await page.request.get(`${API_BASE}/tweaks`);
-        const body = (await res.json()) as { knobs: { marker: string; value: unknown; }[]; };
+        const body = (await res.json()) as { knobs: { marker: string; value: unknown }[] };
         return body.knobs.find((k) => k.marker === 'test-knob-boolean-change')?.value;
       })
       .toBe('false');
@@ -1569,13 +1569,13 @@ test.describe('Tweaks in comments', () => {
     await openCommentPanel(page);
     const group = page.locator('db-comment db-knob wa-radio-group');
     await group.evaluate((el) => {
-      (el as HTMLElement & { value: string; }).value = 'lg';
+      (el as HTMLElement & { value: string }).value = 'lg';
       el.dispatchEvent(new Event('wa-change', { bubbles: true }));
     });
     await expect
       .poll(async () => {
         const res = await page.request.get(`${API_BASE}/tweaks`);
-        const body = (await res.json()) as { knobs: { marker: string; value: unknown; }[]; };
+        const body = (await res.json()) as { knobs: { marker: string; value: unknown }[] };
         return body.knobs.find((k) => k.marker === 'test-knob-button-group-change')?.value;
       })
       .toBe('lg');
@@ -1591,7 +1591,7 @@ test.describe('Tweaks in comments', () => {
     await expect(page.locator('db-comment')).toBeAttached();
     const res2 = await page.request.get(`${API_BASE}/comments/persist-json-test`);
     expect(res2.status()).toBe(200);
-    const ann = (await res2.json()) as { comments?: { text: string; }[]; };
+    const ann = (await res2.json()) as { comments?: { text: string }[] };
     expect(ann.comments?.[0]?.text).toBe('JSON file test');
   });
 });
@@ -1632,7 +1632,7 @@ test.describe('Edit and delete own comments', () => {
     await expect
       .poll(async () => {
         const res = await page.request.get(`${API_BASE}/comments`);
-        const body = (await res.json()) as { comments: { comments?: { text: string; }[]; }[]; };
+        const body = (await res.json()) as { comments: { comments?: { text: string }[] }[] };
         return body.comments.some((a) => a.comments?.some((c) => c.text === 'Updated text'));
       })
       .toBe(true);
@@ -1724,7 +1724,7 @@ test.describe('Edit and delete own comments', () => {
     await expect
       .poll(async () => {
         const res = await page.request.get(`${API_BASE}/comments`);
-        const body = (await res.json()) as { comments: { comments?: { text: string; }[]; }[]; };
+        const body = (await res.json()) as { comments: { comments?: { text: string }[] }[] };
         return body.comments.some((a) => a.comments?.some((c) => c.text === 'After edit'));
       })
       .toBe(true);
@@ -1807,8 +1807,10 @@ test.describe('Edit and delete own comments', () => {
     // Reload and check API
     await page.reload();
     const res = await page.request.get(`${API_BASE}/comments`);
-    const body = (await res.json()) as { comments: { comments?: { text: string; }[]; }[]; };
-    expect(body.comments.some((a) => a.comments?.some((c) => c.text === 'Post-reload text'))).toBe(true);
+    const body = (await res.json()) as { comments: { comments?: { text: string }[] }[] };
+    expect(body.comments.some((a) => a.comments?.some((c) => c.text === 'Post-reload text'))).toBe(
+      true,
+    );
   });
 
   test('first reply has only Edit option (no Delete) in badge panel', async ({ page }) => {

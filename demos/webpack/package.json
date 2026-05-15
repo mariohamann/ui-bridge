@@ -3,8 +3,25 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
-    "dev": "node ../../scripts/dev-demo.mjs --integration=unplugin --server=webpack serve --demo=demos/webpack",
+    "dev": "wireit",
     "build": "webpack --mode production"
+  },
+  "wireit": {
+    "dev": {
+      "command": "webpack serve",
+      "service": {
+        "readyWhen": {
+          "lineMatches": "compiled|Loopback:"
+        }
+      },
+      "dependencies": [
+        "../../integrations/unplugin:build"
+      ],
+      "files": [
+        "src/**",
+        "webpack.config.*"
+      ]
+    }
   },
   "dependencies": {
     "@picocss/pico": "^2.0.0",

@@ -11,7 +11,7 @@
  */
 
 import { spawn } from 'node:child_process';
-import { watch, rmSync, existsSync } from 'node:fs';
+import { watch, rmSync, existsSync, mkdirSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -73,19 +73,24 @@ function kill(proc) {
     setTimeout(() => {
       try {
         proc.kill('SIGKILL');
-      } catch {}
+      } catch { }
     }, 3000);
   });
 }
 
 // ── 1. Clean dist dirs ────────────────────────────────────────────────────────
 
-rmSync(resolve(PROTOCOL_DIR, 'dist'), { recursive: true, force: true });
+// Protocol dist is intentionally NOT cleaned — downstream tsc watchers resolve
+// @design-bridge/protocol via its dist/ (NodeNext moduleResolution), so it must
+// exist before they start. The protocol watcher rebuilds it on any source change.
 rmSync(resolve(COMPONENTS_DIR, 'dist'), { recursive: true, force: true });
 rmSync(resolve(CLIENT_DIR, 'dist'), { recursive: true, force: true });
 if (INTEGRATION_DIR) {
   rmSync(resolve(INTEGRATION_DIR, 'dist'), { recursive: true, force: true });
 }
+
+// Pre-create dist dirs so fs.watch() can be set up before tsc emits any files.
+mkdirSync(resolve(COMPONENTS_DIR, 'dist'), { recursive: true });
 
 // ── 2. Start build watchers in dependency order ───────────────────────────────
 
@@ -180,6 +185,11 @@ async function restartServer(reason) {
 
 watch(resolve(CLIENT_DIR, 'dist'), { recursive: false }, (_event, filename) => {
   if (filename?.endsWith('.js')) restartServer('client bundle changed');
+});
+
+// Also restart when @design-bridge/components dist changes (e.g. docs/astro use it directly).
+watch(resolve(COMPONENTS_DIR, 'dist'), { recursive: true }, (_event, filename) => {
+  if (filename?.endsWith('.js')) restartServer('components dist changed');
 });
 
 if (INTEGRATION_DIR) {

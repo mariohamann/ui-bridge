@@ -2,6 +2,7 @@
 **/test-results
 **/dist
 **/.design-bridge
+**/.wireit
 **/playwright-report
 **/.DS_Store
 .agents/skills/webawesome

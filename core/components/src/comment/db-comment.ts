@@ -20,6 +20,7 @@ import { commentItemStyles } from './db-comment.styles.js';
 import { computePosition, autoUpdate, flip, shift, offset } from '@floating-ui/dom';
 import { customElement, property, state } from 'lit/decorators.js';
 import { dispatchIntent } from '../state/intents.js';
+import { markOrphaned, markUnorphaned } from '../state/comments-store.js';
 import { uid, parseElement, shortLabel, formatTweakReply } from './db-comment.utils.js';
 import { DB_HIGHLIGHT_COLOR } from '../styles/tokens.js';
 
@@ -46,6 +47,11 @@ export class DbComment extends LitElement {
   @property({ attribute: false }) comment: CommentThread | null = null;
   /** Badge number shown to the user. */
   @property({ type: Number }) index = 0;
+  /**
+   * When true the badge flows in the parent layout (position:relative) instead
+   * of being absolutely placed via _repositionBadge. Used by db-orphaned-bar.
+   */
+  @property({ type: Boolean }) docked = false;
 
   // ── draft-mode state (populated by initDraft) ──────────────────────────
   @state() private _mode: ItemMode = 'create';
@@ -217,6 +223,7 @@ export class DbComment extends LitElement {
     this._cleanupPreview?.();
     this._cleanupPreview = null;
     this._clearHighlight();
+    if (this.comment?.meta.id) markUnorphaned(this.comment.meta.id);
   }
 
   updated(changed: Map<string, unknown>): void {
@@ -257,12 +264,21 @@ export class DbComment extends LitElement {
   }
 
   private _repositionBadge = (): void => {
+    if (this.docked) return;
     const rect = this._anchorRect();
-    if (!rect) {
+    const outOfView =
+      !rect ||
+      rect.right < 0 ||
+      rect.bottom < 0 ||
+      rect.left > window.innerWidth ||
+      rect.top > window.innerHeight;
+    if (!rect || outOfView) {
       this._badgeTop = -9999;
       this._badgeLeft = -9999;
+      if (this.comment?.meta.id) markOrphaned(this.comment.meta.id);
       return;
     }
+    if (this.comment?.meta.id) markUnorphaned(this.comment.meta.id);
     this._badgeTop = rect.top - 10;
     this._badgeLeft = rect.right - 8;
   };
@@ -924,9 +940,11 @@ export class DbComment extends LitElement {
       <wa-badge
         variant=${badgeVariant}
         appearance="filled"
-        pill="true"
+        .pill=${true}
         class="badge${isResolved ? ' resolved' : isDraft ? ' draft' : ''}"
-        style="position:fixed;top:${this._badgeTop}px;left:${this._badgeLeft}px"
+        style=${this.docked
+        ? 'position:relative;top:auto;left:auto'
+        : `position:fixed;top:${this._badgeTop}px;left:${this._badgeLeft}px`}
         title=${this.comment
         ? this._firstText(this.comment)
         : this._pendingElements.map((e) => e.minimalSelector).join(', ')}

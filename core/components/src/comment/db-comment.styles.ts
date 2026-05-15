@@ -13,6 +13,19 @@ const ANNOTATION_ITEM_LOCAL_STYLES = css`
     color-scheme: dark;
   }
 
+  /* When hosted inside db-orphaned-bar the element flows in the bar layout */
+  :host([docked]) {
+    position: relative;
+    top: auto;
+    left: auto;
+    width: auto;
+    height: auto;
+    display: inline-flex;
+    align-items: center;
+    pointer-events: auto;
+    z-index: auto;
+  }
+
   /* ── Badge ─────────────────────────────── */
   wa-badge {
     pointer-events: auto;
