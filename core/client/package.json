@@ -13,7 +13,7 @@
     "test": "playwright test"
   },
   "devDependencies": {
-    "@awesome.me/webawesome": "^3.6.0",
+    "@awesome.me/webawesome": "^3.7.0",
     "@design-bridge/components": "workspace:*",
     "@design-bridge/protocol": "workspace:*",
     "@floating-ui/dom": "^1.7.6",

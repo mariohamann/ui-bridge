@@ -15,8 +15,8 @@ importers:
   core/client:
     devDependencies:
       '@awesome.me/webawesome':
-        specifier: ^3.6.0
-        version: 3.6.0(@floating-ui/utils@0.2.11)(@types/react@19.2.14)
+        specifier: ^3.7.0
+        version: 3.7.0(@floating-ui/utils@0.2.11)(@types/react@19.2.14)
       '@design-bridge/components':
         specifier: workspace:*
         version: link:../components
@@ -60,8 +60,8 @@ importers:
   core/components:
     dependencies:
       '@awesome.me/webawesome':
-        specifier: ^3.6.0
-        version: 3.6.0(@floating-ui/utils@0.2.11)(@types/react@19.2.14)
+        specifier: ^3.7.0
+        version: 3.7.0(@floating-ui/utils@0.2.11)(@types/react@19.2.14)
       '@design-bridge/protocol':
         specifier: workspace:*
         version: link:../protocol
@@ -422,8 +422,8 @@ packages:
     resolution: {integrity: sha512-j8DNruA8ors99Al39RYZPJK4DC1bKkoNm93mAMuBhY9TCNC4R8n1q7ovFnJ5qhGh5Lsh7pa1gpQVpYpsJPeTHQ==}
     engines: {node: 18.20.8 || ^20.3.0 || >=22.0.0}
 
-  '@awesome.me/webawesome@3.6.0':
-    resolution: {integrity: sha512-cUQWAq5KwQzy1fsMFUSJqGL6z/s9/VFOqnypOZOXZdpsfnD7gVFKnY6if9EbgzxtCXiHTOnEZ8N3mnwW2Z/Sww==}
+  '@awesome.me/webawesome@3.7.0':
+    resolution: {integrity: sha512-rAhTpJsJShv/4JWWGh+d7yQZ3pmk9j+YbwZjWWbgnPQPA+9I2/BrTUgNY+bOLehUovIbDd11J6+myGwGh0hl2w==}
     engines: {node: '>=14.17.0'}
 
   '@babel/code-frame@7.29.0':
@@ -6874,7 +6874,7 @@ snapshots:
       is-wsl: 3.1.1
       which-pm-runs: 1.1.0
 
-  '@awesome.me/webawesome@3.6.0(@floating-ui/utils@0.2.11)(@types/react@19.2.14)':
+  '@awesome.me/webawesome@3.7.0(@floating-ui/utils@0.2.11)(@types/react@19.2.14)':
     dependencies:
       '@ctrl/tinycolor': 4.1.0
       '@floating-ui/dom': 1.7.6

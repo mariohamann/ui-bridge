@@ -53,11 +53,11 @@
     "postinstall": "cp -r node_modules/@awesome.me/webawesome/dist/skills/webawesome ../../.agents/skills"
   },
   "dependencies": {
-    "@awesome.me/webawesome": "^3.6.0",
+    "@awesome.me/webawesome": "^3.7.0",
     "@design-bridge/protocol": "workspace:*",
     "@floating-ui/dom": "^1.7.6",
-    "autosize": "^6.0.1",
     "@lit-labs/signals": "^0.2.0",
+    "autosize": "^6.0.1",
     "lit": "^3.3.0",
     "signal-polyfill": "^0.2.2"
   },
