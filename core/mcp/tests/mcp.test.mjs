@@ -9,7 +9,10 @@
  * Run:  node --test tests/mcp.test.mjs
  */
 
-import { describe, it, before, after } from 'node:test';
+import { describe, it as nodeIt, before, after } from 'node:test';
+
+const TEST_TIMEOUT_MS = 5_000;
+const it = (name, fn) => nodeIt(name, { timeout: TEST_TIMEOUT_MS }, fn);
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { mkdir, rm, writeFile } from 'node:fs/promises';
@@ -54,8 +57,8 @@ before(async () => {
     stdio: 'pipe',
   });
 
-  serverProc.stderr.on('data', () => {});
-  serverProc.stdout.on('data', () => {});
+  serverProc.stderr.on('data', () => { });
+  serverProc.stdout.on('data', () => { });
 
   await waitForServer();
 
@@ -93,6 +96,22 @@ function mcpCall(method, params = {}) {
     const responses = [];
     let buf = '';
 
+    proc.on('error', reject);
+
+    const send = (obj) => {
+      proc.stdin.write(JSON.stringify(obj) + '\n');
+    };
+
+    let fallbackTimer;
+    const finish = () => {
+      clearTimeout(fallbackTimer);
+      proc.kill();
+      resolve(responses);
+    };
+
+    // Fallback timeout — ensures the spawned process is killed if no response arrives
+    fallbackTimer = setTimeout(finish, TEST_TIMEOUT_MS);
+
     proc.stdout.on('data', (chunk) => {
       buf += chunk.toString();
       // MCP Streamable HTTP / stdio uses newline-delimited JSON
@@ -107,13 +126,9 @@ function mcpCall(method, params = {}) {
           // ignore non-JSON lines (e.g. Content-Type headers in SSE mode)
         }
       }
+      // Resolve as soon as the response to the actual request (id: 2) arrives
+      if (responses.some((r) => r.id === 2)) finish();
     });
-
-    proc.on('error', reject);
-
-    const send = (obj) => {
-      proc.stdin.write(JSON.stringify(obj) + '\n');
-    };
 
     // MCP handshake
     send({
@@ -130,12 +145,6 @@ function mcpCall(method, params = {}) {
 
     // Actual request
     send({ jsonrpc: '2.0', id: 2, method, params });
-
-    // Give server time to respond then collect
-    setTimeout(() => {
-      proc.kill();
-      resolve(responses);
-    }, 3_000);
   });
 }
 
@@ -636,7 +645,7 @@ describe('Port discovery integration — MCP server finds Design Bridge via .por
         }
       }
     });
-    proc.stderr.on('data', () => {});
+    proc.stderr.on('data', () => { });
 
     const send = (obj) => proc.stdin.write(JSON.stringify(obj) + '\n');
     send({
@@ -689,7 +698,7 @@ describe('Port discovery integration — MCP server finds Design Bridge via .por
         }
       }
     });
-    proc.stderr.on('data', () => {});
+    proc.stderr.on('data', () => { });
 
     const send = (obj) => proc.stdin.write(JSON.stringify(obj) + '\n');
     send({

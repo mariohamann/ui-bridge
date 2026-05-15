@@ -539,7 +539,8 @@ if (actualPort !== PREFERRED_PORT) {
 }
 
 httpServer.listen(actualPort, async () => {
-  console.log(`[design-bridge] server listening on http://localhost:${actualPort} (root: ${ROOT})`);
   await writePortFile(actualPort);
-  process.stdout.write(`DESIGN_BRIDGE_READY:${actualPort}\n`);
+  console.log(
+    `[design-bridge] server listening on http://localhost:${actualPort} (root: ${ROOT})`
+  );
 });

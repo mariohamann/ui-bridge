@@ -6,6 +6,7 @@ import '@awesome.me/webawesome/dist/components/dropdown-item/dropdown-item.js';
 import '@awesome.me/webawesome/dist/components/relative-time/relative-time.js';
 import '@awesome.me/webawesome/dist/components/switch/switch.js';
 import '@awesome.me/webawesome/dist/components/tag/tag.js';
+import '@awesome.me/webawesome/dist/components/textarea/textarea.js';
 import { LitElement, html } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { SignalWatcher } from '@lit-labs/signals';
@@ -88,11 +89,10 @@ export class DbReview extends _DbReviewBase {
     this._editingId = ann.id;
     this._editDraft = ann.comment ?? '';
     this.updateComplete.then(() => {
-      const ta = this.shadowRoot?.querySelector<HTMLTextAreaElement>(
-        `textarea[data-edit-id="${ann.id}"]`,
+      const ta = this.shadowRoot?.querySelector<HTMLElement>(
+        `wa-textarea[data-edit-id="${ann.id}"]`,
       );
-      ta?.focus();
-      ta?.setSelectionRange(ta.value.length, ta.value.length);
+      (ta as (HTMLElement & { focus: () => void; }) | null)?.focus();
     });
   }
 
@@ -183,12 +183,15 @@ export class DbReview extends _DbReviewBase {
         ? html`<div class="comment">
                 ${this._editingId === ann.id
             ? html`
-                      <textarea
+                      <wa-textarea
                         data-edit-id=${ann.id}
                         class="inline-edit"
+                        appearance="filled"
+                        resize="auto"
+                        size="xs"
                         .value=${this._editDraft}
                         @input=${(e: Event) => {
-                this._editDraft = (e.target as HTMLTextAreaElement).value;
+                this._editDraft = (e.target as HTMLElement & { value: string; }).value;
               }}
                         @keydown=${(e: KeyboardEvent) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
@@ -200,12 +203,12 @@ export class DbReview extends _DbReviewBase {
                 }
               }}
                         @click=${(e: Event) => e.stopPropagation()}
-                      ></textarea>
+                      ></wa-textarea>
                       <div class="inline-edit-actions">
                         <wa-button
                           appearance="filled"
                           variant="brand"
-                          size="s"
+                          size="xs"
                           ?disabled=${!this._editDraft.trim()}
                           @click=${(e: Event) => {
                 e.stopPropagation();
@@ -215,7 +218,7 @@ export class DbReview extends _DbReviewBase {
                         >
                         <wa-button
                           appearance="plain"
-                          size="s"
+                          size="xs"
                           @click=${(e: Event) => {
                 e.stopPropagation();
                 this._cancelEdit();
@@ -238,7 +241,7 @@ export class DbReview extends _DbReviewBase {
 
         <!-- Per-row actions dropdown -->
         <wa-dropdown
-          size="s"
+          size="xs"
           class="row-menu"
           @click=${(e: Event) => e.stopPropagation()}
           @wa-select=${(e: CustomEvent) => {
@@ -250,7 +253,7 @@ export class DbReview extends _DbReviewBase {
         else if (val === 'delete') this._delete(ann.id);
       }}
         >
-          <wa-button slot="trigger" appearance="plain" size="s" title="More">···</wa-button>
+          <wa-button slot="trigger" appearance="plain" size="xs" title="More">···</wa-button>
           ${!resolved
         ? html`<wa-dropdown-item value="resolve">✓ Mark resolved</wa-dropdown-item>`
         : html`<wa-dropdown-item value="unresolve">↩ Unresolve</wa-dropdown-item>`}
@@ -281,7 +284,7 @@ export class DbReview extends _DbReviewBase {
         <span class="dot${this.connected ? ' ok' : ''}"></span>
         <span class="toggle-label">Show resolved</span>
         <wa-switch
-          size="s"
+          size="xs"
           ?checked=${this.showResolved}
           @wa-change=${(e: Event) => {
         this.showResolved = (e.target as HTMLInputElement).checked;

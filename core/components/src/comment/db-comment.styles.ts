@@ -74,7 +74,7 @@ const ANNOTATION_ITEM_LOCAL_STYLES = css`
     position: fixed;
     pointer-events: auto;
     z-index: 2147483646;
-    background: var(--wa-color-surface-raised);
+    background: var(--wa-color-surface-default);
     color: var(--wa-color-text-normal);
     border-radius: var(--wa-border-radius-l);
     border: 1px solid var(--wa-color-surface-border);
@@ -125,7 +125,11 @@ const ANNOTATION_ITEM_LOCAL_STYLES = css`
     display: flex;
     align-items: center;
     gap: var(--wa-space-3xs);
-    padding: var(--wa-space-s) var(--wa-space-s);
+    padding: var(--wa-space-2xs) var(--wa-space-s);
+    border-bottom: 1px solid var(--wa-color-surface-border);
+  }
+  .header:has(+ .chips-bar) {
+    border-bottom: none;
   }
   .header-title {
     flex: 1;
@@ -151,30 +155,19 @@ const ANNOTATION_ITEM_LOCAL_STYLES = css`
 
   /* ── Body ───────────────────────────────── */
   .body {
-    padding: var(--wa-space-s) var(--wa-space-s);
+    padding: var(--wa-space-xs) var(--wa-space-s);
   }
   .comment-text {
-    font-size: var(--wa-font-size-s);
+    font-size: var(--wa-font-size-xs);
     line-height: 1.5;
     color: var(--wa-color-text-normal);
     white-space: pre-wrap;
     word-break: break-word;
-    margin: 0 0 var(--wa-space-xs);
+    margin: var(--wa-space-xs) 0 0;
   }
 
   textarea {
-    width: 100%;
-    box-sizing: border-box;
-    background: transparent;
-    color: var(--wa-color-text-normal);
-    border: none;
-    padding: var(--wa-space-s) var(--wa-space-s) var(--wa-space-3xs);
-    font: inherit;
-    font-size: var(--wa-font-size-s);
-    field-sizing: content;
-    resize: none;
-    min-height: 2lh;
-    outline: none;
+    display: none;
   }
   @supports not (field-sizing: content) {
     textarea {
@@ -193,16 +186,16 @@ const ANNOTATION_ITEM_LOCAL_STYLES = css`
   .composer {
     padding: var(--wa-space-s);
   }
-  .composer-inner {
-    background: var(--wa-color-surface-lowered);
-    border-radius: var(--wa-border-radius-l);
-    overflow: hidden;
+  .textarea-wrap {
+    position: relative;
   }
-  .composer-row {
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    padding: var(--wa-space-3xs) var(--wa-space-xs) var(--wa-space-xs);
+  .textarea-wrap wa-textarea::part(textarea) {
+    margin-bottom: 36px;
+  }
+  .composer-send {
+    position: absolute;
+    bottom: var(--wa-space-xs);
+    right: var(--wa-space-xs);
   }
 
   /* ── Tweaks section ────────────────────────── */
@@ -296,10 +289,6 @@ const ANNOTATION_ITEM_LOCAL_STYLES = css`
     background: var(--wa-color-brand-fill-quiet);
     color: var(--wa-color-brand);
   }
-  .reply-author-icon.user {
-    background: var(--wa-color-surface-lowered);
-    color: var(--wa-color-text-quiet);
-  }
   .reply-body {
     flex: 1;
     min-width: 0;
@@ -323,17 +312,7 @@ const ANNOTATION_ITEM_LOCAL_STYLES = css`
     margin-bottom: var(--wa-space-s);
   }
   textarea[data-role='edit'] {
-    width: 100%;
-    resize: none;
-    font: var(--wa-font-size-s) / 1.4 var(--wa-font-family-body);
-    background: var(--wa-color-surface-lowered);
-    color: var(--wa-color-text-normal);
-    border: 1px solid var(--wa-color-brand);
-    border-radius: var(--wa-border-radius-m);
-    padding: var(--wa-space-xs) var(--wa-space-s);
-    outline: none;
-    box-sizing: border-box;
-    min-height: 52px;
+    display: none;
   }
 `;
 

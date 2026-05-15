@@ -7,13 +7,13 @@
     "node": ">=20.0.0"
   },
   "scripts": {
-    "dev": "node dev.mjs",
+    "dev": "node scripts/dev-demo.mjs --integration=astro --server=astro dev --demo=docs",
+    "dev:vite": "node scripts/dev-demo.mjs --integration=unplugin --server=vite dev --demo=demos/vite",
     "dev:webpack": "node scripts/dev-demo.mjs --integration=unplugin --server=webpack serve --demo=demos/webpack",
     "dev:rspack": "node scripts/dev-demo.mjs --integration=unplugin --server=rspack serve --demo=demos/rspack",
     "dev:astro": "node scripts/dev-demo.mjs --integration=astro --server=astro dev --demo=demos/astro",
     "dev:next": "node scripts/dev-demo.mjs --integration=next --server=next dev --turbo --demo=demos/next",
     "dev:nuxt": "node scripts/dev-demo.mjs --integration=nuxt --server=nuxt dev --demo=demos/nuxt",
-    "docs:dev": "pnpm --filter @design-bridge/docs dev",
     "docs:build": "pnpm --filter @design-bridge/docs build",
     "build": "pnpm -r build",
     "build:core": "pnpm --filter \"./core/**\" build",

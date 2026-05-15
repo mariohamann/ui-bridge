@@ -54,9 +54,10 @@ export class DbKnob extends LitElement {
     const opts = Object.entries(this.knob!.options ?? {});
     return html`
       <wa-select
+        size="xs"
         .value=${String(this._value)}
         @wa-change=${(e: Event) =>
-          this._emit((e.target as HTMLSelectElement & { value: string }).value)}
+        this._emit((e.target as HTMLSelectElement & { value: string; }).value)}
       >
         ${opts.map(([label, val]) => html`<wa-option value=${val}>${label}</wa-option>`)}
       </wa-select>
@@ -67,13 +68,14 @@ export class DbKnob extends LitElement {
     const opts = Object.entries(this.knob!.options ?? {});
     return html`
       <wa-radio-group
+        size="xs"
         .value=${String(this._value)}
         orientation="horizontal"
-        @wa-change=${(e: Event) => this._emit((e.target as HTMLElement & { value: string }).value)}
+        @wa-change=${(e: Event) => this._emit((e.target as HTMLElement & { value: string; }).value)}
       >
         ${opts.map(
-          ([label, val]) => html`<wa-radio appearance="button" value=${val}>${label}</wa-radio>`,
-        )}
+      ([label, val]) => html`<wa-radio appearance="button" value=${val}>${label}</wa-radio>`,
+    )}
       </wa-radio-group>
     `;
   }
@@ -90,41 +92,45 @@ export class DbKnob extends LitElement {
         format="hex"
         without-format-toggle
         .value=${String(this._value)}
-        @wa-change=${(e: Event) => this._emit((e.target as HTMLElement & { value: string }).value)}
+        @wa-change=${(e: Event) => this._emit((e.target as HTMLElement & { value: string; }).value)}
       ></wa-color-picker>`;
     }
 
     if (type === 'number') {
       return html`<wa-number-input
+        size="xs"
         .value=${Number(this._value)}
         min=${min ?? ''}
         max=${max ?? ''}
         step=${step ?? ''}
         @wa-input=${(e: Event) =>
-          this._emit(Number((e.target as HTMLElement & { value: number }).value))}
+          this._emit(Number((e.target as HTMLElement & { value: number; }).value))}
       ></wa-number-input>`;
     }
 
     if (type === 'boolean') {
       return html`<wa-switch
+        size="xs"
         ?checked=${Boolean(this._value)}
         @wa-change=${(e: Event) =>
-          this._emit((e.target as HTMLElement & { checked: boolean }).checked)}
+          this._emit((e.target as HTMLElement & { checked: boolean; }).checked)}
       ></wa-switch>`;
     }
 
     if (type === 'textarea') {
       return html`<wa-textarea
+        size="xs"
         .value=${String(this._value)}
         rows="3"
-        @wa-input=${(e: Event) => this._emit((e.target as HTMLElement & { value: string }).value)}
+        @input=${(e: Event) => this._emit((e.target as HTMLElement & { value: string; }).value)}
       ></wa-textarea>`;
     }
 
     // string / fallback
     return html`<wa-input
+      size="xs"
       .value=${String(this._value)}
-      @wa-input=${(e: Event) => this._emit((e.target as HTMLElement & { value: string }).value)}
+      @wa-input=${(e: Event) => this._emit((e.target as HTMLElement & { value: string; }).value)}
     ></wa-input>`;
   }
 }

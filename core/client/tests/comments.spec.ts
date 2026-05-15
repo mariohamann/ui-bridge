@@ -13,16 +13,24 @@ function commentPanel(page: Page): Locator {
   return page.locator('db-comment .panel:not([hidden])');
 }
 
+/**
+ * Pierce a wa-textarea's shadow DOM to get the inner native <textarea>.
+ * Required for .fill(), .press(), .toHaveValue(), .toBeFocused() etc.
+ */
+function innerTA(waLoc: Locator): Locator {
+  return waLoc.locator('textarea');
+}
+
 async function createComment(page: Page, selector: string, comment: string): Promise<void> {
   await page
     .locator(selector)
     .first()
     .click({ modifiers: ['Alt', 'Shift'] });
   const panel = commentPanel(page);
-  const input = panel.locator('textarea').first();
-  await expect(input).toBeVisible();
-  await input.fill(comment);
-  await input.press('Enter');
+  const waInput = panel.locator('wa-textarea[data-role="composer"]');
+  await expect(waInput).toBeVisible();
+  await innerTA(waInput).fill(comment);
+  await innerTA(waInput).press('Enter');
   // Panel closes after save
   await expect(commentPanel(page)).toHaveCount(0);
 }
@@ -102,7 +110,7 @@ test.describe('Comments', () => {
     await badge.click();
 
     const panel = commentPanel(page);
-    const replyInput = panel.locator('textarea[data-role="reply"]');
+    const replyInput = innerTA(panel.locator('wa-textarea[data-role="reply"]'));
     await expect(replyInput).toBeVisible();
     await replyInput.fill('Reply from badge');
     await replyInput.press('Enter');
@@ -124,7 +132,7 @@ test.describe('Comments', () => {
       .click({ modifiers: ['Alt', 'Shift'] });
 
     const panel = commentPanel(page);
-    const composer = panel.locator('textarea[data-role="composer"]');
+    const composer = innerTA(panel.locator('wa-textarea[data-role="composer"]'));
     await expect(composer).toBeVisible();
     await expect(composer).toBeFocused();
 
@@ -136,7 +144,7 @@ test.describe('Comments', () => {
     await badge.click();
 
     const openPanel = commentPanel(page);
-    const reply = openPanel.locator('textarea[data-role="reply"]');
+    const reply = innerTA(openPanel.locator('wa-textarea[data-role="reply"]'));
     await expect(reply).toBeVisible();
     await expect(reply).toBeFocused();
   });
@@ -148,7 +156,7 @@ test.describe('Comments', () => {
       .click({ modifiers: ['Alt', 'Shift'] });
 
     const panel = commentPanel(page);
-    await expect(panel.locator('textarea[data-role="composer"]')).toBeVisible();
+    await expect(panel.locator('wa-textarea[data-role="composer"]')).toBeVisible();
 
     await page.locator('main').click({ position: { x: 8, y: 8 } });
     await expect(commentPanel(page)).toHaveCount(0);
@@ -270,7 +278,7 @@ test.describe('Comments', () => {
       .first()
       .click({ modifiers: ['Alt', 'Shift'] });
     const draft = page.locator('db-comment .panel:not([hidden])');
-    await expect(draft.locator('textarea[data-role="composer"]')).toBeVisible();
+    await expect(draft.locator('wa-textarea[data-role="composer"]')).toBeVisible();
 
     await page
       .locator('p')
@@ -278,7 +286,7 @@ test.describe('Comments', () => {
       .click({ modifiers: ['Alt', 'Shift'] });
 
     // Save and verify via API that 2 selectors are stored
-    const textarea = draft.locator('textarea[data-role="composer"]');
+    const textarea = innerTA(draft.locator('wa-textarea[data-role="composer"]'));
     await textarea.fill('Two selectors');
     await textarea.press('Enter');
     await expect(commentPanel(page)).toHaveCount(0);
@@ -303,7 +311,7 @@ test.describe('Comments', () => {
       .not.toBeNull();
 
     const panel = commentPanel(page);
-    const input = panel.locator('textarea').first();
+    const input = innerTA(panel.locator('wa-textarea').first());
     await input.fill('Has source info');
     await input.press('Enter');
     await expect(commentPanel(page)).toHaveCount(0);
@@ -325,7 +333,7 @@ test.describe('Comments', () => {
       .first()
       .click({ modifiers: ['Alt', 'Shift'] });
     const panel = commentPanel(page);
-    await expect(panel.locator('textarea').first()).toBeVisible();
+    await expect(panel.locator('wa-textarea').first()).toBeVisible();
 
     await page
       .locator('p')
@@ -339,7 +347,7 @@ test.describe('Comments', () => {
       )
       .toBe(2);
 
-    const input = panel.locator('textarea').first();
+    const input = innerTA(panel.locator('wa-textarea').first());
     await input.fill('Multi-element comment');
     await input.press('Enter');
     await expect(commentPanel(page)).toHaveCount(0);
@@ -379,7 +387,7 @@ test.describe('Single panel + dirty-draft guard', () => {
 
     // Open first panel and type an unsaved reply
     await badges.nth(0).click();
-    await commentPanel(page).locator('textarea[data-role="reply"]').fill('unsaved reply text');
+    await innerTA(commentPanel(page).locator('wa-textarea[data-role="reply"]')).fill('unsaved reply text');
 
     // Click the second badge — panel should remain open (first click only wobbles)
     await badges.nth(1).click();
@@ -397,7 +405,7 @@ test.describe('Single panel + dirty-draft guard', () => {
 
     // Open first panel and type an unsaved reply
     await badges.nth(0).click();
-    await commentPanel(page).locator('textarea[data-role="reply"]').fill('unsaved reply text');
+    await innerTA(commentPanel(page).locator('wa-textarea[data-role="reply"]')).fill('unsaved reply text');
 
     // First click on second badge — should wobble, stay open
     await badges.nth(1).click();
@@ -419,7 +427,7 @@ test.describe('Single panel + dirty-draft guard', () => {
 
     // Open first panel and type an unsaved reply
     await page.locator('db-comment wa-badge').nth(0).click();
-    await commentPanel(page).locator('textarea[data-role="reply"]').fill('unsaved reply text');
+    await innerTA(commentPanel(page).locator('wa-textarea[data-role="reply"]')).fill('unsaved reply text');
 
     const reviewPage = await context.newPage();
     await reviewPage.goto(REVIEW_URL);
@@ -468,7 +476,7 @@ test.describe('Badge hover preview', () => {
 
     const badge = page.locator('db-comment wa-badge').first();
     await badge.click();
-    const replyInput = commentPanel(page).locator('textarea[data-role="reply"]');
+    const replyInput = innerTA(commentPanel(page).locator('wa-textarea[data-role="reply"]'));
     await expect(replyInput).toBeVisible();
     await replyInput.fill('A reply');
     await replyInput.press('Enter');
@@ -517,7 +525,7 @@ test.describe('Panel scrolling & textarea autogrow', () => {
 
     // Add enough replies to overflow the panel (max-height is ~88dvh so we need many)
     for (let i = 1; i <= 20; i++) {
-      const reply = p.locator('textarea[data-role="reply"]');
+      const reply = innerTA(p.locator('wa-textarea[data-role="reply"]'));
       await reply.scrollIntoViewIfNeeded();
       await expect(reply).toBeVisible();
       await reply.fill(`Reply number ${i} with some extra text to take up space`);
@@ -540,7 +548,7 @@ test.describe('Panel scrolling & textarea autogrow', () => {
     const p = page.locator('db-comment .panel:not([hidden])');
 
     for (let i = 1; i <= 8; i++) {
-      const reply = p.locator('textarea[data-role="reply"]');
+      const reply = innerTA(p.locator('wa-textarea[data-role="reply"]'));
       await reply.scrollIntoViewIfNeeded();
       await expect(reply).toBeVisible();
       await reply.fill(`Reply ${i}`);
@@ -549,7 +557,7 @@ test.describe('Panel scrolling & textarea autogrow', () => {
     }
 
     // Even with 8 replies, the textarea should still be visible/reachable
-    const reply = p.locator('textarea[data-role="reply"]');
+    const reply = innerTA(p.locator('wa-textarea[data-role="reply"]'));
     await reply.scrollIntoViewIfNeeded();
     await expect(reply).toBeVisible();
     await expect(reply).toBeEditable();
@@ -561,15 +569,15 @@ test.describe('Panel scrolling & textarea autogrow', () => {
       .first()
       .click({ modifiers: ['Alt', 'Shift'] });
     const p = page.locator('db-comment .panel:not([hidden])');
-    const textarea = p.locator('textarea[data-role="composer"]');
-    await expect(textarea).toBeVisible();
+    const waTextarea = p.locator('wa-textarea[data-role="composer"]');
+    await expect(waTextarea).toBeVisible();
 
-    const initialHeight = (await textarea.boundingBox())!.height;
+    const initialHeight = (await waTextarea.boundingBox())!.height;
 
     // Type enough lines to force growth
-    await textarea.fill('Line 1\nLine 2\nLine 3\nLine 4\nLine 5\nLine 6');
+    await innerTA(waTextarea).fill('Line 1\nLine 2\nLine 3\nLine 4\nLine 5\nLine 6');
 
-    const grownHeight = (await textarea.boundingBox())!.height;
+    const grownHeight = (await waTextarea.boundingBox())!.height;
     expect(grownHeight).toBeGreaterThan(initialHeight);
   });
 
@@ -581,13 +589,13 @@ test.describe('Panel scrolling & textarea autogrow', () => {
       .first()
       .click({ modifiers: ['Alt', 'Shift'] });
     const p = page.locator('db-comment .panel:not([hidden])');
-    const textarea = p.locator('textarea[data-role="composer"]');
-    await expect(textarea).toBeVisible();
+    const waTextarea = p.locator('wa-textarea[data-role="composer"]');
+    await expect(waTextarea).toBeVisible();
 
-    await textarea.fill('Line 1\nLine 2\nLine 3\nLine 4\nLine 5\nLine 6');
+    await innerTA(waTextarea).fill('Line 1\nLine 2\nLine 3\nLine 4\nLine 5\nLine 6');
 
     // scrollHeight should equal clientHeight — no internal scroll
-    const hasInternalScroll = await textarea.evaluate(
+    const hasInternalScroll = await innerTA(waTextarea).evaluate(
       (el: HTMLTextAreaElement) => el.scrollHeight > el.clientHeight,
     );
     expect(hasInternalScroll).toBe(false);
@@ -639,7 +647,7 @@ test.describe('Compact UI (redesign)', () => {
       .first()
       .click({ modifiers: ['Alt', 'Shift'] });
     const p = page.locator('db-comment .panel:not([hidden])');
-    await p.locator('textarea[data-role="composer"]').fill('hello');
+    await innerTA(p.locator('wa-textarea[data-role="composer"]')).fill('hello');
     await expect(p.locator('wa-button[title="Send"]')).toBeEnabled();
   });
 
@@ -667,11 +675,10 @@ test.describe('Compact UI (redesign)', () => {
       .first()
       .click({ modifiers: ['Alt', 'Shift'] });
     const p = page.locator('db-comment .panel:not([hidden])');
-    const inner = p.locator('.composer-inner');
+    const inner = p.locator('wa-textarea[data-role="composer"]');
     await expect(inner).toBeVisible();
-    const radius = await inner.evaluate((el) => getComputedStyle(el).borderRadius);
-    // 10px border-radius
-    expect(radius).not.toBe('0px');
+    // wa-textarea with appearance="filled" is used for rounded input style
+    await expect(inner).toHaveAttribute('appearance', 'filled');
   });
 
   test('view mode: header has Close button, no Cancel button', async ({ page }) => {
@@ -736,7 +743,7 @@ test.describe('Compact UI (redesign)', () => {
       .click({ modifiers: ['Alt', 'Shift'] })
       .catch(() => { });
 
-    const textarea = draft.locator('textarea[data-role="composer"]');
+    const textarea = innerTA(draft.locator('wa-textarea[data-role="composer"]'));
     await textarea.fill('Multi selector');
     await textarea.press('Enter');
     await expect(commentPanel(page)).toHaveCount(0);
@@ -759,7 +766,7 @@ test.describe('Compact UI (redesign)', () => {
       .first()
       .click({ modifiers: ['Alt', 'Shift'] });
     const draft = page.locator('db-comment .panel:not([hidden])');
-    const textarea = draft.locator('textarea[data-role="composer"]');
+    const textarea = innerTA(draft.locator('wa-textarea[data-role="composer"]'));
     await textarea.fill('Chip font test');
     await textarea.press('Enter');
 
@@ -847,7 +854,7 @@ test.describe('Multi-select while draft is open', () => {
     await expect(page.locator('db-comment .panel:not([hidden])')).toHaveCount(1);
 
     // Save and verify via API that the new comment has 2 selectors (p + h1)
-    const textarea = draft.locator('textarea[data-role="composer"]');
+    const textarea = innerTA(draft.locator('wa-textarea[data-role="composer"]'));
     await textarea.fill('Multi-select with existing element');
     await textarea.press('Enter');
     await expect(commentPanel(page)).toHaveCount(0);
@@ -1040,14 +1047,14 @@ test.describe('Tweaks in comments', () => {
       })
       .toBe(200);
 
-    // Knob value should be reset in schema
+    // Knob should be removed from schema after discard
     await expect
       .poll(async () => {
         const res = await page.request.get(`${API_BASE}/tweaks`);
         const body = (await res.json()) as { knobs: { marker: string; value: string; }[]; };
-        return body.knobs.find((k) => k.marker === 'test-knob-discard')?.value;
+        return body.knobs.find((k) => k.marker === 'test-knob-discard');
       })
-      .toBe('🎨');
+      .toBeUndefined();
   });
 
   test('Discard button shows tweakStatus=discarded badge and collapses knob', async ({ page }) => {
@@ -1094,7 +1101,7 @@ test.describe('Tweaks in comments', () => {
     // Re-open panel — reply textarea must still be accessible
     await page.reload();
     await openCommentPanel(page);
-    const replyArea = page.locator('db-comment textarea[data-role="reply"]');
+    const replyArea = innerTA(page.locator('db-comment wa-textarea[data-role="reply"]'));
     await expect(replyArea).toBeVisible();
     await replyArea.fill('Still can reply after accept');
     await replyArea.press('Enter');
@@ -1136,9 +1143,9 @@ test.describe('Tweaks in comments', () => {
     const agentIcon = page.locator('db-comment .reply-author-icon.agent');
     await expect(agentIcon).toBeVisible();
 
-    // User row should have user icon class
+    // User replies no longer have an author icon
     const userIcon = page.locator('db-comment .reply-author-icon.user');
-    await expect(userIcon).toBeVisible();
+    await expect(userIcon).toHaveCount(0);
   });
 
   test('review page shows agent tag on agent-authored comments', async ({ page }) => {
@@ -1379,7 +1386,7 @@ test.describe('Tweaks in comments', () => {
     const textarea = page.locator('db-comment db-knob wa-textarea');
     await textarea.evaluate((el) => {
       (el as HTMLElement & { value: string; }).value = 'Updated text';
-      el.dispatchEvent(new Event('wa-input', { bubbles: true }));
+      el.dispatchEvent(new Event('input', { bubbles: true }));
     });
     await expect
       .poll(async () => {
@@ -1534,7 +1541,7 @@ test.describe('Edit and delete own comments', () => {
     const panel = commentPanel(page);
     await panel.locator('.reply-menu wa-button[title="More"]').first().click();
     await page.locator('wa-dropdown-item:has-text("Edit")').first().click();
-    const editArea = panel.locator('textarea[data-role="edit"]');
+    const editArea = innerTA(panel.locator('wa-textarea[data-edit-id]'));
     await expect(editArea).toBeVisible();
     await expect(editArea).toHaveValue('Original text');
   });
@@ -1545,10 +1552,10 @@ test.describe('Edit and delete own comments', () => {
     const panel = commentPanel(page);
     await panel.locator('.reply-menu wa-button[title="More"]').first().click();
     await page.locator('wa-dropdown-item:has-text("Edit")').first().click();
-    const editArea = panel.locator('textarea[data-role="edit"]');
+    const editArea = innerTA(panel.locator('wa-textarea[data-edit-id]'));
     await editArea.fill('Updated text');
     await editArea.press('Enter');
-    await expect(panel.locator('textarea[data-role="edit"]')).toHaveCount(0);
+    await expect(panel.locator('wa-textarea[data-edit-id]')).toHaveCount(0);
     await expect(panel.locator('.comment-text').first()).toHaveText('Updated text');
     // Persisted to API
     await expect
@@ -1566,10 +1573,10 @@ test.describe('Edit and delete own comments', () => {
     const panel = commentPanel(page);
     await panel.locator('.reply-menu wa-button[title="More"]').first().click();
     await page.locator('wa-dropdown-item:has-text("Edit")').first().click();
-    const editArea = panel.locator('textarea[data-role="edit"]');
+    const editArea = innerTA(panel.locator('wa-textarea[data-edit-id]'));
     await editArea.fill('Button saved');
     await panel.locator('.edit-actions wa-button[appearance="filled"]').click();
-    await expect(panel.locator('textarea[data-role="edit"]')).toHaveCount(0);
+    await expect(panel.locator('wa-textarea[data-edit-id]')).toHaveCount(0);
     await expect(panel.locator('.comment-text').first()).toHaveText('Button saved');
   });
 
@@ -1579,10 +1586,10 @@ test.describe('Edit and delete own comments', () => {
     const panel = commentPanel(page);
     await panel.locator('.reply-menu wa-button[title="More"]').first().click();
     await page.locator('wa-dropdown-item:has-text("Edit")').first().click();
-    const editArea = panel.locator('textarea[data-role="edit"]');
+    const editArea = innerTA(panel.locator('wa-textarea[data-edit-id]'));
     await editArea.fill('Should be discarded');
     await panel.locator('.edit-actions wa-button[appearance="plain"]').click();
-    await expect(panel.locator('textarea[data-role="edit"]')).toHaveCount(0);
+    await expect(panel.locator('wa-textarea[data-edit-id]')).toHaveCount(0);
     await expect(panel.locator('.comment-text').first()).toHaveText('Cancel restores me');
   });
 
@@ -1592,10 +1599,10 @@ test.describe('Edit and delete own comments', () => {
     const panel = commentPanel(page);
     await panel.locator('.reply-menu wa-button[title="More"]').first().click();
     await page.locator('wa-dropdown-item:has-text("Edit")').first().click();
-    const editArea = panel.locator('textarea[data-role="edit"]');
+    const editArea = innerTA(panel.locator('wa-textarea[data-edit-id]'));
     await editArea.fill('Will be discarded');
     await editArea.press('Escape');
-    await expect(panel.locator('textarea[data-role="edit"]')).toHaveCount(0);
+    await expect(panel.locator('wa-textarea[data-edit-id]')).toHaveCount(0);
     await expect(panel.locator('.comment-text').first()).toHaveText('Escape cancels edit');
   });
 
@@ -1605,10 +1612,10 @@ test.describe('Edit and delete own comments', () => {
     const panel = commentPanel(page);
     await panel.locator('.reply-menu wa-button[title="More"]').first().click();
     await page.locator('wa-dropdown-item:has-text("Edit")').first().click();
-    const editArea = panel.locator('textarea[data-role="edit"]');
+    const editArea = innerTA(panel.locator('wa-textarea[data-edit-id]'));
     await editArea.fill('');
     const saveBtn = panel.locator('.edit-actions wa-button[appearance="filled"]');
-    await expect(saveBtn).toBeDisabled();
+    await expect(saveBtn).toHaveAttribute('disabled', '');
   });
 
   test('edit option appears in review page row dropdown for user comment', async ({ page }) => {
@@ -1626,9 +1633,9 @@ test.describe('Edit and delete own comments', () => {
     await page.locator('.row').first().hover();
     await page.locator('.row-menu').first().locator('wa-button[title="More"]').click();
     await page.locator('wa-dropdown-item:has-text("Edit")').first().click();
-    const inlineEdit = page.locator('.inline-edit');
+    const inlineEdit = page.locator('wa-textarea.inline-edit');
     await expect(inlineEdit).toBeVisible();
-    await expect(inlineEdit).toHaveValue('Review edit target');
+    await expect(innerTA(inlineEdit)).toHaveValue('Review edit target');
   });
 
   test('saves edited comment from review page via Enter key', async ({ page }) => {
@@ -1637,9 +1644,9 @@ test.describe('Edit and delete own comments', () => {
     await page.locator('.row').first().hover();
     await page.locator('.row-menu').first().locator('wa-button[title="More"]').click();
     await page.locator('wa-dropdown-item:has-text("Edit")').first().click();
-    const inlineEdit = page.locator('.inline-edit');
-    await inlineEdit.fill('After edit');
-    await inlineEdit.press('Enter');
+    const inlineEdit = page.locator('wa-textarea.inline-edit');
+    await innerTA(inlineEdit).fill('After edit');
+    await innerTA(inlineEdit).press('Enter');
     await expect(page.locator('.inline-edit')).toHaveCount(0);
     await expect(page.locator('.row .comment').first()).toContainText('After edit');
     // Confirm persisted
@@ -1658,8 +1665,8 @@ test.describe('Edit and delete own comments', () => {
     await page.locator('.row').first().hover();
     await page.locator('.row-menu').first().locator('wa-button[title="More"]').click();
     await page.locator('wa-dropdown-item:has-text("Edit")').first().click();
-    const inlineEdit = page.locator('.inline-edit');
-    await inlineEdit.fill('Saved via button');
+    const inlineEdit = page.locator('wa-textarea.inline-edit');
+    await innerTA(inlineEdit).fill('Saved via button');
     await page.locator('.inline-edit-actions wa-button[appearance="filled"]').click();
     await expect(page.locator('.inline-edit')).toHaveCount(0);
     await expect(page.locator('.row .comment').first()).toContainText('Saved via button');
@@ -1671,8 +1678,8 @@ test.describe('Edit and delete own comments', () => {
     await page.locator('.row').first().hover();
     await page.locator('.row-menu').first().locator('wa-button[title="More"]').click();
     await page.locator('wa-dropdown-item:has-text("Edit")').first().click();
-    const inlineEdit = page.locator('.inline-edit');
-    await inlineEdit.fill('Discard this');
+    const inlineEdit = page.locator('wa-textarea.inline-edit');
+    await innerTA(inlineEdit).fill('Discard this');
     await page.locator('.inline-edit-actions wa-button[appearance="plain"]').click();
     await expect(page.locator('.inline-edit')).toHaveCount(0);
     await expect(page.locator('.row .comment').first()).toContainText('Original review text');
@@ -1684,9 +1691,9 @@ test.describe('Edit and delete own comments', () => {
     await page.locator('.row').first().hover();
     await page.locator('.row-menu').first().locator('wa-button[title="More"]').click();
     await page.locator('wa-dropdown-item:has-text("Edit")').first().click();
-    const inlineEdit = page.locator('.inline-edit');
-    await inlineEdit.fill('Will be reverted');
-    await inlineEdit.press('Escape');
+    const inlineEdit = page.locator('wa-textarea.inline-edit');
+    await innerTA(inlineEdit).fill('Will be reverted');
+    await innerTA(inlineEdit).press('Escape');
     await expect(page.locator('.inline-edit')).toHaveCount(0);
     await expect(page.locator('.row .comment').first()).toContainText('Escape in review');
   });
@@ -1697,10 +1704,10 @@ test.describe('Edit and delete own comments', () => {
     await page.locator('.row').first().hover();
     await page.locator('.row-menu').first().locator('wa-button[title="More"]').click();
     await page.locator('wa-dropdown-item:has-text("Edit")').first().click();
-    await page.locator('.inline-edit').fill('');
+    await innerTA(page.locator('wa-textarea.inline-edit')).fill('');
     await expect(
       page.locator('.inline-edit-actions wa-button[appearance="filled"]'),
-    ).toBeDisabled();
+    ).toHaveAttribute('disabled', '');
   });
 
   test('agent-authored comments do not show edit option in review page', async ({ page }) => {
@@ -1730,9 +1737,9 @@ test.describe('Edit and delete own comments', () => {
     const panel = commentPanel(page);
     await panel.locator('.reply-menu wa-button[title="More"]').first().click();
     await page.locator('wa-dropdown-item:has-text("Edit")').first().click();
-    await panel.locator('textarea[data-role="edit"]').fill('Post-reload text');
+    await innerTA(panel.locator('wa-textarea[data-edit-id]')).fill('Post-reload text');
     await panel.locator('.edit-actions wa-button[appearance="filled"]').click();
-    await expect(panel.locator('textarea[data-role="edit"]')).toHaveCount(0);
+    await expect(panel.locator('wa-textarea[data-edit-id]')).toHaveCount(0);
     // Reload and check API
     await page.reload();
     const res = await page.request.get(`${API_BASE}/comments`);
@@ -1747,7 +1754,9 @@ test.describe('Edit and delete own comments', () => {
     await panel.locator('.reply-menu wa-button[title="More"]').first().click();
     // Edit must be present, Delete must not exist for the root reply
     await expect(page.locator('wa-dropdown-item:has-text("Edit")')).toBeVisible();
-    await expect(page.locator('wa-dropdown-item[variant="danger"]')).toHaveCount(0);
+    await expect(
+      panel.locator('.reply-row:first-child .reply-menu wa-dropdown-item[variant="danger"]'),
+    ).toHaveCount(0);
   });
 
   test('subsequent reply can be deleted from badge panel', async ({ page }) => {
@@ -1755,17 +1764,17 @@ test.describe('Edit and delete own comments', () => {
     // Add a reply
     await page.locator('db-comment wa-badge').first().click();
     const panel = commentPanel(page);
-    const replyInput = panel.locator('textarea[data-role="reply"]');
-    await replyInput.fill('A follow-up reply');
-    await replyInput.press('Enter');
-    // Re-open panel
-    await page.locator('db-comment wa-badge').first().click();
+    const replyInput = panel.locator('wa-textarea[data-role="reply"]');
+    await innerTA(replyInput).fill('A follow-up reply');
+    await innerTA(replyInput).press('Enter');
+    // Wait for the reply to appear in the thread (panel stays open after reply)
+    await expect(panel.locator('.comment-text')).toHaveCount(2);
     // Second reply row (index 1) should have a three-dot menu with Delete
     await panel.locator('.reply-menu wa-button[title="More"]').nth(1).click();
     await expect(
-      page.locator('wa-dropdown-item[variant="danger"]:has-text("Delete")'),
+      panel.locator('.reply-row:nth-child(2) wa-dropdown-item[variant="danger"]:has-text("Delete")'),
     ).toBeVisible();
-    await page.locator('wa-dropdown-item[variant="danger"]:has-text("Delete")').click();
+    await panel.locator('.reply-row:nth-child(2) wa-dropdown-item[variant="danger"]:has-text("Delete")').click();
     // Reply should be gone, root comment remains
     await expect(panel.locator('.comment-text')).toHaveCount(1);
   });

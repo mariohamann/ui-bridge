@@ -141,17 +141,8 @@ const DB_REVIEW_LOCAL_STYLES = css`
     opacity: 1;
   }
   .inline-edit {
+    display: block;
     width: 100%;
-    resize: none;
-    font: var(--wa-font-size-xs) / 1.5 var(--wa-font-family-body);
-    background: var(--wa-color-surface-lowered);
-    color: var(--wa-color-text-normal);
-    border: 1px solid var(--wa-color-brand);
-    border-radius: var(--wa-border-radius-m);
-    padding: var(--wa-space-2xs) var(--wa-space-xs);
-    outline: none;
-    box-sizing: border-box;
-    min-height: 48px;
     margin-top: var(--wa-space-2xs);
   }
   .inline-edit-actions {

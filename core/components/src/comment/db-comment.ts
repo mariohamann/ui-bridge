@@ -3,7 +3,7 @@ import '@awesome.me/webawesome/dist/components/button/button.js';
 import '@awesome.me/webawesome/dist/components/dropdown-item/dropdown-item.js';
 import '@awesome.me/webawesome/dist/components/dropdown/dropdown.js';
 import '@awesome.me/webawesome/dist/components/tag/tag.js';
-import autosize from 'autosize';
+import '@awesome.me/webawesome/dist/components/textarea/textarea.js';
 import type {
   Comment,
   CommentAuthor,
@@ -228,7 +228,6 @@ export class DbComment extends LitElement {
     if (changed.has('_open')) {
       if (this._open) {
         this._startPanelAutoUpdate();
-        this._applyAutosize();
       } else {
         this._cleanupPanel?.();
         this._cleanupPanel = null;
@@ -296,19 +295,15 @@ export class DbComment extends LitElement {
   // Focus
   // ────────────────────────────────────────────────────────────────────────
 
-  private _applyAutosize(): void {
-    const textareas = this.shadowRoot?.querySelectorAll<HTMLTextAreaElement>('textarea');
-    if (textareas) autosize(textareas);
-  }
-
   private _focusTextarea(): void {
     this.updateComplete.then(() => {
       const sel =
-        this._mode === 'view' ? 'textarea[data-role="reply"]' : 'textarea[data-role="composer"]';
-      const ta = this.shadowRoot?.querySelector<HTMLTextAreaElement>(sel);
+        this._mode === 'view'
+          ? 'wa-textarea[data-role="reply"]'
+          : 'wa-textarea[data-role="composer"]';
+      const ta = this.shadowRoot?.querySelector<HTMLElement>(sel);
       if (!ta) return;
-      ta.focus({ preventScroll: true });
-      ta.setSelectionRange(ta.value.length, ta.value.length);
+      (ta as HTMLElement & { focus: (opts?: FocusOptions) => void; }).focus({ preventScroll: true });
     });
   }
 
@@ -539,13 +534,11 @@ export class DbComment extends LitElement {
     this._editingReplyId = replyId;
     this._editDraft = text;
     this.updateComplete.then(() => {
-      const ta = this.shadowRoot?.querySelector<HTMLTextAreaElement>(
-        `textarea[data-edit-id="${replyId}"]`,
+      const ta = this.shadowRoot?.querySelector<HTMLElement>(
+        `wa-textarea[data-edit-id="${replyId}"]`,
       );
       if (ta) {
-        autosize(ta);
-        ta.focus();
-        ta.setSelectionRange(ta.value.length, ta.value.length);
+        (ta as HTMLElement & { focus: () => void; }).focus();
       }
     });
   }
@@ -669,7 +662,7 @@ export class DbComment extends LitElement {
           <wa-button
             appearance="outlined"
             variant="success"
-            size="s"
+            size="xs"
             @click=${this._acceptAllTweaks}
             title="Accept tweak and resolve comment"
             >Accept ✓</wa-button
@@ -677,7 +670,7 @@ export class DbComment extends LitElement {
           <wa-button
             appearance="outlined"
             variant="warning"
-            size="s"
+            size="xs"
             @click=${this._discardTweak}
             title="Discard tweak"
             >Discard ✕</wa-button
@@ -709,7 +702,9 @@ export class DbComment extends LitElement {
         }
       }}
         >
-          <wa-button slot="trigger" appearance="plain" size="s" title="More options">···</wa-button>
+          <wa-button slot="trigger" appearance="plain" size="xs" title="More options"
+            >···</wa-button
+          >
           <wa-dropdown-item value="paths"
             >${this._showPaths ? 'Hide paths' : 'Show paths'}</wa-dropdown-item
           >
@@ -717,10 +712,12 @@ export class DbComment extends LitElement {
           <wa-divider></wa-divider>
           <wa-dropdown-item value="delete" variant="danger">Delete</wa-dropdown-item>
         </wa-dropdown>
-        <wa-button appearance="plain" size="s" title="Resolve" @click=${this._resolve}>✓</wa-button>
+        <wa-button appearance="plain" size="xs" title="Resolve" @click=${this._resolve}
+          >✓</wa-button
+        >
         <wa-button
           appearance="plain"
-          size="s"
+          size="xs"
           title="Close"
           @click=${() => {
         this._open = false;
@@ -735,7 +732,7 @@ export class DbComment extends LitElement {
     return html`<wa-button
       appearance="filled"
       variant="brand"
-      size="s"
+      size="xs"
       ?disabled=${!enabled}
       @click=${enabled ? onClick : undefined}
       title="Send"
@@ -745,13 +742,9 @@ export class DbComment extends LitElement {
 
   private _renderReplyAuthorIcon(author: CommentAuthor | undefined): TemplateResult {
     const isAgent = author === 'agent';
+    if (!isAgent) return html``;
     return html`
-      <span
-        class="reply-author-icon ${isAgent ? 'agent' : 'user'}"
-        title=${isAgent ? 'Agent' : 'User'}
-      >
-        ${isAgent ? '✦' : '◉'}
-      </span>
+      <span class="reply-author-icon agent" title="Agent">✦</span>
     `;
   }
 
@@ -770,12 +763,14 @@ export class DbComment extends LitElement {
           <div class="reply-body">
             ${isEditing
           ? html`
-                  <textarea
+                  <wa-textarea
                     data-edit-id=${r.id}
-                    data-role="edit"
+                    appearance="filled"
+                    resize="auto"
+                    size="xs"
                     .value=${this._editDraft}
                     @input=${(e: Event) => {
-              this._editDraft = (e.target as HTMLTextAreaElement).value;
+              this._editDraft = (e.target as HTMLElement & { value: string; }).value;
             }}
                     @keydown=${(e: KeyboardEvent) => {
               if (e.key === 'Enter' && !e.shiftKey) {
@@ -786,17 +781,17 @@ export class DbComment extends LitElement {
                 this._cancelEditReply();
               }
             }}
-                  ></textarea>
+                  ></wa-textarea>
                   <div class="edit-actions">
                     <wa-button
                       appearance="filled"
                       variant="brand"
-                      size="s"
+                      size="xs"
                       ?disabled=${!this._editDraft.trim()}
                       @click=${this._saveEditReply}
                       >Save</wa-button
                     >
-                    <wa-button appearance="plain" size="s" @click=${this._cancelEditReply}
+                    <wa-button appearance="plain" size="xs" @click=${this._cancelEditReply}
                       >Cancel</wa-button
                     >
                   </div>
@@ -814,7 +809,7 @@ export class DbComment extends LitElement {
                     ${showMenu
               ? html`
                           <wa-dropdown
-                            size="s"
+                            size="xs"
                             class="reply-menu"
                             @click=${(e: Event) => e.stopPropagation()}
                             @wa-select=${(e: CustomEvent) => {
@@ -823,7 +818,7 @@ export class DbComment extends LitElement {
                   else if (val === 'delete') this._deleteReply(r.id);
                 }}
                           >
-                            <wa-button slot="trigger" appearance="plain" size="s" title="More"
+                            <wa-button slot="trigger" appearance="plain" size="xs" title="More"
                               >···</wa-button
                             >
                             <wa-dropdown-item value="edit">Edit</wa-dropdown-item>
@@ -947,19 +942,22 @@ export class DbComment extends LitElement {
           ${!isDraft ? this._renderTweaksSection() : ''}
 
           <div class="composer">
-            <div class="composer-inner">
-              <textarea
+            <div class="textarea-wrap">
+              <wa-textarea
                 data-role=${isDraft ? 'composer' : 'reply'}
+                appearance="filled"
+                resize="auto"
+                size="xs"
                 placeholder=${isDraft ? 'Add a comment\u2026' : 'Reply\u2026'}
                 .value=${isDraft ? this._draft : this._replyDraft}
                 @input=${(e: Event) => {
-        const v = (e.target as HTMLTextAreaElement).value;
+        const v = (e.target as HTMLElement & { value: string; }).value;
         if (isDraft) this._draft = v;
         else this._replyDraft = v;
       }}
                 @keydown=${isDraft ? this._onComposerKeyDown : this._onReplyKeyDown}
-              ></textarea>
-              <div class="composer-row">
+              ></wa-textarea>
+              <div class="composer-send">
                 ${isDraft
         ? this._renderSendBtn(canSendNew, () => this._saveNew())
         : this._renderSendBtn(canSendReply, () => this._saveReply())}
