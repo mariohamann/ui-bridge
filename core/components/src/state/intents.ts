@@ -8,19 +8,19 @@
  * No WebSocket or browser-API imports here — this module is transport-agnostic.
  */
 
-import type { Comment } from '@design-bridge/protocol';
+import type { CommentThread } from '@design-bridge/protocol';
 
 // ── Intent types ──────────────────────────────────────────────────────────────
 
-export type TweakChangeIntent = { type: 'tweak:change'; marker: string; value: string };
-export type TweakRevertIntent = { type: 'tweak:revert' };
-export type TweakApplyIntent = { type: 'tweak:apply'; markers: string[] };
-export type TweakDiscardIntent = { type: 'tweak:discard' };
+export type TweakChangeIntent = { type: 'tweak:change'; marker: string; value: string; };
+export type TweakRevertIntent = { type: 'tweak:revert'; };
+export type TweakApplyIntent = { type: 'tweak:apply'; markers: string[]; };
+export type TweakDiscardIntent = { type: 'tweak:discard'; };
 export type TweakDiscardCommentIntent = {
   type: 'tweak:discard-comment';
   commentId: string;
 };
-export type TweakAcceptCommentIntent = { type: 'tweak:accept-comment'; commentId: string };
+export type TweakAcceptCommentIntent = { type: 'tweak:accept-comment'; commentId: string; };
 export type TweakAcceptOneIntent = {
   type: 'tweak:accept-one';
   commentId: string;
@@ -32,16 +32,16 @@ export type TweakDismissOneIntent = {
   marker: string;
 };
 
-export type CommentDeleteIntent = { type: 'comment:delete'; id: string };
-export type CommentClearIntent = { type: 'comment:clear' };
-export type CommentOpenIntent = { type: 'comment:open'; id: string };
-export type CommentSaveIntent = { type: 'comment:save'; comment: Comment };
-export type CommentCancelIntent = { type: 'comment:cancel'; id: string };
-export type CommentResolveIntent = { type: 'comment:resolve'; id: string };
-export type CommentBadgeClickIntent = { type: 'comment:badge-click'; id: string };
+export type CommentDeleteIntent = { type: 'comment:delete'; id: string; };
+export type CommentClearIntent = { type: 'comment:clear'; };
+export type CommentOpenIntent = { type: 'comment:open'; id: string; };
+export type CommentSaveIntent = { type: 'comment:save'; comment: CommentThread; };
+export type CommentCancelIntent = { type: 'comment:cancel'; id: string; };
+export type CommentResolveIntent = { type: 'comment:resolve'; id: string; };
+export type CommentBadgeClickIntent = { type: 'comment:badge-click'; id: string; };
 
-export type PanelTabIntent = { type: 'panel:set-tab'; tab: 'tweaks' | 'comments' };
-export type PanelCollapseIntent = { type: 'panel:set-collapsed'; collapsed: boolean };
+export type PanelTabIntent = { type: 'panel:set-tab'; tab: 'tweaks' | 'comments'; };
+export type PanelCollapseIntent = { type: 'panel:set-collapsed'; collapsed: boolean; };
 
 export type ComponentIntent =
   | TweakChangeIntent

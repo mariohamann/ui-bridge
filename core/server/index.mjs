@@ -77,6 +77,26 @@ const store = createCommentStore(ROOT);
 // Engine receives a callback so it always reads the latest comment list.
 const tweaks = createTweakEngine(ROOT, () => store.all());
 
+/**
+ * Update the most recent pending tweak entry in a thread to the given status.
+ * @param {object} thread
+ * @param {'accepted'|'discarded'} status
+ */
+function markActiveTweakStatus(thread, status) {
+  let marked = false;
+  const comments = [...(thread.comments ?? [])]
+    .reverse()
+    .map((c) => {
+      if (!marked && c.type === 'tweak' && c.tweakStatus === 'pending') {
+        marked = true;
+        return { ...c, tweakStatus: status };
+      }
+      return c;
+    })
+    .reverse();
+  return { ...thread, meta: { ...thread.meta, timestamp: Date.now() }, comments };
+}
+
 // ── Review page HTML ──────────────────────────────────────────────────────────
 
 const REVIEW_PAGE_HTML = `<!DOCTYPE html>
@@ -175,15 +195,9 @@ wss.on('connection', (ws) => {
       case 'tweak:discard': {
         const { commentId } = msg.payload;
         await tweaks.discardComment(commentId);
-        // Keep the comment but mark tweak as discarded; strip live knob/actions
         const discardedByWs = store.get(commentId);
         if (discardedByWs) {
-          store.upsert({
-            ...discardedByWs,
-            tweakStatus: 'discarded',
-            knob: undefined,
-            actions: undefined,
-          });
+          store.upsert(markActiveTweakStatus(discardedByWs, 'discarded'));
         }
         broadcast({ type: 'tweak:schema', payload: tweaks.buildSchema() });
         broadcast({ type: 'comments:sync', payload: store.all() });
@@ -193,15 +207,9 @@ wss.on('connection', (ws) => {
       case 'tweak:accept-comment': {
         const { commentId } = msg.payload;
         await tweaks.finalizeForComment(commentId);
-        // Keep the comment but mark tweak as accepted; strip live knob/actions
         const accepted = store.get(commentId);
         if (accepted) {
-          store.upsert({
-            ...accepted,
-            tweakStatus: 'accepted',
-            knob: undefined,
-            actions: undefined,
-          });
+          store.upsert(markActiveTweakStatus(accepted, 'accepted'));
         }
         broadcast({ type: 'tweak:schema', payload: tweaks.buildSchema() });
         broadcast({ type: 'comments:sync', payload: store.all() });
@@ -211,15 +219,9 @@ wss.on('connection', (ws) => {
       case 'tweak:dismiss': {
         const { commentId } = msg.payload;
         await tweaks.discardComment(commentId);
-        // Keep the comment but mark tweak as discarded; strip live knob/actions
         const discarded = store.get(commentId);
         if (discarded) {
-          store.upsert({
-            ...discarded,
-            tweakStatus: 'discarded',
-            knob: undefined,
-            actions: undefined,
-          });
+          store.upsert(markActiveTweakStatus(discarded, 'discarded'));
         }
         broadcast({ type: 'tweak:schema', payload: tweaks.buildSchema() });
         broadcast({ type: 'comments:sync', payload: store.all() });
@@ -331,7 +333,7 @@ const httpServer = createServer(async (req, res) => {
   if (req.method === 'POST' && apiPath === '/comments') {
     try {
       const ann = await readBody(req);
-      if (!ann?.id) {
+      if (!ann?.meta?.id) {
         jsonResponse(res, 400, { error: 'missing id' });
         return;
       }
@@ -381,7 +383,7 @@ const httpServer = createServer(async (req, res) => {
       await tweaks.finalizeForComment(annId);
       const accepted = store.get(annId);
       if (accepted) {
-        store.upsert({ ...accepted, tweakStatus: 'accepted', knob: undefined, actions: undefined });
+        store.upsert(markActiveTweakStatus(accepted, 'accepted'));
       }
       broadcast({ type: 'tweak:schema', payload: tweaks.buildSchema() });
       broadcast({ type: 'comments:sync', payload: store.all() });
@@ -399,12 +401,7 @@ const httpServer = createServer(async (req, res) => {
       await tweaks.discardComment(annId);
       const discarded = store.get(annId);
       if (discarded) {
-        store.upsert({
-          ...discarded,
-          tweakStatus: 'discarded',
-          knob: undefined,
-          actions: undefined,
-        });
+        store.upsert(markActiveTweakStatus(discarded, 'discarded'));
       }
       broadcast({ type: 'tweak:schema', payload: tweaks.buildSchema() });
       broadcast({ type: 'comments:sync', payload: store.all() });
@@ -541,4 +538,5 @@ if (actualPort !== PREFERRED_PORT) {
 httpServer.listen(actualPort, async () => {
   await writePortFile(actualPort);
   console.log(`[design-bridge] server listening on http://localhost:${actualPort} (root: ${ROOT})`);
+  console.log(`DESIGN_BRIDGE_READY:${actualPort}`);
 });

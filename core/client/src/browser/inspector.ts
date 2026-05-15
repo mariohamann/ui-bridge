@@ -9,7 +9,7 @@
 
 import { sendMessage, onMessage } from './ws-client.js';
 import { finder, idName } from '@medv/finder';
-import type { Comment } from '@design-bridge/protocol';
+import type { CommentThread } from '@design-bridge/protocol';
 import { DB_COMMENT_TAG, DB_SOURCE_INSPECTOR_TAG } from '@design-bridge/protocol';
 import type { DbComment } from '@design-bridge/components';
 import {
@@ -35,7 +35,7 @@ function buildSelector(el: Element): string {
 
 // ─── State ───────────────────────────────────────────────────────────────────
 
-const comments = new Map<string, Comment>();
+const comments = new Map<string, CommentThread>();
 const changeListeners = new Set<() => void>();
 const channel = new BroadcastChannel('design-bridge:comments');
 
@@ -45,7 +45,7 @@ function notifyChange(): void {
   updateComments([...comments.values()]);
 }
 
-export function getComments(): Comment[] {
+export function getComments(): CommentThread[] {
   return [...comments.values()];
 }
 
@@ -54,15 +54,15 @@ export function onCommentsChange(cb: () => void): () => void {
   return () => changeListeners.delete(cb);
 }
 
-function syncComments(list: Comment[]): void {
+function syncComments(list: CommentThread[]): void {
   comments.clear();
-  for (const ann of list) comments.set(ann.id, ann);
+  for (const ann of list) comments.set(ann.meta.id, ann);
   reconcileItems();
   notifyChange();
 }
 
-export function upsertComment(ann: Comment): void {
-  comments.set(ann.id, ann);
+export function upsertComment(ann: CommentThread): void {
+  comments.set(ann.meta.id, ann);
   sendMessage({ type: 'comment:upsert', payload: ann });
   channel.postMessage({ type: 'comments:sync', payload: [...comments.values()] });
   reconcileItems();
@@ -175,11 +175,11 @@ function reconcileItems(): void {
 
   // Add or update items
   annList.forEach((ann, i) => {
-    let item = itemEls.get(ann.id);
+    let item = itemEls.get(ann.meta.id);
     if (!item) {
       item = document.createElement('db-comment') as DbComment;
       itemContainer!.appendChild(item);
-      itemEls.set(ann.id, item);
+      itemEls.set(ann.meta.id, item);
     }
     item.comment = ann;
     item.index = i;
@@ -279,7 +279,7 @@ function onPointerDownForInspect(e: PointerEvent): void {
 }
 
 function onTrackCode(e: Event): void {
-  const detail = (e as CustomEvent<{ path?: string; line?: number; column?: number }>).detail;
+  const detail = (e as CustomEvent<{ path?: string; line?: number; column?: number; }>).detail;
   hideHighlight();
   if (!itemContainer) return;
 
@@ -287,7 +287,9 @@ function onTrackCode(e: Event): void {
   if (!el || isInspectorUI(el)) return;
 
   const sel = buildSelector(el);
-  const existing = [...comments.values()].find((a) => a.selectors.includes(sel));
+  const existing = [...comments.values()].find((a) =>
+    a.elements.some((el) => el.minimalSelector === sel),
+  );
   // Prefer event detail source info; fall back to reading DOM attributes directly.
   const detailSource = detail?.path
     ? { file: detail.path, line: detail.line ?? 1, column: detail.column ?? 0 }
@@ -295,7 +297,7 @@ function onTrackCode(e: Event): void {
   const source = detailSource ?? getSourceInfo(el) ?? undefined;
 
   if (existing && !draftItem) {
-    openItemPanel(getItemById(existing.id)!);
+    openItemPanel(getItemById(existing.meta.id)!);
   } else if (draftItem) {
     draftItem.addDraftSelector(el, buildSelector(el));
     if (source) draftItem.setDraftSource(source);
@@ -313,7 +315,7 @@ function onTrackCode(e: Event): void {
 // ─── Cross-tab BroadcastChannel ──────────────────────────────────────────────
 
 channel.addEventListener('message', (e) => {
-  const { type, payload } = e.data as { type: string; payload: Comment[] };
+  const { type, payload } = e.data as { type: string; payload: CommentThread[]; };
   if (type === 'comments:sync') syncComments(payload);
 });
 
@@ -330,11 +332,11 @@ onMessage((msg) => {
     if (opened) {
       const ann = comments.get(msg.payload.id);
       if (ann) {
-        for (const sel of ann.selectors) {
+        for (const el of ann.elements) {
           try {
-            const el = document.querySelector(sel);
-            if (el) {
-              el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            const domEl = document.querySelector(el.minimalSelector);
+            if (domEl) {
+              domEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
               break;
             }
           } catch {
@@ -367,7 +369,7 @@ export function initInspector(): void {
     if (intent.type === 'comment:save') {
       const ann = intent.comment;
       if (draftItem) {
-        itemEls.set(ann.id, draftItem);
+        itemEls.set(ann.meta.id, draftItem);
         draftItem = null;
       }
       upsertComment(ann);

@@ -5,11 +5,12 @@ import '@awesome.me/webawesome/dist/components/dropdown/dropdown.js';
 import '@awesome.me/webawesome/dist/components/tag/tag.js';
 import '@awesome.me/webawesome/dist/components/textarea/textarea.js';
 import type {
-  Comment,
-  CommentAuthor,
-  CommentReply,
+  CommentThread,
+  CommentElement,
+  CommentEntry,
+  TextCommentEntry,
+  TweakCommentEntry,
   CommentSource,
-  CommentTweakLink,
   TweakKnob,
 } from '@design-bridge/protocol';
 import { knobsSignal } from '../state/knobs-store.js';
@@ -19,7 +20,7 @@ import { commentItemStyles } from './db-comment.styles.js';
 import { computePosition, autoUpdate, flip, shift, offset } from '@floating-ui/dom';
 import { customElement, property, state } from 'lit/decorators.js';
 import { dispatchIntent } from '../state/intents.js';
-import { uid, shortLabel, formatTweakReply } from './db-comment.utils.js';
+import { uid, parseElement, shortLabel, formatTweakReply } from './db-comment.utils.js';
 import { DB_HIGHLIGHT_COLOR } from '../styles/tokens.js';
 
 const HIGHLIGHT_ATTR = 'data-db-related';
@@ -42,7 +43,7 @@ export class DbComment extends LitElement {
   static styles = commentItemStyles;
 
   /** The saved comment. null = draft (unsaved, panel auto-opens). */
-  @property({ attribute: false }) comment: Comment | null = null;
+  @property({ attribute: false }) comment: CommentThread | null = null;
   /** Badge number shown to the user. */
   @property({ type: Number }) index = 0;
 
@@ -53,8 +54,7 @@ export class DbComment extends LitElement {
   @state() private _replyDraft = '';
   @state() private _wobbling = false;
   @state() private _pendingId = '';
-  @state() private _pendingSelectors: string[] = [];
-  @state() private _pendingLabels: string[] = [];
+  @state() private _pendingElements: CommentElement[] = [];
   @state() private _pendingSource: CommentSource | null = null;
   @state() private _createdAt = 0;
   @state() private _showPaths = false;
@@ -74,7 +74,7 @@ export class DbComment extends LitElement {
   private _cleanupPreview: (() => void) | null = null;
 
   private _anchorEl: Element | null = null;
-  private _pendingElements: Set<Element> = new Set();
+  private _pendingDomElements: Set<Element> = new Set();
 
   // ────────────────────────────────────────────────────────────────────────
   // Public API (called by inspector.ts)
@@ -88,9 +88,8 @@ export class DbComment extends LitElement {
   initDraft(el: Element, selector: string): void {
     this._anchorEl = el;
     this._pendingId = uid();
-    this._pendingSelectors = [selector];
-    this._pendingLabels = [shortLabel(el)];
-    this._pendingElements = new Set([el]);
+    this._pendingElements = [parseElement(el, selector)];
+    this._pendingDomElements = new Set([el]);
     this._pendingSource = null;
     this._draft = '';
     this._replyDraft = '';
@@ -113,11 +112,10 @@ export class DbComment extends LitElement {
   /** Add another selector to an open draft. Caller provides the pre-computed selector. */
   addDraftSelector(el: Element, selector: string): void {
     if (this._mode !== 'create') return;
-    // Deduplicate by element reference (selector strings can differ between calls)
-    if (!this._pendingElements.has(el) && !this._pendingSelectors.includes(selector)) {
-      this._pendingElements.add(el);
-      this._pendingSelectors = [...this._pendingSelectors, selector];
-      this._pendingLabels = [...this._pendingLabels, shortLabel(el)];
+    // Deduplicate by element reference
+    if (!this._pendingDomElements.has(el)) {
+      this._pendingDomElements.add(el);
+      this._pendingElements = [...this._pendingElements, parseElement(el, selector)];
     }
     // Update anchor to the latest element so badge tracks it
     this._anchorEl = el;
@@ -164,18 +162,20 @@ export class DbComment extends LitElement {
   registerTweakReply(marker: string, value: string, _label?: string): void {
     if (!this.comment || !this._open || this._mode !== 'view') return;
     const text = formatTweakReply(marker, value);
-    const replies = this._normalizeReplies(this.comment);
-    const idx = replies.findIndex(
-      (r) => r.type === 'tweak' && r.text.startsWith(`Tweak ${marker} ->`),
+    const comments = this._getComments(this.comment);
+    const idx = comments.findIndex(
+      (r) => r.type === 'comment' && r.text.startsWith(`Tweak ${marker} ->`),
     );
+    let updated: CommentEntry[];
     if (idx >= 0) {
-      replies[idx] = { ...replies[idx], text, createdAt: Date.now() };
+      updated = comments.map((r, i) => (i === idx ? { ...r, text, createdAt: Date.now() } : r));
     } else {
-      replies.push({ id: uid(), type: 'tweak', text, createdAt: Date.now() });
+      const entry: TextCommentEntry = { id: uid(), type: 'comment', text, createdAt: Date.now() };
+      updated = [...comments, entry];
     }
-    const updated = this._buildComment({ replies });
-    this.comment = updated;
-    dispatchIntent({ type: 'comment:save', comment: updated });
+    const thread = this._buildThread({ comments: updated });
+    this.comment = thread;
+    dispatchIntent({ type: 'comment:save', comment: thread });
   }
 
   get isOpen(): boolean {
@@ -185,8 +185,8 @@ export class DbComment extends LitElement {
   /** Number of selectors currently connected to this comment (draft or saved). */
   get connectedSelectorCount(): number {
     return this._mode === 'create'
-      ? this._pendingSelectors.length
-      : (this.comment?.selectors?.length ?? 0);
+      ? this._pendingElements.length
+      : (this.comment?.elements?.length ?? 0);
   }
 
   /** The source location attached to the open draft, or null if none yet. */
@@ -241,7 +241,9 @@ export class DbComment extends LitElement {
 
   private _anchorRect(): DOMRect | null {
     // For saved comments, look up target element via selectors
-    const selectors = this.comment?.selectors ?? this._pendingSelectors;
+    const selectors =
+      this.comment?.elements?.map((e) => e.minimalSelector) ??
+      this._pendingElements.map((e) => e.minimalSelector);
     for (const sel of selectors) {
       try {
         const el = document.querySelector(sel);
@@ -303,7 +305,7 @@ export class DbComment extends LitElement {
           : 'wa-textarea[data-role="composer"]';
       const ta = this.shadowRoot?.querySelector<HTMLElement>(sel);
       if (!ta) return;
-      (ta as HTMLElement & { focus: (opts?: FocusOptions) => void }).focus({ preventScroll: true });
+      (ta as HTMLElement & { focus: (opts?: FocusOptions) => void; }).focus({ preventScroll: true });
     });
   }
 
@@ -312,7 +314,9 @@ export class DbComment extends LitElement {
   // ────────────────────────────────────────────────────────────────────────
 
   private _highlightRelated(): void {
-    const selectors = this.comment?.selectors ?? this._pendingSelectors;
+    const selectors =
+      this.comment?.elements?.map((e) => e.minimalSelector) ??
+      this._pendingElements.map((e) => e.minimalSelector);
     for (const sel of selectors) {
       try {
         document.querySelector(sel)?.setAttribute(HIGHLIGHT_ATTR, '');
@@ -380,7 +384,7 @@ export class DbComment extends LitElement {
   private _onBadgeClick(e: MouseEvent): void {
     e.stopPropagation();
     if (this._mode === 'view') {
-      dispatchIntent({ type: 'comment:badge-click', id: this.comment!.id });
+      dispatchIntent({ type: 'comment:badge-click', id: this.comment!.meta.id });
     }
     // In create mode the panel is already open; clicking badge does nothing extra
   }
@@ -432,59 +436,68 @@ export class DbComment extends LitElement {
   // Data helpers
   // ────────────────────────────────────────────────────────────────────────
 
-  private _normalizeReplies(ann: Comment): CommentReply[] {
-    if (ann.replies && ann.replies.length > 0) return [...ann.replies];
-    if (!ann.comment?.trim()) return [];
-    return [
-      {
-        id: `${ann.id}-root`,
-        type: 'comment',
-        text: ann.comment,
-        createdAt: ann.createdAt ?? ann.timestamp,
-      },
-    ];
+  private _getComments(thread: CommentThread): CommentEntry[] {
+    return [...thread.comments];
   }
 
-  private _buildComment(overrides?: {
-    comment?: string;
-    replies?: CommentReply[];
-    linkedTweaks?: CommentTweakLink[];
-  }): Comment {
+  /** Get the first text entry's text from a thread (for previews/display). */
+  private _firstText(thread: CommentThread): string {
+    return thread.comments.find((c) => c.type === 'comment')?.text ?? '';
+  }
+
+  /** Get the active (most recent pending) tweak entry, if any. */
+  private _activeTweak(thread: CommentThread): TweakCommentEntry | undefined {
+    return [...thread.comments]
+      .reverse()
+      .find((c): c is TweakCommentEntry => c.type === 'tweak' && c.tweakStatus === 'pending');
+  }
+
+  /** Get the most recent tweak entry (any status) for status badge display. */
+  private _latestTweak(thread: CommentThread): TweakCommentEntry | undefined {
+    return [...thread.comments].reverse().find((c): c is TweakCommentEntry => c.type === 'tweak');
+  }
+
+  private _buildThread(overrides?: { comments?: CommentEntry[]; }): CommentThread {
     const base = this.comment;
-    const replies = overrides?.replies ?? (base ? this._normalizeReplies(base) : []);
-    const comment = overrides?.comment ?? base?.comment ?? this._draft.trim();
-    const selectors = base?.selectors ?? [...this._pendingSelectors];
-    const labels = base?.labels?.length
-      ? [...base.labels]
-      : this._pendingLabels.length
-        ? [...this._pendingLabels]
-        : this._pendingSource
-          ? [`${this._pendingSource.file}:${this._pendingSource.line}`]
-          : [];
+    const comments = overrides?.comments ?? (base ? this._getComments(base) : []);
+    const elements = base?.elements?.length
+      ? [...base.elements]
+      : this._pendingElements.length
+        ? [...this._pendingElements]
+        : [];
+    // Attach source from pending to the first element if not already set
+    const elementsWithSource: typeof elements = this._pendingSource
+      ? elements.map((el, i) =>
+        i === 0 && !el.source
+          ? {
+            ...el,
+            source: {
+              file: this._pendingSource!.file,
+              line: this._pendingSource!.line,
+              column: this._pendingSource!.column,
+            },
+          }
+          : el,
+      )
+      : elements;
     return {
-      id: base?.id ?? this._pendingId,
-      selectors,
-      labels,
-      comment,
-      pageUrl: location.href,
-      timestamp: Date.now(),
-      createdAt: (base?.createdAt ?? this._createdAt) || Date.now(),
-      replies,
-      linkedTweaks: overrides?.linkedTweaks ?? base?.linkedTweaks ?? [],
-      ...(base?.knob ? { knob: base.knob } : {}),
-      ...(base?.actions ? { actions: base.actions } : {}),
-      ...((this._pendingSource ?? base?.source)
-        ? { source: this._pendingSource ?? base?.source }
-        : {}),
+      meta: {
+        id: base?.meta?.id ?? this._pendingId,
+        pageUrl: location.href,
+        timestamp: Date.now(),
+        createdAt: (base?.meta?.createdAt ?? this._createdAt) || Date.now(),
+        ...(base?.meta?.resolvedAt ? { resolvedAt: base.meta.resolvedAt } : {}),
+      },
+      elements: elementsWithSource,
+      comments,
     };
   }
 
   private _removeChip(index: number): void {
-    const elArr = [...this._pendingElements];
-    if (elArr[index]) this._pendingElements.delete(elArr[index]);
-    this._pendingSelectors = this._pendingSelectors.filter((_, i) => i !== index);
-    this._pendingLabels = this._pendingLabels.filter((_, i) => i !== index);
-    if (this._pendingSelectors.length === 0 && !this._pendingSource) this._cancelDraft();
+    const elArr = [...this._pendingDomElements];
+    if (elArr[index]) this._pendingDomElements.delete(elArr[index]);
+    this._pendingElements = this._pendingElements.filter((_, i) => i !== index);
+    if (this._pendingElements.length === 0 && !this._pendingSource) this._cancelDraft();
   }
 
   // ────────────────────────────────────────────────────────────────────────
@@ -495,36 +508,34 @@ export class DbComment extends LitElement {
     const text = this._draft.trim();
     if (!text) return;
     this._clearHighlight();
-    const ann = this._buildComment({
-      comment: text,
-      replies: [{ id: uid(), type: 'comment', text, createdAt: Date.now(), author: 'user' }],
-    });
-    this.comment = ann; // immediately switch to view mode
+    const entry: TextCommentEntry = {
+      id: uid(),
+      type: 'comment',
+      text,
+      createdAt: Date.now(),
+      author: 'user',
+    };
+    const thread = this._buildThread({ comments: [entry] });
+    this.comment = thread; // immediately switch to view mode
     this._mode = 'view';
     this._draft = '';
     this._open = false;
-    dispatchIntent({ type: 'comment:save', comment: ann });
+    dispatchIntent({ type: 'comment:save', comment: thread });
   }
 
   private _saveReply(): void {
     if (!this.comment) return;
     const text = this._replyDraft.trim();
     if (!text) return;
-    const replies = [
-      ...this._normalizeReplies(this.comment),
-      {
-        id: uid(),
-        type: 'comment' as const,
-        text,
-        createdAt: Date.now(),
-        author: 'user' as const,
-      },
-    ];
-    const updated = this._buildComment({
-      comment: replies[0]?.text ?? this.comment.comment,
-      replies,
-      linkedTweaks: this.comment.linkedTweaks ?? [],
-    });
+    const entry: TextCommentEntry = {
+      id: uid(),
+      type: 'comment',
+      text,
+      createdAt: Date.now(),
+      author: 'user',
+    };
+    const comments = [...this._getComments(this.comment), entry];
+    const updated = this._buildThread({ comments });
     this.comment = updated;
     this._replyDraft = '';
     dispatchIntent({ type: 'comment:save', comment: updated });
@@ -538,7 +549,7 @@ export class DbComment extends LitElement {
         `wa-textarea[data-edit-id="${replyId}"]`,
       );
       if (ta) {
-        (ta as HTMLElement & { focus: () => void }).focus();
+        (ta as HTMLElement & { focus: () => void; }).focus();
       }
     });
   }
@@ -547,11 +558,10 @@ export class DbComment extends LitElement {
     if (!this.comment || !this._editingReplyId) return;
     const text = this._editDraft.trim();
     if (!text) return;
-    const replies = this._normalizeReplies(this.comment).map((r) =>
+    const comments = this._getComments(this.comment).map((r) =>
       r.id === this._editingReplyId ? { ...r, text } : r,
     );
-    const mainText = replies.find((r) => r.type === 'comment')?.text ?? this.comment.comment;
-    const updated = this._buildComment({ comment: mainText, replies });
+    const updated = this._buildThread({ comments });
     this.comment = updated;
     this._editingReplyId = null;
     this._editDraft = '';
@@ -565,9 +575,8 @@ export class DbComment extends LitElement {
 
   private _deleteReply(replyId: string): void {
     if (!this.comment) return;
-    const replies = this._normalizeReplies(this.comment).filter((r) => r.id !== replyId);
-    const mainText = replies.find((r) => r.type === 'comment')?.text ?? this.comment.comment;
-    const updated = this._buildComment({ comment: mainText, replies });
+    const comments = this._getComments(this.comment).filter((r) => r.id !== replyId);
+    const updated = this._buildThread({ comments });
     this.comment = updated;
     dispatchIntent({ type: 'comment:save', comment: updated });
   }
@@ -580,7 +589,7 @@ export class DbComment extends LitElement {
 
   private _delete(): void {
     if (this.comment) {
-      dispatchIntent({ type: 'comment:delete', id: this.comment.id });
+      dispatchIntent({ type: 'comment:delete', id: this.comment.meta.id });
     }
     this._open = false;
   }
@@ -592,31 +601,31 @@ export class DbComment extends LitElement {
     const url = wsUrl
       ? wsUrl.replace(/^ws:\/\//, 'http://').replace(/\/design-bridge$/, '/')
       : `http://${location.host}/`;
-    navigator.clipboard.writeText(url).catch(() => {});
+    navigator.clipboard.writeText(url).catch(() => { });
   }
 
   private _resolve(): void {
     if (!this.comment) return;
-    dispatchIntent({ type: 'comment:delete', id: this.comment.id });
+    dispatchIntent({ type: 'comment:delete', id: this.comment.meta.id });
     this._open = false;
   }
 
   private _acceptAllTweaks(): void {
     if (!this.comment) return;
-    dispatchIntent({ type: 'tweak:accept-comment', commentId: this.comment.id });
+    dispatchIntent({ type: 'tweak:accept-comment', commentId: this.comment.meta.id });
     this._open = false;
   }
 
   private _discardTweak(): void {
     if (!this.comment) return;
-    dispatchIntent({ type: 'tweak:discard-comment', commentId: this.comment.id });
+    dispatchIntent({ type: 'tweak:discard-comment', commentId: this.comment.meta.id });
   }
 
-  private _onKnobChange(e: CustomEvent<{ value: string | number | boolean }>): void {
+  private _onKnobChange(e: CustomEvent<{ value: string | number | boolean; }>): void {
     if (!this.comment) return;
     dispatchIntent({
       type: 'tweak:change',
-      marker: this.comment.id,
+      marker: this.comment.meta.id,
       value: String(e.detail.value),
     });
   }
@@ -626,8 +635,10 @@ export class DbComment extends LitElement {
   // ────────────────────────────────────────────────────────────────────────
 
   private _renderTweaksSection(): TemplateResult {
-    const knobDef = this.comment?.knob;
-    const tweakStatus = this.comment?.tweakStatus;
+    const latestTweak = this.comment ? this._latestTweak(this.comment) : undefined;
+    const activeTweak = this.comment ? this._activeTweak(this.comment) : undefined;
+    const knobDef = activeTweak?.knob;
+    const tweakStatus = latestTweak?.tweakStatus;
 
     // Resolved tweak — show collapsed status badge instead of live knob
     if (tweakStatus === 'accepted') {
@@ -649,10 +660,10 @@ export class DbComment extends LitElement {
 
     if (!knobDef) return html``;
     // Build a TweakKnob using the live value from knobsSignal when available.
-    const liveKnob = knobsSignal.get().find((k) => k.marker === this.comment!.id);
+    const liveKnob = knobsSignal.get().find((k) => k.marker === this.comment!.meta.id);
     const knob: TweakKnob = liveKnob ?? {
-      marker: this.comment!.id,
-      commentId: this.comment!.id,
+      marker: this.comment!.meta.id,
+      commentId: this.comment!.meta.id,
       ...knobDef,
     };
     return html`
@@ -692,15 +703,15 @@ export class DbComment extends LitElement {
         <wa-dropdown
           size="s"
           @wa-select=${(e: CustomEvent) => {
-            const val = e.detail.item.value;
-            if (val === 'paths') {
-              this._showPaths = !this._showPaths;
-            } else if (val === 'copy-link') {
-              this._copyReviewLink();
-            } else if (val === 'delete') {
-              this._delete();
-            }
-          }}
+        const val = e.detail.item.value;
+        if (val === 'paths') {
+          this._showPaths = !this._showPaths;
+        } else if (val === 'copy-link') {
+          this._copyReviewLink();
+        } else if (val === 'delete') {
+          this._delete();
+        }
+      }}
         >
           <wa-button slot="trigger" appearance="plain" size="xs" title="More options"
             >···</wa-button
@@ -720,8 +731,8 @@ export class DbComment extends LitElement {
           size="xs"
           title="Close"
           @click=${() => {
-            this._open = false;
-          }}
+        this._open = false;
+      }}
           >✕</wa-button
         >
       </div>
@@ -740,7 +751,7 @@ export class DbComment extends LitElement {
     >`;
   }
 
-  private _renderReplyAuthorIcon(author: CommentAuthor | undefined): TemplateResult {
+  private _renderReplyAuthorIcon(author: string | undefined): TemplateResult {
     const isAgent = author === 'agent';
     if (!isAgent) return html``;
     return html` <span class="reply-author-icon agent" title="Agent">✦</span> `;
@@ -748,19 +759,17 @@ export class DbComment extends LitElement {
 
   private _renderReplies(): TemplateResult {
     if (!this.comment) return html``;
-    return html`${this._normalizeReplies(this.comment).map((r, index) => {
+    return html`${this._getComments(this.comment).map((r, index) => {
       const isUser = r.author !== 'agent';
       const isEditing = this._editingReplyId === r.id;
       const isFirst = index === 0;
-      // First reply is the root — editable only (never deleteable, it's the reference)
-      // Later user replies can be edited and deleted
       const showMenu = isUser && r.type === 'comment';
       return html`
         <div class="reply-row">
-          ${this._renderReplyAuthorIcon(r.author as CommentAuthor | undefined)}
+          ${this._renderReplyAuthorIcon(r.author as string | undefined)}
           <div class="reply-body">
             ${isEditing
-              ? html`
+          ? html`
                   <wa-textarea
                     data-edit-id=${r.id}
                     appearance="filled"
@@ -768,17 +777,17 @@ export class DbComment extends LitElement {
                     size="xs"
                     .value=${this._editDraft}
                     @input=${(e: Event) => {
-                      this._editDraft = (e.target as HTMLElement & { value: string }).value;
-                    }}
+              this._editDraft = (e.target as HTMLElement & { value: string; }).value;
+            }}
                     @keydown=${(e: KeyboardEvent) => {
-                      if (e.key === 'Enter' && !e.shiftKey) {
-                        e.preventDefault();
-                        this._saveEditReply();
-                      } else if (e.key === 'Escape') {
-                        e.stopPropagation();
-                        this._cancelEditReply();
-                      }
-                    }}
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                this._saveEditReply();
+              } else if (e.key === 'Escape') {
+                e.stopPropagation();
+                this._cancelEditReply();
+              }
+            }}
                   ></wa-textarea>
                   <div class="edit-actions">
                     <wa-button
@@ -794,7 +803,7 @@ export class DbComment extends LitElement {
                     >
                   </div>
                 `
-              : html`
+          : html`
                   <div class="reply-main">
                     <div class="reply-content">
                       <div class="comment-text">${r.text}</div>
@@ -805,29 +814,29 @@ export class DbComment extends LitElement {
                       ></wa-relative-time>
                     </div>
                     ${showMenu
-                      ? html`
+              ? html`
                           <wa-dropdown
                             size="xs"
                             class="reply-menu"
                             @click=${(e: Event) => e.stopPropagation()}
                             @wa-select=${(e: CustomEvent) => {
-                              const val = e.detail.item.value;
-                              if (val === 'edit') this._startEditReply(r.id, r.text);
-                              else if (val === 'delete') this._deleteReply(r.id);
-                            }}
+                  const val = e.detail.item.value;
+                  if (val === 'edit') this._startEditReply(r.id, r.text);
+                  else if (val === 'delete') this._deleteReply(r.id);
+                }}
                           >
                             <wa-button slot="trigger" appearance="plain" size="xs" title="More"
                               >···</wa-button
                             >
                             <wa-dropdown-item value="edit">Edit</wa-dropdown-item>
                             ${!isFirst
-                              ? html`<wa-dropdown-item value="delete" variant="danger"
+                  ? html`<wa-dropdown-item value="delete" variant="danger"
                                   >Delete</wa-dropdown-item
                                 >`
-                              : ''}
+                  : ''}
                           </wa-dropdown>
                         `
-                      : ''}
+              : ''}
                   </div>
                 `}
           </div>
@@ -837,35 +846,36 @@ export class DbComment extends LitElement {
   }
 
   private _renderChipsBar(editable: boolean): TemplateResult {
-    const selectors =
-      this._mode === 'create' ? this._pendingSelectors : (this.comment?.selectors ?? []);
-    const source = this._mode === 'create' ? this._pendingSource : (this.comment?.source ?? null);
+    const elements =
+      this._mode === 'create' ? this._pendingElements : (this.comment?.elements ?? []);
+    const source =
+      this._mode === 'create' ? this._pendingSource : (this.comment?.elements?.[0]?.source ?? null);
     if (!editable && !this._showPaths) return html``;
-    if (!selectors.length && !source) return html``;
+    if (!elements.length && !source) return html``;
     return html`
       <div class="chips-bar">
-        ${selectors.map(
-          (sel, i) => html`
+        ${elements.map(
+      (el, i) => html`
             <wa-tag
               variant="brand"
               appearance="outlined"
               size="s"
-              title=${sel}
+              title=${el.minimalSelector}
               style="font-family:var(--wa-font-family-code);max-width:160px;overflow:hidden;text-overflow:ellipsis;"
               ?with-remove=${editable}
               @wa-remove=${editable
-                ? (e: Event) => {
-                    e.stopPropagation();
-                    this._removeChip(i);
-                  }
-                : undefined}
+          ? (e: Event) => {
+            e.stopPropagation();
+            this._removeChip(i);
+          }
+          : undefined}
             >
-              ${sel}
+              ${el.minimalSelector}
             </wa-tag>
           `,
-        )}
+    )}
         ${source
-          ? html`
+        ? html`
               <wa-tag
                 variant="brand"
                 appearance="outlined"
@@ -875,17 +885,17 @@ export class DbComment extends LitElement {
                 >📍 ${source.file}:${source.line}:${source.column}</wa-tag
               >
             `
-          : ''}
+        : ''}
       </div>
     `;
   }
 
   private _renderBadgePreview(): TemplateResult {
     if (!this.comment || this._open) return html``;
-    const comment = this.comment.comment ?? '';
-    const replies = this._normalizeReplies(this.comment);
-    const tweakCount = replies.filter((r) => r.type === 'tweak').length;
-    const replyCount = replies.filter((r) => r.type !== 'tweak').length - 1;
+    const comment = this._firstText(this.comment);
+    const entries = this._getComments(this.comment);
+    const tweakCount = entries.filter((r) => r.type === 'tweak').length;
+    const replyCount = entries.filter((r) => r.type === 'comment').length - 1;
     const parts: string[] = [];
     if (replyCount > 0) parts.push(`${replyCount} repl${replyCount === 1 ? 'y' : 'ies'}`);
     if (tweakCount) parts.push(`${tweakCount} tweak${tweakCount === 1 ? '' : 's'}`);
@@ -902,7 +912,7 @@ export class DbComment extends LitElement {
 
   render(): TemplateResult {
     const isDraft = this._mode === 'create';
-    const isResolved = !!this.comment?.resolvedAt;
+    const isResolved = !!this.comment?.meta?.resolvedAt;
     const label = isResolved ? '✓' : `${this.index + 1}`;
     const canSendNew = this._draft.trim().length > 0;
     const canSendReply = this._replyDraft.trim().length > 0;
@@ -917,7 +927,9 @@ export class DbComment extends LitElement {
         pill="true"
         class="badge${isResolved ? ' resolved' : isDraft ? ' draft' : ''}"
         style="position:fixed;top:${this._badgeTop}px;left:${this._badgeLeft}px"
-        title=${this.comment?.comment ?? this._pendingLabels.join(', ')}
+        title=${this.comment
+        ? this._firstText(this.comment)
+        : this._pendingElements.map((e) => e.minimalSelector).join(', ')}
         @mouseenter=${this._onBadgeMouseEnter}
         @mouseleave=${this._onBadgeMouseLeave}
         @click=${this._onBadgeClick}
@@ -949,16 +961,16 @@ export class DbComment extends LitElement {
                 placeholder=${isDraft ? 'Add a comment\u2026' : 'Reply\u2026'}
                 .value=${isDraft ? this._draft : this._replyDraft}
                 @input=${(e: Event) => {
-                  const v = (e.target as HTMLElement & { value: string }).value;
-                  if (isDraft) this._draft = v;
-                  else this._replyDraft = v;
-                }}
+        const v = (e.target as HTMLElement & { value: string; }).value;
+        if (isDraft) this._draft = v;
+        else this._replyDraft = v;
+      }}
                 @keydown=${isDraft ? this._onComposerKeyDown : this._onReplyKeyDown}
               ></wa-textarea>
               <div class="composer-send">
                 ${isDraft
-                  ? this._renderSendBtn(canSendNew, () => this._saveNew())
-                  : this._renderSendBtn(canSendReply, () => this._saveReply())}
+        ? this._renderSendBtn(canSendNew, () => this._saveNew())
+        : this._renderSendBtn(canSendReply, () => this._saveReply())}
               </div>
             </div>
           </div>

@@ -167,8 +167,36 @@ export function createTweakEngine(rootDir, getComments) {
 
   // ── Helpers ─────────────────────────────────────────────────────────────
 
+  /**
+   * Find the active (most recent pending) tweak entry from a thread.
+   * @param {object} thread
+   */
+  function getActiveTweak(thread) {
+    const entries = thread.comments ?? [];
+    for (let i = entries.length - 1; i >= 0; i--) {
+      const e = entries[i];
+      if (e.type === 'tweak' && e.tweakStatus === 'pending') return e;
+    }
+    return null;
+  }
+
+  /**
+   * Returns a flat "tweakable view" for each thread that has an active pending tweak.
+   * Shape: { id, knob, actions, createdAt }
+   */
   function tweakableComments() {
-    return getComments().filter((a) => a.knob && Array.isArray(a.actions));
+    return getComments()
+      .map((thread) => {
+        const tweak = getActiveTweak(thread);
+        if (!tweak) return null;
+        return {
+          id: thread.meta.id,
+          knob: tweak.knob,
+          actions: tweak.actions ?? [],
+          createdAt: thread.meta.createdAt ?? 0,
+        };
+      })
+      .filter(Boolean);
   }
 
   function currentValue(ann) {

@@ -336,8 +336,20 @@ server.tool(
 
   See resource design-bridge://guide/write-scripts for script authoring details.`,
   {
-    selectors: z.array(z.string()).describe('CSS selectors of the annotated elements'),
-    labels: z.array(z.string()).describe('Short human labels matching selectors'),
+    elements: z
+      .array(
+        z.object({
+          minimalSelector: z.string().describe('CSS selector for this element'),
+          tag: z.string().describe('HTML tag name (lowercase)'),
+          id: z.string().optional().describe('Element id attribute'),
+          classes: z.array(z.string()).describe('CSS classes on the element'),
+          source: z
+            .object({ file: z.string(), line: z.number(), column: z.number() })
+            .optional()
+            .describe('Source file location'),
+        }),
+      )
+      .describe('DOM elements this comment is attached to'),
     comment: z.string().describe('The comment / opening message of the thread'),
     pageUrl: z.string().describe('URL of the page where the comment is anchored'),
     knob: z
@@ -363,24 +375,36 @@ server.tool(
       .optional()
       .describe('Ordered actions to execute when the knob value changes'),
   },
-  async ({ selectors, labels, comment, pageUrl, knob, actions }) => {
+  async ({ elements, comment, pageUrl, knob, actions }) => {
     const url = await resolveBaseUrl();
     const now = Date.now();
     const id = `agent-${now}-${Math.random().toString(36).slice(2, 8)}`;
-    const payload = {
-      id,
-      selectors,
-      labels,
-      comment,
-      pageUrl,
-      timestamp: now,
+    const rootEntry = {
+      id: `${id}-root`,
+      type: 'comment',
+      text: comment,
       createdAt: now,
       author: 'agent',
-      replies: [
-        { id: `${id}-root`, type: 'comment', text: comment, createdAt: now, author: 'agent' },
-      ],
-      ...(knob ? { knob, tweakStatus: 'pending' } : {}),
-      ...(actions ? { actions } : {}),
+    };
+    const comments = knob
+      ? [
+        rootEntry,
+        {
+          id: `${id}-tweak`,
+          type: 'tweak',
+          text: comment,
+          createdAt: now,
+          author: 'agent',
+          knob,
+          actions: actions ?? [],
+          tweakStatus: 'pending',
+        },
+      ]
+      : [rootEntry];
+    const payload = {
+      meta: { id, pageUrl, timestamp: now, createdAt: now },
+      elements,
+      comments,
     };
     const data = await apiFetch(url, '/api/comments', { method: 'POST', body: payload });
     return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
@@ -435,19 +459,31 @@ server.tool(
   },
   async ({ commentId, text, knob, actions }) => {
     const url = await resolveBaseUrl();
-    // Fetch the current comment
+    // Fetch the current thread
     const existing = await apiFetch(url, `/api/comments/${encodeURIComponent(commentId)}`);
     const now = Date.now();
     const replyId = `reply-${now}-${Math.random().toString(36).slice(2, 8)}`;
-    const replies = [
-      ...(existing.replies ?? []),
-      { id: replyId, type: 'comment', text, createdAt: now, author: 'agent' },
-    ];
+    const textEntry = { id: replyId, type: 'comment', text, createdAt: now, author: 'agent' };
+    const newComments = knob
+      ? [
+        ...(existing.comments ?? []),
+        textEntry,
+        {
+          id: `${replyId}-tweak`,
+          type: 'tweak',
+          text,
+          createdAt: now,
+          author: 'agent',
+          knob,
+          actions: actions ?? [],
+          tweakStatus: 'pending',
+        },
+      ]
+      : [...(existing.comments ?? []), textEntry];
     const updated = {
       ...existing,
-      replies,
-      timestamp: now,
-      ...(knob ? { knob, tweakStatus: 'pending', actions: actions ?? [] } : {}),
+      meta: { ...existing.meta, timestamp: now },
+      comments: newComments,
     };
     const data = await apiFetch(url, '/api/comments', { method: 'POST', body: updated });
     return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
@@ -464,21 +500,36 @@ server.tool(
   {
     id: z.string().describe('ID of the agent-authored comment to update'),
     comment: z.string().optional().describe('Updated opening message'),
-    selectors: z.array(z.string()).optional().describe('Updated CSS selectors'),
-    labels: z.array(z.string()).optional().describe('Updated labels'),
+    elements: z
+      .array(
+        z.object({
+          minimalSelector: z.string(),
+          tag: z.string(),
+          id: z.string().optional(),
+          classes: z.array(z.string()),
+          source: z.object({ file: z.string(), line: z.number(), column: z.number() }).optional(),
+        }),
+      )
+      .optional()
+      .describe('Updated elements'),
   },
-  async ({ id, comment, selectors, labels }) => {
+  async ({ id, comment, elements }) => {
     const url = await resolveBaseUrl();
     const existing = await apiFetch(url, `/api/comments/${encodeURIComponent(id)}`);
-    if (existing.author !== 'agent') {
+    if (existing.comments?.[0]?.author !== 'agent') {
       throw new Error(`Comment "${id}" is not agent-authored — cannot update.`);
     }
+    const updatedComments =
+      comment !== undefined
+        ? existing.comments.map((c, i) =>
+          i === 0 && c.type === 'comment' ? { ...c, text: comment } : c,
+        )
+        : existing.comments;
     const updated = {
       ...existing,
-      ...(comment !== undefined ? { comment } : {}),
-      ...(selectors !== undefined ? { selectors } : {}),
-      ...(labels !== undefined ? { labels } : {}),
-      timestamp: Date.now(),
+      meta: { ...existing.meta, timestamp: Date.now() },
+      ...(elements !== undefined ? { elements } : {}),
+      comments: updatedComments,
     };
     const data = await apiFetch(url, '/api/comments', { method: 'POST', body: updated });
     return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };

@@ -1,6 +1,11 @@
 export type {
   TweakKnob,
   TweakKnobType,
+  TweakKnobDef,
+  TweakAction,
+  ContentEditAction,
+  FileCreateAction,
+  FileDeleteAction,
   BrowserMessage,
   ServerMessage,
   TweakChangeMsg,
@@ -13,15 +18,29 @@ export type {
   TweakDismissMsg,
   TweakSchemaMsg,
   CommentSource,
-  CommentReply,
   CommentAuthor,
-  CommentTweakLink,
-  Comment,
+  CommentElement,
+  CommentMeta,
+  CommentEntry,
+  TextCommentEntry,
+  TweakCommentEntry,
+  CommentThread,
   CommentUpsertMsg,
   CommentDeleteMsg,
   CommentClearMsg,
   CommentsSyncMsg,
   InspectPickMsg,
+} from './protocol.js';
+
+export {
+  CommentThreadSchema,
+  CommentElementSchema,
+  CommentMetaSchema,
+  CommentEntrySchema,
+  TextCommentEntrySchema,
+  TweakCommentEntrySchema,
+  TweakActionSchema,
+  TweakKnobDefSchema,
 } from './protocol.js';
 
 // ─── Custom element tag names ─────────────────────────────────────────────────

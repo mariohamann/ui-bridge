@@ -1,3 +1,5 @@
+import type { CommentElement } from '@design-bridge/protocol';
+
 export function uid(): string {
   return Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
 }
@@ -10,7 +12,7 @@ export function uid(): string {
  *   - code-inspector-plugin (Vite):  data-insp-path="file:line:column"
  *   - Astro dev mode:                data-astro-source-file + data-astro-source-loc="line:column"
  */
-export function getSourceInfo(el: Element): { path: string; line: number; column: number } | null {
+export function getSourceInfo(el: Element): { path: string; line: number; column: number; } | null {
   let node: Element | null = el;
   while (node && node !== document.documentElement) {
     const insp = node.getAttribute('data-insp-path');
@@ -29,6 +31,20 @@ export function getSourceInfo(el: Element): { path: string; line: number; column
   return null;
 }
 
+/**
+ * Build a CommentElement descriptor from a DOM element and its minimal CSS selector.
+ * Extracts tag, id, classes for structured storage.
+ */
+export function parseElement(el: Element, minimalSelector: string): CommentElement {
+  return {
+    minimalSelector,
+    tag: el.tagName.toLowerCase(),
+    id: el.id || undefined,
+    classes: [...el.classList],
+  };
+}
+
+/** @deprecated Use parseElement instead. */
 export function shortLabel(el: Element): string {
   let label = el.tagName.toLowerCase();
   if (el.id) label += `#${el.id}`;

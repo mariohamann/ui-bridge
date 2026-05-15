@@ -18,10 +18,12 @@ export function createCommentStore(rootDir) {
   const comments = new Map();
 
   async function persist(ann) {
+    const id = ann?.meta?.id;
+    if (!id) return;
     try {
       await mkdir(ANNOTATIONS_DIR, { recursive: true });
       await writeFile(
-        resolve(ANNOTATIONS_DIR, `${ann.id}.json`),
+        resolve(ANNOTATIONS_DIR, `${id}.json`),
         JSON.stringify(ann, null, 2),
         'utf-8',
       );
@@ -46,7 +48,8 @@ export function createCommentStore(rootDir) {
         try {
           const raw = await readFile(resolve(ANNOTATIONS_DIR, file), 'utf-8');
           const ann = JSON.parse(raw);
-          if (ann?.id) comments.set(ann.id, ann);
+          const id = ann?.meta?.id;
+          if (id) comments.set(id, ann);
         } catch (e) {
           console.warn(`[design-bridge] could not parse comment ${file}:`, e);
         }
@@ -58,7 +61,9 @@ export function createCommentStore(rootDir) {
   }
 
   function upsert(ann) {
-    comments.set(ann.id, ann);
+    const id = ann?.meta?.id;
+    if (!id) return;
+    comments.set(id, ann);
     persist(ann);
   }
 

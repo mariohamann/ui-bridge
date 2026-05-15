@@ -57,8 +57,8 @@ before(async () => {
     stdio: 'pipe',
   });
 
-  serverProc.stderr.on('data', () => {});
-  serverProc.stdout.on('data', () => {});
+  serverProc.stderr.on('data', () => { });
+  serverProc.stdout.on('data', () => { });
 
   await waitForServer();
 
@@ -255,8 +255,7 @@ describe('MCP tools/call — create_comment', () => {
     const responses = await mcpCall('tools/call', {
       name: 'create_comment',
       arguments: {
-        selectors: ['h1'],
-        labels: ['h1'],
+        elements: [{ minimalSelector: 'h1', tag: 'h1', classes: [] }],
         comment: 'Agent created this thread',
         pageUrl: 'http://localhost:5173/',
       },
@@ -267,27 +266,28 @@ describe('MCP tools/call — create_comment', () => {
     // Verify at least one agent-authored comment exists
     const httpRes = await fetch(`${BASE_URL}/api/comments`);
     const body = await httpRes.json();
-    const agentComments = body.comments.filter((c) => c.author === 'agent');
+    const agentComments = body.comments.filter((c) => c.comments?.[0]?.author === 'agent');
     assert.ok(agentComments.length > 0, 'no agent-authored comments found');
-    const created = agentComments.find((c) => c.comment === 'Agent created this thread');
-    assert.ok(created, 'created comment not found');
-    assert.equal(created.author, 'agent');
-    assert.ok(
-      Array.isArray(created.replies) && created.replies.length > 0,
-      'missing initial reply',
+    const created = agentComments.find(
+      (c) => c.comments?.[0]?.text === 'Agent created this thread',
     );
-    assert.equal(created.replies[0].author, 'agent');
+    assert.ok(created, 'created comment not found');
+    assert.equal(created.comments[0].author, 'agent');
+    assert.ok(
+      Array.isArray(created.comments) && created.comments.length > 0,
+      'missing initial entry',
+    );
+    assert.equal(created.comments[0].author, 'agent');
 
     // Cleanup
-    await fetch(`${BASE_URL}/api/comments/${created.id}`, { method: 'DELETE' });
+    await fetch(`${BASE_URL}/api/comments/${created.meta.id}`, { method: 'DELETE' });
   });
 
   it('creates an agent comment with a knob (tweakStatus = pending)', async () => {
     const responses = await mcpCall('tools/call', {
       name: 'create_comment',
       arguments: {
-        selectors: ['h1'],
-        labels: ['h1'],
+        elements: [{ minimalSelector: 'h1', tag: 'h1', classes: [] }],
         comment: 'Try this tweak',
         pageUrl: 'http://localhost:5173/',
         knob: { label: 'Variant', type: 'select', value: 'A', options: { A: 'A', B: 'B' } },
@@ -300,13 +300,16 @@ describe('MCP tools/call — create_comment', () => {
     const httpRes = await fetch(`${BASE_URL}/api/comments`);
     const body = await httpRes.json();
     const created = body.comments.find(
-      (c) => c.author === 'agent' && c.comment === 'Try this tweak',
+      (c) => c.comments?.[0]?.author === 'agent' && c.comments?.[0]?.text === 'Try this tweak',
     );
     assert.ok(created, 'tweak comment not found');
-    assert.equal(created.tweakStatus, 'pending');
-    assert.ok(created.knob, 'knob missing');
+    const tweakEntry = created.comments.find(
+      (c) => c.type === 'tweak' && c.tweakStatus === 'pending',
+    );
+    assert.ok(tweakEntry, 'pending tweak entry missing');
+    assert.ok(tweakEntry.knob, 'knob missing');
 
-    await fetch(`${BASE_URL}/api/comments/${created.id}`, { method: 'DELETE' });
+    await fetch(`${BASE_URL}/api/comments/${created.meta.id}`, { method: 'DELETE' });
   });
 });
 
@@ -318,15 +321,9 @@ describe('MCP tools/call — reply_to_comment', () => {
     const now = Date.now();
     parentId = `mcp-reply-parent-${now}`;
     const ann = {
-      id: parentId,
-      selectors: ['p'],
-      labels: ['p'],
-      comment: 'User comment needing response',
-      author: 'user',
-      pageUrl: 'http://localhost:5173/',
-      timestamp: now,
-      createdAt: now,
-      replies: [
+      meta: { id: parentId, pageUrl: 'http://localhost:5173/', timestamp: now, createdAt: now },
+      elements: [{ minimalSelector: 'p', tag: 'p', classes: [] }],
+      comments: [
         {
           id: `${parentId}-root`,
           type: 'comment',
@@ -357,7 +354,7 @@ describe('MCP tools/call — reply_to_comment', () => {
 
     const httpRes = await fetch(`${BASE_URL}/api/comments/${parentId}`);
     const body = await httpRes.json();
-    const agentReply = body.replies?.find((r) => r.author === 'agent');
+    const agentReply = body.comments?.find((r) => r.author === 'agent' && r.type === 'comment');
     assert.ok(agentReply, 'agent reply not found in thread');
     assert.equal(agentReply.text, 'Here is my suggestion.');
   });
@@ -377,9 +374,12 @@ describe('MCP tools/call — reply_to_comment', () => {
 
     const httpRes = await fetch(`${BASE_URL}/api/comments/${parentId}`);
     const body = await httpRes.json();
-    assert.equal(body.tweakStatus, 'pending', 'tweakStatus should be pending');
-    assert.ok(body.knob, 'knob should be set');
-    assert.equal(body.knob.label, 'Color');
+    const tweakEntry = body.comments?.find(
+      (c) => c.type === 'tweak' && c.tweakStatus === 'pending',
+    );
+    assert.equal(tweakEntry?.tweakStatus, 'pending', 'tweakStatus should be pending');
+    assert.ok(tweakEntry?.knob, 'knob should be set');
+    assert.equal(tweakEntry?.knob.label, 'Color');
   });
 });
 
@@ -396,30 +396,44 @@ describe('MCP tools/call — update_own_comment', () => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        id: agentCommentId,
-        selectors: ['h1'],
-        labels: ['h1'],
-        comment: 'Original agent text',
-        author: 'agent',
-        pageUrl: 'http://localhost:5173/',
-        timestamp: now,
-        createdAt: now,
-        replies: [],
+        meta: {
+          id: agentCommentId,
+          pageUrl: 'http://localhost:5173/',
+          timestamp: now,
+          createdAt: now,
+        },
+        elements: [{ minimalSelector: 'h1', tag: 'h1', classes: [] }],
+        comments: [
+          {
+            id: `${agentCommentId}-root`,
+            type: 'comment',
+            text: 'Original agent text',
+            createdAt: now,
+            author: 'agent',
+          },
+        ],
       }),
     });
     await fetch(`${BASE_URL}/api/comments`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        id: userCommentId,
-        selectors: ['p'],
-        labels: ['p'],
-        comment: 'User comment',
-        author: 'user',
-        pageUrl: 'http://localhost:5173/',
-        timestamp: now,
-        createdAt: now,
-        replies: [],
+        meta: {
+          id: userCommentId,
+          pageUrl: 'http://localhost:5173/',
+          timestamp: now,
+          createdAt: now,
+        },
+        elements: [{ minimalSelector: 'p', tag: 'p', classes: [] }],
+        comments: [
+          {
+            id: `${userCommentId}-root`,
+            type: 'comment',
+            text: 'User comment',
+            createdAt: now,
+            author: 'user',
+          },
+        ],
       }),
     });
   });
@@ -439,7 +453,7 @@ describe('MCP tools/call — update_own_comment', () => {
 
     const httpRes = await fetch(`${BASE_URL}/api/comments/${agentCommentId}`);
     const body = await httpRes.json();
-    assert.equal(body.comment, 'Updated agent text');
+    assert.equal(body.comments[0].text, 'Updated agent text');
   });
 
   it('refuses to update a user-authored comment', async () => {
@@ -462,14 +476,17 @@ describe('MCP tools/call — get_comment (backward compat)', () => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        id: ANN_ID,
-        selectors: ['h1'],
-        labels: ['h1'],
-        comment: 'MCP test comment',
-        pageUrl: 'http://localhost:5173/',
-        timestamp: now,
-        createdAt: now,
-        replies: [],
+        meta: { id: ANN_ID, pageUrl: 'http://localhost:5173/', timestamp: now, createdAt: now },
+        elements: [{ minimalSelector: 'h1', tag: 'h1', classes: [] }],
+        comments: [
+          {
+            id: `${ANN_ID}-root`,
+            type: 'comment',
+            text: 'MCP test comment',
+            createdAt: now,
+            author: 'user',
+          },
+        ],
       }),
     });
   });
@@ -486,8 +503,8 @@ describe('MCP tools/call — get_comment (backward compat)', () => {
     const res = findResponse(responses, 2);
     const text = res?.result?.content?.[0]?.text;
     const parsed = JSON.parse(text);
-    assert.equal(parsed.id, ANN_ID);
-    assert.equal(parsed.comment, 'MCP test comment');
+    assert.equal(parsed.meta.id, ANN_ID);
+    assert.equal(parsed.comments[0].text, 'MCP test comment');
   });
 });
 
@@ -510,25 +527,41 @@ describe('MCP tools/call — get_server_info + get_tweaks', () => {
 
   it('upserts a tweak comment and it appears in get_tweaks', async () => {
     const ann = {
-      id: ANN_ID,
-      selectors: ['h1'],
-      labels: ['h1'],
-      comment: 'Icon tweak',
-      pageUrl: 'http://localhost:5173/',
-      timestamp: Date.now(),
-      createdAt: Date.now(),
-      replies: [],
-      knob: {
-        label: 'Feature icon',
-        type: 'select',
-        value: '🎨',
-        options: { Palette: '🎨', Fire: '🔥' },
+      meta: {
+        id: ANN_ID,
+        pageUrl: 'http://localhost:5173/',
+        timestamp: Date.now(),
+        createdAt: Date.now(),
       },
-      actions: [
+      elements: [{ minimalSelector: 'h1', tag: 'h1', classes: [] }],
+      comments: [
         {
-          type: 'content-edit',
-          file: 'src/components/FeaturesSection.vue',
-          scriptId: 'mcp-icon-script',
+          id: `${ANN_ID}-root`,
+          type: 'comment',
+          text: 'Icon tweak',
+          createdAt: Date.now(),
+          author: 'user',
+        },
+        {
+          id: `${ANN_ID}-tweak`,
+          type: 'tweak',
+          text: 'Icon tweak',
+          createdAt: Date.now(),
+          author: 'user',
+          tweakStatus: 'pending',
+          knob: {
+            label: 'Feature icon',
+            type: 'select',
+            value: '🎨',
+            options: { Palette: '🎨', Fire: '🔥' },
+          },
+          actions: [
+            {
+              type: 'content-edit',
+              file: 'src/components/FeaturesSection.vue',
+              scriptId: 'mcp-icon-script',
+            },
+          ],
         },
       ],
     };
@@ -645,7 +678,7 @@ describe('Port discovery integration — MCP server finds Design Bridge via .por
         }
       }
     });
-    proc.stderr.on('data', () => {});
+    proc.stderr.on('data', () => { });
 
     const send = (obj) => proc.stdin.write(JSON.stringify(obj) + '\n');
     send({
@@ -698,7 +731,7 @@ describe('Port discovery integration — MCP server finds Design Bridge via .por
         }
       }
     });
-    proc.stderr.on('data', () => {});
+    proc.stderr.on('data', () => { });
 
     const send = (obj) => proc.stdin.write(JSON.stringify(obj) + '\n');
     send({

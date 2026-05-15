@@ -10,7 +10,7 @@ import '@awesome.me/webawesome/dist/components/textarea/textarea.js';
 import { LitElement, html } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { SignalWatcher } from '@lit-labs/signals';
-import type { Comment } from '@design-bridge/protocol';
+import type { CommentThread, TweakCommentEntry } from '@design-bridge/protocol';
 import { commentsSignal } from '../state/comments-store.js';
 import { dispatchIntent } from '../state/intents.js';
 import { dbReviewStyles } from './db-review.styles.js';
@@ -21,28 +21,49 @@ const _DbReviewBase = SignalWatcher(LitElement) as unknown as typeof LitElement;
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-function pageLabel(url: string): string {
-  try {
-    const u = new URL(url);
-    return u.pathname === '/' ? u.host : u.host + u.pathname;
-  } catch {
-    return url || '';
-  }
-}
-
-function sourceLabel(ann: Comment): string {
-  if (ann.source?.file) {
-    const filename = ann.source.file.split('/').pop() ?? '';
+function sourceLabel(ann: CommentThread): string {
+  const source = ann.elements?.[0]?.source;
+  if (source?.file) {
+    const filename = source.file.split('/').pop() ?? '';
     return filename.replace(/\.[^.]+$/, '');
   }
-  return ann.labels?.[0] || pageLabel(ann.pageUrl ?? '') || '';
+  const el = ann.elements?.[0];
+  if (el) {
+    let label = el.tag;
+    if (el.id) label += `#${el.id}`;
+    else if (el.classes.length) label += `.${el.classes[0]}`;
+    return label;
+  }
+  try {
+    const u = new URL(ann.meta.pageUrl);
+    return u.pathname === '/' ? u.host : u.host + u.pathname;
+  } catch {
+    return ann.meta.pageUrl || '';
+  }
 }
 
-function stableRanks(comments: Comment[]): Map<string, number> {
-  const open = [...comments]
-    .filter((a) => !a.resolvedAt)
-    .sort((a, b) => (a.createdAt || a.timestamp || 0) - (b.createdAt || b.timestamp || 0));
-  return new Map(open.map((a, i) => [a.id, i + 1]));
+function stableRanks(threads: CommentThread[]): Map<string, number> {
+  const open = [...threads]
+    .filter((a) => !a.meta.resolvedAt)
+    .sort((a, b) => (a.meta.createdAt || 0) - (b.meta.createdAt || 0));
+  return new Map(open.map((a, i) => [a.meta.id, i + 1]));
+}
+
+function activeTweak(thread: CommentThread): TweakCommentEntry | undefined {
+  return [...(thread.comments ?? [])]
+    .reverse()
+    .find((c): c is TweakCommentEntry => c.type === 'tweak' && c.tweakStatus === 'pending');
+}
+
+/** Most recent tweak entry regardless of status — used for tag display. */
+function latestTweak(thread: CommentThread): TweakCommentEntry | undefined {
+  return [...(thread.comments ?? [])]
+    .reverse()
+    .find((c): c is TweakCommentEntry => c.type === 'tweak');
+}
+
+function firstCommentText(thread: CommentThread): string {
+  return thread.comments.find((c) => c.type === 'comment')?.text ?? '';
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -69,43 +90,48 @@ export class DbReview extends _DbReviewBase {
     this.classList.add('wa-dark');
   }
 
-  private _resolve(ann: Comment): void {
+  private _resolve(ann: CommentThread): void {
     dispatchIntent({
       type: 'comment:save',
-      comment: { ...ann, resolvedAt: Date.now(), timestamp: Date.now() },
+      comment: { ...ann, meta: { ...ann.meta, resolvedAt: Date.now(), timestamp: Date.now() } },
     });
   }
 
-  private _unresolve(ann: Comment): void {
-    const { resolvedAt: _removed, ...rest } = ann as Comment & { resolvedAt?: number };
-    dispatchIntent({ type: 'comment:save', comment: { ...rest, timestamp: Date.now() } });
+  private _unresolve(ann: CommentThread): void {
+    const { resolvedAt: _removed, ...metaRest } = ann.meta as typeof ann.meta & {
+      resolvedAt?: number;
+    };
+    dispatchIntent({
+      type: 'comment:save',
+      comment: { ...ann, meta: { ...metaRest, timestamp: Date.now() } },
+    });
   }
 
   private _delete(id: string): void {
     dispatchIntent({ type: 'comment:delete', id });
   }
 
-  private _startEdit(ann: Comment): void {
-    this._editingId = ann.id;
-    this._editDraft = ann.comment ?? '';
+  private _startEdit(ann: CommentThread): void {
+    this._editingId = ann.meta.id;
+    this._editDraft = firstCommentText(ann);
     this.updateComplete.then(() => {
       const ta = this.shadowRoot?.querySelector<HTMLElement>(
-        `wa-textarea[data-edit-id="${ann.id}"]`,
+        `wa-textarea[data-edit-id="${ann.meta.id}"]`,
       );
-      (ta as (HTMLElement & { focus: () => void }) | null)?.focus();
+      (ta as (HTMLElement & { focus: () => void; }) | null)?.focus();
     });
   }
 
-  private _saveEdit(ann: Comment): void {
+  private _saveEdit(ann: CommentThread): void {
     const text = this._editDraft.trim();
     if (!text) return;
-    // Update main comment text and first user reply text if present
-    const replies = (ann.replies ?? []).map((r, i) =>
-      i === 0 && r.type === 'comment' ? { ...r, text } : r,
+    // Update the first text comment entry
+    const comments = ann.comments.map((c, i) =>
+      i === 0 && c.type === 'comment' ? { ...c, text } : c,
     );
     dispatchIntent({
       type: 'comment:save',
-      comment: { ...ann, comment: text, replies, timestamp: Date.now() },
+      comment: { ...ann, meta: { ...ann.meta, timestamp: Date.now() }, comments },
     });
     this._editingId = null;
     this._editDraft = '';
@@ -120,25 +146,26 @@ export class DbReview extends _DbReviewBase {
     dispatchIntent({ type: 'comment:open', id });
   }
 
-  private _copyLink(ann: Comment): void {
-    navigator.clipboard.writeText(ann.pageUrl || location.href).catch(() => {});
+  private _copyLink(ann: CommentThread): void {
+    navigator.clipboard.writeText(ann.meta.pageUrl || location.href).catch(() => { });
   }
 
-  private _renderRow(ann: Comment, rank: Map<string, number>) {
-    const resolved = !!ann.resolvedAt;
-    const idx = resolved ? null : rank.get(ann.id);
-    const ts = ann.createdAt ?? ann.timestamp;
-    const replies = (ann.replies ?? []).filter((r) => r.type === 'comment');
-    const extraReplies = replies.length - 1;
-    const isAgent = ann.author === 'agent';
-    const tweakStatus = ann.tweakStatus;
+  private _renderRow(ann: CommentThread, rank: Map<string, number>) {
+    const resolved = !!ann.meta.resolvedAt;
+    const idx = resolved ? null : rank.get(ann.meta.id);
+    const ts = ann.meta.createdAt ?? ann.meta.timestamp;
+    const textEntries = ann.comments.filter((c) => c.type === 'comment');
+    const extraReplies = textEntries.length - 1;
+    const isAgent = ann.comments[0]?.author === 'agent';
+    const tweak = latestTweak(ann);
+    const tweakStatus = tweak?.tweakStatus;
 
     return html`
       <div
         class="row${resolved ? ' resolved' : ''}"
         @click=${(e: Event) => {
-          if (!(e.target as Element).closest('wa-dropdown')) this._focus(ann.id);
-        }}
+        if (!(e.target as Element).closest('wa-dropdown')) this._focus(ann.meta.id);
+      }}
       >
         <!-- Index badge -->
         <wa-badge
@@ -153,55 +180,55 @@ export class DbReview extends _DbReviewBase {
           <div class="meta">
             <span class="src-label">${sourceLabel(ann)}</span>
             ${isAgent
-              ? html`<wa-tag variant="brand" appearance="outlined" size="s" title="Agent-authored"
+        ? html`<wa-tag variant="brand" appearance="outlined" size="s" title="Agent-authored"
                   >✦ Agent</wa-tag
                 >`
-              : ''}
+        : ''}
             <wa-relative-time
               sync
               .date=${new Date(ts)}
               style="font-size:var(--wa-font-size-2xs);color:var(--wa-color-text-quiet);"
             ></wa-relative-time>
             ${resolved
-              ? html`<wa-tag variant="success" appearance="outlined" size="s">resolved</wa-tag>`
-              : ''}
+        ? html`<wa-tag variant="success" appearance="outlined" size="s">resolved</wa-tag>`
+        : ''}
             ${tweakStatus === 'accepted'
-              ? html`<wa-tag variant="success" appearance="outlined" size="s"
+        ? html`<wa-tag variant="success" appearance="outlined" size="s"
                   >✓ tweak accepted</wa-tag
                 >`
-              : tweakStatus === 'discarded'
-                ? html`<wa-tag variant="warning" appearance="outlined" size="s"
+        : tweakStatus === 'discarded'
+          ? html`<wa-tag variant="warning" appearance="outlined" size="s"
                     >✕ tweak discarded</wa-tag
                   >`
-                : tweakStatus === 'pending' && ann.knob
-                  ? html`<wa-tag variant="brand" appearance="outlined" size="s"
+          : tweakStatus === 'pending' && activeTweak(ann)?.knob
+            ? html`<wa-tag variant="brand" appearance="outlined" size="s"
                       >⚙ tweak live</wa-tag
                     >`
-                  : ''}
+            : ''}
           </div>
-          ${ann.comment
-            ? html`<div class="comment">
-                ${this._editingId === ann.id
-                  ? html`
+          ${firstCommentText(ann)
+        ? html`<div class="comment">
+                ${this._editingId === ann.meta.id
+            ? html`
                       <wa-textarea
-                        data-edit-id=${ann.id}
+                        data-edit-id=${ann.meta.id}
                         class="inline-edit"
                         appearance="filled"
                         resize="auto"
                         size="xs"
                         .value=${this._editDraft}
                         @input=${(e: Event) => {
-                          this._editDraft = (e.target as HTMLElement & { value: string }).value;
-                        }}
+                this._editDraft = (e.target as HTMLElement & { value: string; }).value;
+              }}
                         @keydown=${(e: KeyboardEvent) => {
-                          if (e.key === 'Enter' && !e.shiftKey) {
-                            e.preventDefault();
-                            this._saveEdit(ann);
-                          } else if (e.key === 'Escape') {
-                            e.stopPropagation();
-                            this._cancelEdit();
-                          }
-                        }}
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  this._saveEdit(ann);
+                } else if (e.key === 'Escape') {
+                  e.stopPropagation();
+                  this._cancelEdit();
+                }
+              }}
                         @click=${(e: Event) => e.stopPropagation()}
                       ></wa-textarea>
                       <div class="inline-edit-actions">
@@ -211,32 +238,32 @@ export class DbReview extends _DbReviewBase {
                           size="xs"
                           ?disabled=${!this._editDraft.trim()}
                           @click=${(e: Event) => {
-                            e.stopPropagation();
-                            this._saveEdit(ann);
-                          }}
+                e.stopPropagation();
+                this._saveEdit(ann);
+              }}
                           >Save</wa-button
                         >
                         <wa-button
                           appearance="plain"
                           size="xs"
                           @click=${(e: Event) => {
-                            e.stopPropagation();
-                            this._cancelEdit();
-                          }}
+                e.stopPropagation();
+                this._cancelEdit();
+              }}
                           >Cancel</wa-button
                         >
                       </div>
                     `
-                  : ann.comment}
+            : firstCommentText(ann)}
               </div>`
-            : html`<div class="comment empty-comment">No comment</div>`}
+        : html`<div class="comment empty-comment">No comment</div>`}
           ${extraReplies > 0
-            ? html`<div class="footer">
+        ? html`<div class="footer">
                 <wa-tag variant="neutral" appearance="outlined" size="s"
                   >${extraReplies} repl${extraReplies === 1 ? 'y' : 'ies'}</wa-tag
                 >
               </div>`
-            : ''}
+        : ''}
         </div>
 
         <!-- Per-row actions dropdown -->
@@ -245,18 +272,18 @@ export class DbReview extends _DbReviewBase {
           class="row-menu"
           @click=${(e: Event) => e.stopPropagation()}
           @wa-select=${(e: CustomEvent) => {
-            const val = e.detail.item.value;
-            if (val === 'resolve') this._resolve(ann);
-            else if (val === 'unresolve') this._unresolve(ann);
-            else if (val === 'copy') this._copyLink(ann);
-            else if (val === 'edit') this._startEdit(ann);
-            else if (val === 'delete') this._delete(ann.id);
-          }}
+        const val = e.detail.item.value;
+        if (val === 'resolve') this._resolve(ann);
+        else if (val === 'unresolve') this._unresolve(ann);
+        else if (val === 'copy') this._copyLink(ann);
+        else if (val === 'edit') this._startEdit(ann);
+        else if (val === 'delete') this._delete(ann.meta.id);
+      }}
         >
           <wa-button slot="trigger" appearance="plain" size="xs" title="More">···</wa-button>
           ${!resolved
-            ? html`<wa-dropdown-item value="resolve">✓ Mark resolved</wa-dropdown-item>`
-            : html`<wa-dropdown-item value="unresolve">↩ Unresolve</wa-dropdown-item>`}
+        ? html`<wa-dropdown-item value="resolve">✓ Mark resolved</wa-dropdown-item>`
+        : html`<wa-dropdown-item value="unresolve">↩ Unresolve</wa-dropdown-item>`}
           ${!isAgent ? html`<wa-dropdown-item value="edit">✎ Edit</wa-dropdown-item>` : ''}
           <wa-dropdown-item value="copy">Copy page link</wa-dropdown-item>
           <wa-divider></wa-divider>
@@ -269,10 +296,11 @@ export class DbReview extends _DbReviewBase {
   render() {
     const comments = commentsSignal.get();
     const sorted = [...comments].sort(
-      (a, b) => (b.createdAt || b.timestamp || 0) - (a.createdAt || a.timestamp || 0),
+      (a, b) =>
+        (b.meta.createdAt || b.meta.timestamp || 0) - (a.meta.createdAt || a.meta.timestamp || 0),
     );
-    const visible = this.showResolved ? sorted : sorted.filter((a) => !a.resolvedAt);
-    const openCount = comments.filter((a) => !a.resolvedAt).length;
+    const visible = this.showResolved ? sorted : sorted.filter((a) => !a.meta.resolvedAt);
+    const openCount = comments.filter((a) => !a.meta.resolvedAt).length;
     const rank = stableRanks(comments);
 
     return html`
@@ -287,22 +315,22 @@ export class DbReview extends _DbReviewBase {
           size="xs"
           ?checked=${this.showResolved}
           @wa-change=${(e: Event) => {
-            this.showResolved = (e.target as HTMLInputElement).checked;
-          }}
+        this.showResolved = (e.target as HTMLInputElement).checked;
+      }}
         ></wa-switch>
       </div>
       <div class="list">
         ${visible.length === 0
-          ? html`
+        ? html`
               <div class="empty">
                 ${comments.length === 0
-                  ? html`No comments yet.<br /><span style="color:var(--wa-color-text-quiet)"
+            ? html`No comments yet.<br /><span style="color:var(--wa-color-text-quiet)"
                         >Hold Alt+Shift and click any element in your app.</span
                       >`
-                  : 'All comments resolved.'}
+            : 'All comments resolved.'}
               </div>
             `
-          : visible.map((ann) => this._renderRow(ann, rank))}
+        : visible.map((ann) => this._renderRow(ann, rank))}
       </div>
     `;
   }
