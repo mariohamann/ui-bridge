@@ -1,5 +1,5 @@
 ---
-import BrowserFrame from "./BrowserFrame.astro"
+import BrowserFrame from './BrowserFrame.astro';
 ---
 
 <section
@@ -20,9 +20,7 @@ import BrowserFrame from "./BrowserFrame.astro"
       OPEN SOURCE · MIT
     </div>
 
-    <h1
-      class="mb-6 text-[clamp(40px,6vw,72px)] font-semibold leading-[1.1] tracking-tight"
-    >
+    <h1 class="mb-6 text-[clamp(40px,6vw,72px)] font-semibold leading-[1.1] tracking-tight">
       Design Bridge
     </h1>
 
@@ -46,66 +44,13 @@ import BrowserFrame from "./BrowserFrame.astro"
     </div>
 
     <div class="flex flex-wrap justify-center gap-4">
-      <a href="#get-started" class="btn-primary">Get Started ↓</a>
-      <a
+      <wa-button href="#get-started" appearance="accent" variant="brand">Get Started ↓</wa-button>
+      <wa-button
         href="https://github.com/your-org/design-bridge"
         target="_blank"
-        class="btn-ghost">GitHub ↗</a
+        appearance="outlined"
+        variant="neutral">GitHub ↗</wa-button
       >
     </div>
-  </div>
-
-  <!-- Hero browser preview -->
-  <div
-    id="hero-browser"
-    class="mt-20 w-full max-w-[860px]"
-    style="opacity:0;transform:translateY(30px);"
-  >
-    <BrowserFrame>
-      <div class="relative h-[300px] bg-db-bg">
-        <!-- Fake app cards -->
-        <div class="grid grid-cols-2 gap-3.5 p-5">
-          <div class="rounded-lg border border-db-border bg-db-surface p-4">
-            <div class="mb-2.5 h-[7px] w-[70px] rounded bg-db-card"></div>
-            <div class="mb-1.5 h-[5px] w-[110px] rounded bg-db-border"></div>
-            <div class="mb-3.5 h-[5px] w-[80px] rounded bg-db-border"></div>
-            <div
-              class="inline-block rounded-md bg-db-accent px-3 py-1.5 text-[10px] text-white"
-            >
-              Action
-            </div>
-          </div>
-          <div class="rounded-lg border border-db-border bg-db-surface p-4">
-            <div class="mb-2.5 h-[7px] w-[50px] rounded bg-db-card"></div>
-            <div class="mb-1.5 h-[5px] w-[90px] rounded bg-db-border"></div>
-            <div class="mb-3.5 h-[5px] w-[60px] rounded bg-db-border"></div>
-            <div
-              class="inline-block rounded-md border border-db-border px-3 py-1.5 text-[10px] text-db-muted"
-            >
-              Browse
-            </div>
-          </div>
-        </div>
-
-        <!-- DB panel -->
-        <div class="db-panel-mock">
-          <div class="db-panel-header">
-            <div class="db-panel-dot"></div>
-            DESIGN BRIDGE
-          </div>
-          <div class="space-y-1.5 p-2.5">
-            <p class="mb-2 text-[10px] text-db-muted">
-              2 open comments · 1 tweak
-            </p>
-            <div class="db-panel-item">
-              <span class="text-db-accent">●</span> Button padding too tight
-            </div>
-            <div class="db-panel-item">
-              <span class="text-db-green">●</span> Heading resolved
-            </div>
-          </div>
-        </div>
-      </div>
-    </BrowserFrame>
   </div>
 </section>
