@@ -58,6 +58,8 @@ export class DbComment extends LitElement {
   @state() private _pendingSource: CommentSource | null = null;
   @state() private _createdAt = 0;
   @state() private _showPaths = false;
+  @state() private _editingReplyId: string | null = null;
+  @state() private _editDraft = '';
 
   // ── badge + panel + preview position ────────────────────────────────────
   @state() private _badgeTop = -9999;
@@ -533,6 +535,50 @@ export class DbComment extends LitElement {
     dispatchIntent({ type: 'comment:save', comment: updated });
   }
 
+  private _startEditReply(replyId: string, text: string): void {
+    this._editingReplyId = replyId;
+    this._editDraft = text;
+    this.updateComplete.then(() => {
+      const ta = this.shadowRoot?.querySelector<HTMLTextAreaElement>(
+        `textarea[data-edit-id="${replyId}"]`,
+      );
+      if (ta) {
+        autosize(ta);
+        ta.focus();
+        ta.setSelectionRange(ta.value.length, ta.value.length);
+      }
+    });
+  }
+
+  private _saveEditReply(): void {
+    if (!this.comment || !this._editingReplyId) return;
+    const text = this._editDraft.trim();
+    if (!text) return;
+    const replies = this._normalizeReplies(this.comment).map((r) =>
+      r.id === this._editingReplyId ? { ...r, text } : r,
+    );
+    const mainText = replies.find((r) => r.type === 'comment')?.text ?? this.comment.comment;
+    const updated = this._buildComment({ comment: mainText, replies });
+    this.comment = updated;
+    this._editingReplyId = null;
+    this._editDraft = '';
+    dispatchIntent({ type: 'comment:save', comment: updated });
+  }
+
+  private _cancelEditReply(): void {
+    this._editingReplyId = null;
+    this._editDraft = '';
+  }
+
+  private _deleteReply(replyId: string): void {
+    if (!this.comment) return;
+    const replies = this._normalizeReplies(this.comment).filter((r) => r.id !== replyId);
+    const mainText = replies.find((r) => r.type === 'comment')?.text ?? this.comment.comment;
+    const updated = this._buildComment({ comment: mainText, replies });
+    this.comment = updated;
+    dispatchIntent({ type: 'comment:save', comment: updated });
+  }
+
   private _cancelDraft(): void {
     this._clearHighlight();
     dispatchIntent({ type: 'comment:cancel', id: this._pendingId });
@@ -711,21 +757,90 @@ export class DbComment extends LitElement {
 
   private _renderReplies(): TemplateResult {
     if (!this.comment) return html``;
-    return html`${this._normalizeReplies(this.comment).map(
-      (r) => html`
+    return html`${this._normalizeReplies(this.comment).map((r, index) => {
+      const isUser = r.author !== 'agent';
+      const isEditing = this._editingReplyId === r.id;
+      const isFirst = index === 0;
+      // First reply is the root — editable only (never deleteable, it's the reference)
+      // Later user replies can be edited and deleted
+      const showMenu = isUser && r.type === 'comment';
+      return html`
         <div class="reply-row">
           ${this._renderReplyAuthorIcon(r.author as CommentAuthor | undefined)}
           <div class="reply-body">
-            <div class="comment-text">${r.text}</div>
-            <wa-relative-time
-              sync
-              .date=${new Date(r.createdAt)}
-              style="font-size:var(--wa-font-size-xs);color:var(--wa-color-text-quiet);display:block;margin-bottom:var(--wa-space-s);"
-            ></wa-relative-time>
+            ${isEditing
+          ? html`
+                  <textarea
+                    data-edit-id=${r.id}
+                    data-role="edit"
+                    .value=${this._editDraft}
+                    @input=${(e: Event) => {
+              this._editDraft = (e.target as HTMLTextAreaElement).value;
+            }}
+                    @keydown=${(e: KeyboardEvent) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                this._saveEditReply();
+              } else if (e.key === 'Escape') {
+                e.stopPropagation();
+                this._cancelEditReply();
+              }
+            }}
+                  ></textarea>
+                  <div class="edit-actions">
+                    <wa-button
+                      appearance="filled"
+                      variant="brand"
+                      size="s"
+                      ?disabled=${!this._editDraft.trim()}
+                      @click=${this._saveEditReply}
+                      >Save</wa-button
+                    >
+                    <wa-button appearance="plain" size="s" @click=${this._cancelEditReply}
+                      >Cancel</wa-button
+                    >
+                  </div>
+                `
+          : html`
+                  <div class="reply-main">
+                    <div class="reply-content">
+                      <div class="comment-text">${r.text}</div>
+                      <wa-relative-time
+                        sync
+                        .date=${new Date(r.createdAt)}
+                        style="font-size:var(--wa-font-size-xs);color:var(--wa-color-text-quiet);"
+                      ></wa-relative-time>
+                    </div>
+                    ${showMenu
+              ? html`
+                          <wa-dropdown
+                            size="s"
+                            class="reply-menu"
+                            @click=${(e: Event) => e.stopPropagation()}
+                            @wa-select=${(e: CustomEvent) => {
+                  const val = e.detail.item.value;
+                  if (val === 'edit') this._startEditReply(r.id, r.text);
+                  else if (val === 'delete') this._deleteReply(r.id);
+                }}
+                          >
+                            <wa-button slot="trigger" appearance="plain" size="s" title="More"
+                              >···</wa-button
+                            >
+                            <wa-dropdown-item value="edit">Edit</wa-dropdown-item>
+                            ${!isFirst
+                  ? html`<wa-dropdown-item value="delete" variant="danger"
+                                  >Delete</wa-dropdown-item
+                                >`
+                  : ''}
+                          </wa-dropdown>
+                        `
+              : ''}
+                  </div>
+                `}
           </div>
         </div>
-      `,
-    )}`;
+      `;
+    })}`;
   }
 
   private _renderChipsBar(editable: boolean): TemplateResult {

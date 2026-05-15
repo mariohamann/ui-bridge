@@ -119,8 +119,20 @@ describe('comments store', () => {
   test('preserves author on individual replies', () => {
     const comment = makeComment('reply-test', {
       replies: [
-        { id: 'r1', type: 'comment', text: 'User said this', createdAt: Date.now(), author: 'user' },
-        { id: 'r2', type: 'comment', text: 'Agent replied', createdAt: Date.now(), author: 'agent' },
+        {
+          id: 'r1',
+          type: 'comment',
+          text: 'User said this',
+          createdAt: Date.now(),
+          author: 'user',
+        },
+        {
+          id: 'r2',
+          type: 'comment',
+          text: 'Agent replied',
+          createdAt: Date.now(),
+          author: 'agent',
+        },
       ],
     });
     updateComments([comment]);

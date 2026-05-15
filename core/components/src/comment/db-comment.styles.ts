@@ -304,6 +304,37 @@ const ANNOTATION_ITEM_LOCAL_STYLES = css`
     flex: 1;
     min-width: 0;
   }
+  .reply-main {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--wa-space-xs);
+  }
+  .reply-content {
+    flex: 1;
+    min-width: 0;
+  }
+  .reply-menu {
+    flex-shrink: 0;
+  }
+  .edit-actions {
+    display: flex;
+    gap: var(--wa-space-xs);
+    margin-top: var(--wa-space-xs);
+    margin-bottom: var(--wa-space-s);
+  }
+  textarea[data-role='edit'] {
+    width: 100%;
+    resize: none;
+    font: var(--wa-font-size-s) / 1.4 var(--wa-font-family-body);
+    background: var(--wa-color-surface-lowered);
+    color: var(--wa-color-text-normal);
+    border: 1px solid var(--wa-color-brand);
+    border-radius: var(--wa-border-radius-m);
+    padding: var(--wa-space-xs) var(--wa-space-s);
+    outline: none;
+    box-sizing: border-box;
+    min-height: 52px;
+  }
 `;
 
 export const commentItemStyles = [designBridgeHostTokenStyles, ANNOTATION_ITEM_LOCAL_STYLES];

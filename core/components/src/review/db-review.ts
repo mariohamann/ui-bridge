@@ -7,7 +7,7 @@ import '@awesome.me/webawesome/dist/components/relative-time/relative-time.js';
 import '@awesome.me/webawesome/dist/components/switch/switch.js';
 import '@awesome.me/webawesome/dist/components/tag/tag.js';
 import { LitElement, html } from 'lit';
-import { customElement, property } from 'lit/decorators.js';
+import { customElement, property, state } from 'lit/decorators.js';
 import { SignalWatcher } from '@lit-labs/signals';
 import type { Comment } from '@design-bridge/protocol';
 import { commentsSignal } from '../state/comments-store.js';
@@ -58,6 +58,8 @@ export class DbReview extends _DbReviewBase {
   /** Reflects the WebSocket connection status — set by the entry point. */
   @property({ type: Boolean }) connected = false;
   @property({ type: Boolean, attribute: 'show-resolved' }) showResolved = false;
+  @state() private _editingId: string | null = null;
+  @state() private _editDraft = '';
 
   static styles = dbReviewStyles;
 
@@ -80,6 +82,38 @@ export class DbReview extends _DbReviewBase {
 
   private _delete(id: string): void {
     dispatchIntent({ type: 'comment:delete', id });
+  }
+
+  private _startEdit(ann: Comment): void {
+    this._editingId = ann.id;
+    this._editDraft = ann.comment ?? '';
+    this.updateComplete.then(() => {
+      const ta = this.shadowRoot?.querySelector<HTMLTextAreaElement>(
+        `textarea[data-edit-id="${ann.id}"]`,
+      );
+      ta?.focus();
+      ta?.setSelectionRange(ta.value.length, ta.value.length);
+    });
+  }
+
+  private _saveEdit(ann: Comment): void {
+    const text = this._editDraft.trim();
+    if (!text) return;
+    // Update main comment text and first user reply text if present
+    const replies = (ann.replies ?? []).map((r, i) =>
+      i === 0 && r.type === 'comment' ? { ...r, text } : r,
+    );
+    dispatchIntent({
+      type: 'comment:save',
+      comment: { ...ann, comment: text, replies, timestamp: Date.now() },
+    });
+    this._editingId = null;
+    this._editDraft = '';
+  }
+
+  private _cancelEdit(): void {
+    this._editingId = null;
+    this._editDraft = '';
   }
 
   private _focus(id: string): void {
@@ -146,7 +180,52 @@ export class DbReview extends _DbReviewBase {
             : ''}
           </div>
           ${ann.comment
-        ? html`<div class="comment">${ann.comment}</div>`
+        ? html`<div class="comment">
+                ${this._editingId === ann.id
+            ? html`
+                      <textarea
+                        data-edit-id=${ann.id}
+                        class="inline-edit"
+                        .value=${this._editDraft}
+                        @input=${(e: Event) => {
+                this._editDraft = (e.target as HTMLTextAreaElement).value;
+              }}
+                        @keydown=${(e: KeyboardEvent) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  this._saveEdit(ann);
+                } else if (e.key === 'Escape') {
+                  e.stopPropagation();
+                  this._cancelEdit();
+                }
+              }}
+                        @click=${(e: Event) => e.stopPropagation()}
+                      ></textarea>
+                      <div class="inline-edit-actions">
+                        <wa-button
+                          appearance="filled"
+                          variant="brand"
+                          size="s"
+                          ?disabled=${!this._editDraft.trim()}
+                          @click=${(e: Event) => {
+                e.stopPropagation();
+                this._saveEdit(ann);
+              }}
+                          >Save</wa-button
+                        >
+                        <wa-button
+                          appearance="plain"
+                          size="s"
+                          @click=${(e: Event) => {
+                e.stopPropagation();
+                this._cancelEdit();
+              }}
+                          >Cancel</wa-button
+                        >
+                      </div>
+                    `
+            : ann.comment}
+              </div>`
         : html`<div class="comment empty-comment">No comment</div>`}
           ${extraReplies > 0
         ? html`<div class="footer">
@@ -167,6 +246,7 @@ export class DbReview extends _DbReviewBase {
         if (val === 'resolve') this._resolve(ann);
         else if (val === 'unresolve') this._unresolve(ann);
         else if (val === 'copy') this._copyLink(ann);
+        else if (val === 'edit') this._startEdit(ann);
         else if (val === 'delete') this._delete(ann.id);
       }}
         >
@@ -174,6 +254,7 @@ export class DbReview extends _DbReviewBase {
           ${!resolved
         ? html`<wa-dropdown-item value="resolve">✓ Mark resolved</wa-dropdown-item>`
         : html`<wa-dropdown-item value="unresolve">↩ Unresolve</wa-dropdown-item>`}
+          ${!isAgent ? html`<wa-dropdown-item value="edit">✎ Edit</wa-dropdown-item>` : ''}
           <wa-dropdown-item value="copy">Copy page link</wa-dropdown-item>
           <wa-divider></wa-divider>
           <wa-dropdown-item value="delete" variant="danger">Delete</wa-dropdown-item>

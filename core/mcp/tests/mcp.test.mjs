@@ -54,8 +54,8 @@ before(async () => {
     stdio: 'pipe',
   });
 
-  serverProc.stderr.on('data', () => { });
-  serverProc.stdout.on('data', () => { });
+  serverProc.stderr.on('data', () => {});
+  serverProc.stdout.on('data', () => {});
 
   await waitForServer();
 
@@ -263,7 +263,10 @@ describe('MCP tools/call — create_comment', () => {
     const created = agentComments.find((c) => c.comment === 'Agent created this thread');
     assert.ok(created, 'created comment not found');
     assert.equal(created.author, 'agent');
-    assert.ok(Array.isArray(created.replies) && created.replies.length > 0, 'missing initial reply');
+    assert.ok(
+      Array.isArray(created.replies) && created.replies.length > 0,
+      'missing initial reply',
+    );
     assert.equal(created.replies[0].author, 'agent');
 
     // Cleanup
@@ -314,7 +317,15 @@ describe('MCP tools/call — reply_to_comment', () => {
       pageUrl: 'http://localhost:5173/',
       timestamp: now,
       createdAt: now,
-      replies: [{ id: `${parentId}-root`, type: 'comment', text: 'User comment needing response', createdAt: now, author: 'user' }],
+      replies: [
+        {
+          id: `${parentId}-root`,
+          type: 'comment',
+          text: 'User comment needing response',
+          createdAt: now,
+          author: 'user',
+        },
+      ],
     };
     await fetch(`${BASE_URL}/api/comments`, {
       method: 'POST',
@@ -376,16 +387,30 @@ describe('MCP tools/call — update_own_comment', () => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        id: agentCommentId, selectors: ['h1'], labels: ['h1'], comment: 'Original agent text',
-        author: 'agent', pageUrl: 'http://localhost:5173/', timestamp: now, createdAt: now, replies: [],
+        id: agentCommentId,
+        selectors: ['h1'],
+        labels: ['h1'],
+        comment: 'Original agent text',
+        author: 'agent',
+        pageUrl: 'http://localhost:5173/',
+        timestamp: now,
+        createdAt: now,
+        replies: [],
       }),
     });
     await fetch(`${BASE_URL}/api/comments`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        id: userCommentId, selectors: ['p'], labels: ['p'], comment: 'User comment',
-        author: 'user', pageUrl: 'http://localhost:5173/', timestamp: now, createdAt: now, replies: [],
+        id: userCommentId,
+        selectors: ['p'],
+        labels: ['p'],
+        comment: 'User comment',
+        author: 'user',
+        pageUrl: 'http://localhost:5173/',
+        timestamp: now,
+        createdAt: now,
+        replies: [],
       }),
     });
   });
@@ -415,10 +440,7 @@ describe('MCP tools/call — update_own_comment', () => {
     });
     const res = findResponse(responses, 2);
     // Should return an error
-    assert.ok(
-      res?.error || res?.result?.isError,
-      'expected an error when updating user comment',
-    );
+    assert.ok(res?.error || res?.result?.isError, 'expected an error when updating user comment');
   });
 });
 
@@ -431,8 +453,14 @@ describe('MCP tools/call — get_comment (backward compat)', () => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        id: ANN_ID, selectors: ['h1'], labels: ['h1'], comment: 'MCP test comment',
-        pageUrl: 'http://localhost:5173/', timestamp: now, createdAt: now, replies: [],
+        id: ANN_ID,
+        selectors: ['h1'],
+        labels: ['h1'],
+        comment: 'MCP test comment',
+        pageUrl: 'http://localhost:5173/',
+        timestamp: now,
+        createdAt: now,
+        replies: [],
       }),
     });
   });
@@ -608,7 +636,7 @@ describe('Port discovery integration — MCP server finds Design Bridge via .por
         }
       }
     });
-    proc.stderr.on('data', () => { });
+    proc.stderr.on('data', () => {});
 
     const send = (obj) => proc.stdin.write(JSON.stringify(obj) + '\n');
     send({
@@ -661,7 +689,7 @@ describe('Port discovery integration — MCP server finds Design Bridge via .por
         }
       }
     });
-    proc.stderr.on('data', () => { });
+    proc.stderr.on('data', () => {});
 
     const send = (obj) => proc.stdin.write(JSON.stringify(obj) + '\n');
     send({

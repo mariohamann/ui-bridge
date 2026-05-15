@@ -970,7 +970,9 @@ test.describe('Tweaks in comments', () => {
       .toBe('🔥');
   });
 
-  test('Accept button keeps comment with tweakStatus=accepted and collapses knob to status badge', async ({ page }) => {
+  test('Accept button keeps comment with tweakStatus=accepted and collapses knob to status badge', async ({
+    page,
+  }) => {
     await injectComment(page, makeTweakComment('test-knob-accept'));
     await page.reload();
     await openCommentPanel(page);
@@ -1085,7 +1087,7 @@ test.describe('Tweaks in comments', () => {
       .poll(async () => {
         const res = await page.request.get(`${API_BASE}/comments/test-thread-open-after-accept`);
         if (res.status() !== 200) return null;
-        return (await res.json() as { tweakStatus: string; }).tweakStatus;
+        return ((await res.json()) as { tweakStatus: string; }).tweakStatus;
       })
       .toBe('accepted');
 
@@ -1114,7 +1116,13 @@ test.describe('Tweaks in comments', () => {
       author: 'agent',
       replies: [
         { id: 'r-user', type: 'comment', text: 'User said this', createdAt: now, author: 'user' },
-        { id: 'r-agent', type: 'comment', text: 'Agent replied', createdAt: now + 1, author: 'agent' },
+        {
+          id: 'r-agent',
+          type: 'comment',
+          text: 'Agent replied',
+          createdAt: now + 1,
+          author: 'agent',
+        },
       ],
     });
     await page.reload();
@@ -1139,7 +1147,15 @@ test.describe('Tweaks in comments', () => {
       id: 'test-review-agent-tag',
       comment: 'Agent comment for review',
       author: 'agent',
-      replies: [{ id: 'r1', type: 'comment', text: 'Agent comment for review', createdAt: now, author: 'agent' }],
+      replies: [
+        {
+          id: 'r1',
+          type: 'comment',
+          text: 'Agent comment for review',
+          createdAt: now,
+          author: 'agent',
+        },
+      ],
     });
     await page.goto(REVIEW_URL);
     await expect(page.locator('.row')).toHaveCount(1);
@@ -1499,5 +1515,258 @@ test.describe('Tweaks in comments', () => {
     expect(res2.status()).toBe(200);
     const ann = (await res2.json()) as { comment: string; };
     expect(ann.comment).toBe('JSON file test');
+  });
+});
+
+// ── Edit & Delete ─────────────────────────────────────────────────────────────
+
+test.describe('Edit and delete own comments', () => {
+  test('three-dot menu always visible on user reply in badge panel', async ({ page }) => {
+    await createComment(page, 'h1', 'Editable comment');
+    await page.locator('db-comment wa-badge').first().click();
+    const panel = commentPanel(page);
+    await expect(panel.locator('.reply-menu wa-button[title="More"]')).toBeVisible();
+  });
+
+  test('clicking edit in reply menu shows textarea with current text', async ({ page }) => {
+    await createComment(page, 'h1', 'Original text');
+    await page.locator('db-comment wa-badge').first().click();
+    const panel = commentPanel(page);
+    await panel.locator('.reply-menu wa-button[title="More"]').first().click();
+    await page.locator('wa-dropdown-item:has-text("Edit")').first().click();
+    const editArea = panel.locator('textarea[data-role="edit"]');
+    await expect(editArea).toBeVisible();
+    await expect(editArea).toHaveValue('Original text');
+  });
+
+  test('saves edited reply text via Enter key', async ({ page }) => {
+    await createComment(page, 'h1', 'Old text');
+    await page.locator('db-comment wa-badge').first().click();
+    const panel = commentPanel(page);
+    await panel.locator('.reply-menu wa-button[title="More"]').first().click();
+    await page.locator('wa-dropdown-item:has-text("Edit")').first().click();
+    const editArea = panel.locator('textarea[data-role="edit"]');
+    await editArea.fill('Updated text');
+    await editArea.press('Enter');
+    await expect(panel.locator('textarea[data-role="edit"]')).toHaveCount(0);
+    await expect(panel.locator('.comment-text').first()).toHaveText('Updated text');
+    // Persisted to API
+    await expect
+      .poll(async () => {
+        const res = await page.request.get(`${API_BASE}/comments`);
+        const body = (await res.json()) as { comments: { comment: string; }[]; };
+        return body.comments.some((a) => a.comment === 'Updated text');
+      })
+      .toBe(true);
+  });
+
+  test('saves edited reply text via Save button', async ({ page }) => {
+    await createComment(page, 'h1', 'Save via button');
+    await page.locator('db-comment wa-badge').first().click();
+    const panel = commentPanel(page);
+    await panel.locator('.reply-menu wa-button[title="More"]').first().click();
+    await page.locator('wa-dropdown-item:has-text("Edit")').first().click();
+    const editArea = panel.locator('textarea[data-role="edit"]');
+    await editArea.fill('Button saved');
+    await panel.locator('.edit-actions wa-button[appearance="filled"]').click();
+    await expect(panel.locator('textarea[data-role="edit"]')).toHaveCount(0);
+    await expect(panel.locator('.comment-text').first()).toHaveText('Button saved');
+  });
+
+  test('cancel edit in badge panel restores original text', async ({ page }) => {
+    await createComment(page, 'h1', 'Cancel restores me');
+    await page.locator('db-comment wa-badge').first().click();
+    const panel = commentPanel(page);
+    await panel.locator('.reply-menu wa-button[title="More"]').first().click();
+    await page.locator('wa-dropdown-item:has-text("Edit")').first().click();
+    const editArea = panel.locator('textarea[data-role="edit"]');
+    await editArea.fill('Should be discarded');
+    await panel.locator('.edit-actions wa-button[appearance="plain"]').click();
+    await expect(panel.locator('textarea[data-role="edit"]')).toHaveCount(0);
+    await expect(panel.locator('.comment-text').first()).toHaveText('Cancel restores me');
+  });
+
+  test('cancel edit via Escape in badge panel restores original text', async ({ page }) => {
+    await createComment(page, 'h1', 'Escape cancels edit');
+    await page.locator('db-comment wa-badge').first().click();
+    const panel = commentPanel(page);
+    await panel.locator('.reply-menu wa-button[title="More"]').first().click();
+    await page.locator('wa-dropdown-item:has-text("Edit")').first().click();
+    const editArea = panel.locator('textarea[data-role="edit"]');
+    await editArea.fill('Will be discarded');
+    await editArea.press('Escape');
+    await expect(panel.locator('textarea[data-role="edit"]')).toHaveCount(0);
+    await expect(panel.locator('.comment-text').first()).toHaveText('Escape cancels edit');
+  });
+
+  test('empty text does not save (Save button disabled) in badge panel', async ({ page }) => {
+    await createComment(page, 'h1', 'Non-empty');
+    await page.locator('db-comment wa-badge').first().click();
+    const panel = commentPanel(page);
+    await panel.locator('.reply-menu wa-button[title="More"]').first().click();
+    await page.locator('wa-dropdown-item:has-text("Edit")').first().click();
+    const editArea = panel.locator('textarea[data-role="edit"]');
+    await editArea.fill('');
+    const saveBtn = panel.locator('.edit-actions wa-button[appearance="filled"]');
+    await expect(saveBtn).toBeDisabled();
+  });
+
+  test('edit option appears in review page row dropdown for user comment', async ({ page }) => {
+    await createComment(page, 'h1', 'Reviewable comment');
+    await page.goto(REVIEW_URL);
+    await expect(page.locator('.row')).toHaveCount(1);
+    await page.locator('.row').first().hover();
+    await page.locator('.row-menu').first().locator('wa-button[title="More"]').click();
+    await expect(page.locator('wa-dropdown-item:has-text("Edit")')).toBeVisible();
+  });
+
+  test('clicking edit in review page dropdown shows inline textarea', async ({ page }) => {
+    await createComment(page, 'h1', 'Review edit target');
+    await page.goto(REVIEW_URL);
+    await page.locator('.row').first().hover();
+    await page.locator('.row-menu').first().locator('wa-button[title="More"]').click();
+    await page.locator('wa-dropdown-item:has-text("Edit")').first().click();
+    const inlineEdit = page.locator('.inline-edit');
+    await expect(inlineEdit).toBeVisible();
+    await expect(inlineEdit).toHaveValue('Review edit target');
+  });
+
+  test('saves edited comment from review page via Enter key', async ({ page }) => {
+    await createComment(page, 'h1', 'Before edit');
+    await page.goto(REVIEW_URL);
+    await page.locator('.row').first().hover();
+    await page.locator('.row-menu').first().locator('wa-button[title="More"]').click();
+    await page.locator('wa-dropdown-item:has-text("Edit")').first().click();
+    const inlineEdit = page.locator('.inline-edit');
+    await inlineEdit.fill('After edit');
+    await inlineEdit.press('Enter');
+    await expect(page.locator('.inline-edit')).toHaveCount(0);
+    await expect(page.locator('.row .comment').first()).toContainText('After edit');
+    // Confirm persisted
+    await expect
+      .poll(async () => {
+        const res = await page.request.get(`${API_BASE}/comments`);
+        const body = (await res.json()) as { comments: { comment: string; }[]; };
+        return body.comments.some((a) => a.comment === 'After edit');
+      })
+      .toBe(true);
+  });
+
+  test('saves edited comment from review page via Save button', async ({ page }) => {
+    await createComment(page, 'h1', 'Click save');
+    await page.goto(REVIEW_URL);
+    await page.locator('.row').first().hover();
+    await page.locator('.row-menu').first().locator('wa-button[title="More"]').click();
+    await page.locator('wa-dropdown-item:has-text("Edit")').first().click();
+    const inlineEdit = page.locator('.inline-edit');
+    await inlineEdit.fill('Saved via button');
+    await page.locator('.inline-edit-actions wa-button[appearance="filled"]').click();
+    await expect(page.locator('.inline-edit')).toHaveCount(0);
+    await expect(page.locator('.row .comment').first()).toContainText('Saved via button');
+  });
+
+  test('cancel edit in review page restores original text', async ({ page }) => {
+    await createComment(page, 'h1', 'Original review text');
+    await page.goto(REVIEW_URL);
+    await page.locator('.row').first().hover();
+    await page.locator('.row-menu').first().locator('wa-button[title="More"]').click();
+    await page.locator('wa-dropdown-item:has-text("Edit")').first().click();
+    const inlineEdit = page.locator('.inline-edit');
+    await inlineEdit.fill('Discard this');
+    await page.locator('.inline-edit-actions wa-button[appearance="plain"]').click();
+    await expect(page.locator('.inline-edit')).toHaveCount(0);
+    await expect(page.locator('.row .comment').first()).toContainText('Original review text');
+  });
+
+  test('cancel edit via Escape in review page restores original text', async ({ page }) => {
+    await createComment(page, 'h1', 'Escape in review');
+    await page.goto(REVIEW_URL);
+    await page.locator('.row').first().hover();
+    await page.locator('.row-menu').first().locator('wa-button[title="More"]').click();
+    await page.locator('wa-dropdown-item:has-text("Edit")').first().click();
+    const inlineEdit = page.locator('.inline-edit');
+    await inlineEdit.fill('Will be reverted');
+    await inlineEdit.press('Escape');
+    await expect(page.locator('.inline-edit')).toHaveCount(0);
+    await expect(page.locator('.row .comment').first()).toContainText('Escape in review');
+  });
+
+  test('empty text does not save (Save button disabled) in review page', async ({ page }) => {
+    await createComment(page, 'h1', 'Non-empty review');
+    await page.goto(REVIEW_URL);
+    await page.locator('.row').first().hover();
+    await page.locator('.row-menu').first().locator('wa-button[title="More"]').click();
+    await page.locator('wa-dropdown-item:has-text("Edit")').first().click();
+    await page.locator('.inline-edit').fill('');
+    await expect(
+      page.locator('.inline-edit-actions wa-button[appearance="filled"]'),
+    ).toBeDisabled();
+  });
+
+  test('agent-authored comments do not show edit option in review page', async ({ page }) => {
+    // Inject an agent-authored comment directly via API
+    await page.request.post(`${API_BASE}/comments`, {
+      data: {
+        id: 'agent-comment-test',
+        selectors: ['h1'],
+        labels: ['h1'],
+        comment: 'Agent comment',
+        pageUrl: 'http://localhost:5173/',
+        timestamp: Date.now(),
+        createdAt: Date.now(),
+        author: 'agent',
+      },
+    });
+    await page.goto(REVIEW_URL);
+    await expect(page.locator('.row')).toHaveCount(1);
+    await page.locator('.row').first().hover();
+    await page.locator('.row-menu').first().locator('wa-button[title="More"]').click();
+    await expect(page.locator('wa-dropdown-item:has-text("Edit")')).toHaveCount(0);
+  });
+
+  test('edit is reflected after page reload (persisted)', async ({ page }) => {
+    await createComment(page, 'h1', 'Pre-reload text');
+    await page.locator('db-comment wa-badge').first().click();
+    const panel = commentPanel(page);
+    await panel.locator('.reply-menu wa-button[title="More"]').first().click();
+    await page.locator('wa-dropdown-item:has-text("Edit")').first().click();
+    await panel.locator('textarea[data-role="edit"]').fill('Post-reload text');
+    await panel.locator('.edit-actions wa-button[appearance="filled"]').click();
+    await expect(panel.locator('textarea[data-role="edit"]')).toHaveCount(0);
+    // Reload and check API
+    await page.reload();
+    const res = await page.request.get(`${API_BASE}/comments`);
+    const body = (await res.json()) as { comments: { comment: string; }[]; };
+    expect(body.comments.some((a) => a.comment === 'Post-reload text')).toBe(true);
+  });
+
+  test('first reply has only Edit option (no Delete) in badge panel', async ({ page }) => {
+    await createComment(page, 'h1', 'Root only edit');
+    await page.locator('db-comment wa-badge').first().click();
+    const panel = commentPanel(page);
+    await panel.locator('.reply-menu wa-button[title="More"]').first().click();
+    // Edit must be present, Delete must not exist for the root reply
+    await expect(page.locator('wa-dropdown-item:has-text("Edit")')).toBeVisible();
+    await expect(page.locator('wa-dropdown-item[variant="danger"]')).toHaveCount(0);
+  });
+
+  test('subsequent reply can be deleted from badge panel', async ({ page }) => {
+    await createComment(page, 'h1', 'Root comment');
+    // Add a reply
+    await page.locator('db-comment wa-badge').first().click();
+    const panel = commentPanel(page);
+    const replyInput = panel.locator('textarea[data-role="reply"]');
+    await replyInput.fill('A follow-up reply');
+    await replyInput.press('Enter');
+    // Re-open panel
+    await page.locator('db-comment wa-badge').first().click();
+    // Second reply row (index 1) should have a three-dot menu with Delete
+    await panel.locator('.reply-menu wa-button[title="More"]').nth(1).click();
+    await expect(
+      page.locator('wa-dropdown-item[variant="danger"]:has-text("Delete")'),
+    ).toBeVisible();
+    await page.locator('wa-dropdown-item[variant="danger"]:has-text("Delete")').click();
+    // Reply should be gone, root comment remains
+    await expect(panel.locator('.comment-text')).toHaveCount(1);
   });
 });
