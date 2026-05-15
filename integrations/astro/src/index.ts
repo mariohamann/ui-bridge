@@ -1,5 +1,5 @@
 import type { AstroIntegration } from 'astro';
-import { designBridgeWithInspector } from '@design-bridge/unplugin';
+import { designBridgeVite } from '@design-bridge/unplugin';
 
 /** Options accepted by the designBridge() Astro integration. */
 export interface DesignBridgeOptions {
@@ -49,13 +49,15 @@ export function designBridge(options: DesignBridgeOptions = {}): AstroIntegratio
         if (command !== 'dev') return;
 
         // Add the Vite plugin so the server is spawned and the bundle is served.
-        // This also includes code-inspector-plugin (bundled inside @design-bridge/unplugin)
-        // which adds data-insp-path attributes for source location on Alt+Shift+click.
+        // We intentionally do NOT include code-inspector-plugin here: it injects
+        // a client bundle that triggers Vite HMR on startup, which causes Astro to
+        // re-render components client-side — stripping the native data-astro-source-*
+        // attributes that Astro's compiler already provides in dev mode.
         // Cast to any: Astro 6 uses Vite 7 (rollup) while the vite-plugin is typed
         // against Vite 8 (rolldown) — the Plugin interface differs at the type level
         // but is compatible at runtime.
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        updateConfig({ vite: { plugins: [designBridgeWithInspector(options) as any] } });
+        updateConfig({ vite: { plugins: [designBridgeVite(options) as any] } });
 
         // Inject the WS URL global + a runtime script loader for the client bundle.
         // We use head-inline (raw HTML injection) so Vite's import-analysis plugin
