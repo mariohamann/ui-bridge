@@ -75,17 +75,12 @@ const panelOptions = {
   entryPoints: ['src/browser/index.ts'],
   outfile: 'dist/design-bridge.js',
 };
-const reviewOptions = {
-  ...sharedOptions,
-  entryPoints: ['src/review/index.ts'],
-  outfile: 'dist/review-page.js',
-};
 
 if (watch) {
-  const [ctx1, ctx2] = await Promise.all([context(panelOptions), context(reviewOptions)]);
-  await Promise.all([ctx1.watch(), ctx2.watch()]);
+  const ctx1 = await context(panelOptions);
+  await ctx1.watch();
   console.log('[design-bridge/client] watching for changes…');
 } else {
-  await Promise.all([build(panelOptions), build(reviewOptions)]);
-  console.log('[design-bridge/client] build complete → dist/design-bridge.js, dist/review-page.js');
+  await build(panelOptions);
+  console.log('[design-bridge/client] build complete → dist/design-bridge.js');
 }

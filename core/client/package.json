@@ -4,8 +4,7 @@
   "type": "module",
   "main": "./dist/design-bridge.js",
   "exports": {
-    ".": "./dist/design-bridge.js",
-    "./review-page": "./dist/review-page.js"
+    ".": "./dist/design-bridge.js"
   },
   "scripts": {
     "build": "wireit",

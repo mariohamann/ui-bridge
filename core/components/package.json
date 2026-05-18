@@ -30,11 +30,6 @@
       "import": "./dist/state/intents.js",
       "types": "./dist/state/intents.d.ts"
     },
-    "./review": {
-      "source": "./src/review/index.ts",
-      "import": "./dist/review/index.js",
-      "types": "./dist/review/index.d.ts"
-    },
     "./comment": {
       "source": "./src/comment/index.ts",
       "import": "./dist/comment/index.js",

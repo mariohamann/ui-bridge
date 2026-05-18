@@ -25,7 +25,6 @@ import { createCommentStore } from './comment-store.mjs';
 
 const _require = createRequire(import.meta.url);
 const CLIENT_BUNDLE_PATH = _require.resolve('@design-bridge/client');
-const REVIEW_BUNDLE_PATH = _require.resolve('@design-bridge/client/review-page');
 
 // ── CLI args ──────────────────────────────────────────────────────────────────
 
@@ -96,22 +95,6 @@ function markActiveTweakStatus(thread, status) {
     .reverse();
   return { ...thread, meta: { ...thread.meta, timestamp: Date.now() }, comments };
 }
-
-// ── Review page HTML ──────────────────────────────────────────────────────────
-
-const REVIEW_PAGE_HTML = `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Design Bridge — Comments</title>
-  <style>html,body{margin:0;padding:0;background:#1e1e2e;}</style>
-</head>
-<body>
-  <db-review></db-review>
-  <script src="/design-bridge/review-page.js"></script>
-</body>
-</html>`;
 
 // ── HTTP helpers ──────────────────────────────────────────────────────────────
 
@@ -283,21 +266,6 @@ const httpServer = createServer(async (req, res) => {
     return;
   }
 
-  if (url === '/design-bridge/review-page.js' && req.method === 'GET') {
-    try {
-      res.writeHead(200, {
-        'Content-Type': 'application/javascript; charset=utf-8',
-        'Access-Control-Allow-Origin': '*',
-        'Cache-Control': 'no-store',
-      });
-      res.end(readFileSync(REVIEW_BUNDLE_PATH));
-    } catch (e) {
-      res.writeHead(500);
-      res.end(String(e));
-    }
-    return;
-  }
-
   if (url === '/inspect-pick' && req.method === 'POST') {
     try {
       const source = await readBody(req);
@@ -306,12 +274,6 @@ const httpServer = createServer(async (req, res) => {
     } catch (e) {
       jsonResponse(res, 400, { error: String(e) });
     }
-    return;
-  }
-
-  if (req.method === 'GET' && (url === '/' || url === '')) {
-    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
-    res.end(REVIEW_PAGE_HTML);
     return;
   }
 
