@@ -19,6 +19,7 @@ export type {
   CommentCancelIntent,
   CommentResolveIntent,
   CommentBadgeClickIntent,
+  CommentBarClickIntent,
 } from './state/intents.js';
 
 // ── Comment item ───────────────────────────────────────────────────────────
@@ -26,5 +27,5 @@ export { DbComment } from './comment/db-comment.js';
 export { DbKnob } from './comment/db-knob.js';
 export { uid, shortLabel, formatTweakReply, getSourceInfo } from './comment/db-comment.utils.js';
 
-// ── Orphaned bar ─────────────────────────────────────────────────────────────
-export { DbOrphanedBar } from './orphaned/db-orphaned-bar.js';
+// ── Comment bar ──────────────────────────────────────────────────────────────
+export { DbCommentBar } from './orphaned/db-comment-bar.js';

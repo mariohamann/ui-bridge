@@ -277,7 +277,7 @@ const ANNOTATION_ITEM_LOCAL_STYLES = css`
     color: var(--wa-color-success);
   }
   .tweak-status.discarded .tweak-status-icon {
-    color: var(--wa-color-warning);
+    color: var(--wa-color-neutral);
   }
 
   /* ── Reply author icon ──────────────────────── */

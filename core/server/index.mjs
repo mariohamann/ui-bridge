@@ -368,7 +368,7 @@ const httpServer = createServer(async (req, res) => {
       return;
     }
     if (req.method === 'DELETE') {
-      store.del(annId);
+      await store.del(annId);
       broadcast({ type: 'comments:sync', payload: store.all() });
       broadcast({ type: 'tweak:schema', payload: tweaks.buildSchema() });
       jsonResponse(res, 200, { ok: true });

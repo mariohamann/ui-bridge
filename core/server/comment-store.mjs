@@ -67,9 +67,9 @@ export function createCommentStore(rootDir) {
     persist(ann);
   }
 
-  function del(id) {
+  async function del(id) {
     comments.delete(id);
-    remove(id);
+    await remove(id);
   }
 
   async function clear() {

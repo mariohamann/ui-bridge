@@ -56,15 +56,17 @@ export function onCommentsChange(cb: () => void): () => void {
 }
 
 function syncComments(list: CommentThread[]): void {
+  // Preserve demo fixtures — they are never sent by the server.
+  const demos = [...comments.values()].filter((c) => c.meta.demo);
   comments.clear();
-  for (const ann of list) comments.set(ann.meta.id, ann);
+  for (const ann of [...list, ...demos]) comments.set(ann.meta.id, ann);
   reconcileItems();
   notifyChange();
 }
 
 export function upsertComment(ann: CommentThread): void {
   comments.set(ann.meta.id, ann);
-  sendMessage({ type: 'comment:upsert', payload: ann });
+  if (!ann.meta.demo) sendMessage({ type: 'comment:upsert', payload: ann });
   channel.postMessage({ type: 'comments:sync', payload: [...comments.values()] });
   reconcileItems();
   notifyChange();
@@ -166,7 +168,7 @@ export function focusComment(id: string): boolean {
 function reconcileOrphans(): void {
   if (!itemContainer) return;
   // Lazy lookup — bar is appended after initInspector() in index.ts
-  if (!orphanedBar) orphanedBar = document.querySelector('db-orphaned-bar');
+  if (!orphanedBar) orphanedBar = document.querySelector('db-comment-bar');
   if (!orphanedBar) return;
   const orphanedIds = orphanedIdsSignal.get();
   for (const [id, el] of itemEls) {
@@ -305,7 +307,7 @@ function onPointerDownForInspect(e: PointerEvent): void {
 }
 
 function onTrackCode(e: Event): void {
-  const detail = (e as CustomEvent<{ path?: string; line?: number; column?: number }>).detail;
+  const detail = (e as CustomEvent<{ path?: string; line?: number; column?: number; }>).detail;
   hideHighlight();
   if (!itemContainer) return;
 
@@ -341,7 +343,7 @@ function onTrackCode(e: Event): void {
 // ─── Cross-tab BroadcastChannel ──────────────────────────────────────────────
 
 channel.addEventListener('message', (e) => {
-  const { type, payload } = e.data as { type: string; payload: CommentThread[] };
+  const { type, payload } = e.data as { type: string; payload: CommentThread[]; };
   if (type === 'comments:sync') syncComments(payload);
 });
 
@@ -383,7 +385,7 @@ export function initInspector(): void {
     'position:fixed;top:0;left:0;pointer-events:none;z-index:2147483645;width:0;height:0;';
   document.body.appendChild(itemContainer);
 
-  orphanedBar = document.querySelector('db-orphaned-bar');
+  orphanedBar = document.querySelector('db-comment-bar');
 
   // Re-reconcile orphans after scroll/resize (same events that trigger _repositionBadge).
   // One rAF delay ensures _repositionBadge has already updated orphanedIdsSignal.
@@ -424,6 +426,41 @@ export function initInspector(): void {
       deleteComment(intent.id);
     } else if (intent.type === 'comment:badge-click') {
       focusComment(intent.id);
+    } else if (intent.type === 'comment:bar-click') {
+      const ann = comments.get(intent.id);
+      // Try to find the element in the DOM
+      let found = false;
+      if (ann) {
+        for (const el of ann.elements) {
+          try {
+            const domEl = document.querySelector(el.minimalSelector);
+            if (domEl) {
+              domEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              found = true;
+              break;
+            }
+          } catch {
+            /* noop */
+          }
+        }
+      }
+      if (found) {
+        // Open the real anchored panel in #db-items
+        focusComment(intent.id);
+      } else {
+        // Orphaned: open the bar badge's own panel
+        const barEl = document.querySelector('db-comment-bar');
+        if (barEl) {
+          const barBadges = barEl.shadowRoot?.querySelectorAll('db-comment') ?? [];
+          for (const badge of barBadges) {
+            const b = badge as unknown as DbComment;
+            if (b.comment?.meta.id === intent.id) {
+              b.openPanel();
+              break;
+            }
+          }
+        }
+      }
     }
   });
 

@@ -1,1 +1,1 @@
-export { DbOrphanedBar } from './db-orphaned-bar.js';
+export { DbCommentBar } from './db-comment-bar.js';
