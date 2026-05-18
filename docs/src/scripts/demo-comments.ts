@@ -15,9 +15,9 @@
 type DbComponents = {
   updateComments: (threads: unknown[]) => void;
   upsertComment: (thread: unknown) => void;
-  commentsSignal: { get: () => unknown[] };
+  commentsSignal: { get: () => unknown[]; };
   updateKnobs: (knobs: unknown[]) => void;
-  knobsSignal: { get: () => unknown[] };
+  knobsSignal: { get: () => unknown[]; };
   onIntent: (handler: (intent: Record<string, unknown>) => void) => () => void;
 };
 
@@ -64,7 +64,7 @@ const DEMO_THREAD_1 = makeThread('demo-comment-1', 'h1', 'h1', [
   ),
 ]);
 
-const DEMO_THREAD_2 = makeThread('demo-comment-2', 'p.text-db-muted', 'p', [
+const DEMO_THREAD_2 = makeThread('demo-comment-2', 'p.text-wa-text-quiet', 'p', [
   makeTextEntry(
     'dc2-r1',
     'The subtitle feels a bit generic. Can we make it more concrete?',
@@ -119,7 +119,7 @@ waitForDb().then((db) => {
   db.onIntent((intent) => {
     // ── tweak:change — apply color to the subtitle element ────────────────
     if (intent['type'] === 'tweak:change' && intent['marker'] === SUBTITLE_COLOR_KNOB_MARKER) {
-      const el = document.querySelector<HTMLElement>('p.text-db-muted');
+      const el = document.querySelector<HTMLElement>('p.text-wa-text-quiet');
       if (el) el.style.color = String(intent['value']);
 
       // Update knob value in the signal so db-knob reflects the current selection.
@@ -138,18 +138,18 @@ waitForDb().then((db) => {
       intent['commentId'] === SUBTITLE_COLOR_KNOB_MARKER
     ) {
       const threads = db.commentsSignal.get() as {
-        meta: { id: string };
-        comments: { type: string; tweakStatus?: string }[];
+        meta: { id: string; };
+        comments: { type: string; tweakStatus?: string; }[];
       }[];
       db.updateComments(
         threads.map((t) =>
           t.meta.id === SUBTITLE_COLOR_KNOB_MARKER
             ? {
-                ...t,
-                comments: t.comments.map((c) =>
-                  c.type === 'tweak' ? { ...c, tweakStatus: 'accepted' } : c,
-                ),
-              }
+              ...t,
+              comments: t.comments.map((c) =>
+                c.type === 'tweak' ? { ...c, tweakStatus: 'accepted' } : c,
+              ),
+            }
             : t,
         ),
       );
@@ -167,22 +167,22 @@ waitForDb().then((db) => {
       intent['type'] === 'tweak:discard-comment' &&
       intent['commentId'] === SUBTITLE_COLOR_KNOB_MARKER
     ) {
-      const el = document.querySelector<HTMLElement>('p.text-db-muted');
+      const el = document.querySelector<HTMLElement>('p.text-wa-text-quiet');
       if (el) el.style.color = '';
 
       const threads = db.commentsSignal.get() as {
-        meta: { id: string };
-        comments: { type: string; tweakStatus?: string }[];
+        meta: { id: string; };
+        comments: { type: string; tweakStatus?: string; }[];
       }[];
       db.updateComments(
         threads.map((t) =>
           t.meta.id === SUBTITLE_COLOR_KNOB_MARKER
             ? {
-                ...t,
-                comments: t.comments.map((c) =>
-                  c.type === 'tweak' ? { ...c, tweakStatus: 'discarded' } : c,
-                ),
-              }
+              ...t,
+              comments: t.comments.map((c) =>
+                c.type === 'tweak' ? { ...c, tweakStatus: 'discarded' } : c,
+              ),
+            }
             : t,
         ),
       );

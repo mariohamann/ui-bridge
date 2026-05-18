@@ -153,3 +153,34 @@
   --duration-wa-fast: var(--wa-transition-fast);
   /* #endregion */
 }
+
+@layer components {
+  .pill {
+    @apply inline-flex items-center gap-2 rounded-full border border-wa-surface-border bg-wa-surface-raised px-3.5 py-1.5 text-[12px] tracking-widest text-wa-brand-fill-normal;
+  }
+
+  .pill-dot {
+    @apply h-1.5 w-1.5 flex-shrink-0 rounded-full bg-wa-brand-fill-normal;
+    box-shadow: 0 0 8px var(--wa-color-brand-fill-normal);
+  }
+
+  .section-label {
+    @apply mb-5 text-[11px] tracking-widest uppercase;
+  }
+
+  .section-label-accent {
+    @apply text-wa-brand-fill-normal;
+  }
+
+  .code-block {
+    @apply overflow-hidden rounded-wa-l border border-wa-surface-border bg-wa-surface-lowered;
+  }
+
+  .code-block-header {
+    @apply border-b border-wa-surface-border bg-wa-surface-default px-4 py-2.5;
+  }
+
+  .code-block-filename {
+    @apply font-wa-code text-[11px] text-wa-text-quiet;
+  }
+}
