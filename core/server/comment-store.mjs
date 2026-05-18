@@ -62,9 +62,9 @@ export function createCommentStore(rootDir) {
 
   function upsert(ann) {
     const id = ann?.meta?.id;
-    if (!id) return;
+    if (!id) return Promise.resolve();
     comments.set(id, ann);
-    persist(ann);
+    return persist(ann);
   }
 
   async function del(id) {

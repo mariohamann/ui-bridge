@@ -299,7 +299,7 @@ const httpServer = createServer(async (req, res) => {
         jsonResponse(res, 400, { error: 'missing id' });
         return;
       }
-      store.upsert(ann);
+      await store.upsert(ann);
       broadcast({ type: 'comments:sync', payload: store.all() });
       broadcast({ type: 'tweak:schema', payload: tweaks.buildSchema() });
       jsonResponse(res, 200, { ok: true });
@@ -345,7 +345,7 @@ const httpServer = createServer(async (req, res) => {
       await tweaks.finalizeForComment(annId);
       const accepted = store.get(annId);
       if (accepted) {
-        store.upsert(markActiveTweakStatus(accepted, 'accepted'));
+        await store.upsert(markActiveTweakStatus(accepted, 'accepted'));
       }
       broadcast({ type: 'tweak:schema', payload: tweaks.buildSchema() });
       broadcast({ type: 'comments:sync', payload: store.all() });
@@ -363,7 +363,7 @@ const httpServer = createServer(async (req, res) => {
       await tweaks.discardComment(annId);
       const discarded = store.get(annId);
       if (discarded) {
-        store.upsert(markActiveTweakStatus(discarded, 'discarded'));
+        await store.upsert(markActiveTweakStatus(discarded, 'discarded'));
       }
       broadcast({ type: 'tweak:schema', payload: tweaks.buildSchema() });
       broadcast({ type: 'comments:sync', payload: store.all() });

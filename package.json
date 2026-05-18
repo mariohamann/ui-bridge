@@ -23,7 +23,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "verify": "pnpm format:check && pnpm typecheck && pnpm build && pnpm test",
-    "test": "pnpm build:core && SKIP_BUILD=true pnpm -r --workspace-concurrency=4 run test",
+    "test": "pnpm build:core && pnpm build:integrations && SKIP_BUILD=true pnpm -r --workspace-concurrency=4 run test",
     "test:client": "pnpm --filter @design-bridge/client test",
     "test:components": "pnpm --filter @design-bridge/components test",
     "test:protocol": "pnpm --filter @design-bridge/protocol test",
