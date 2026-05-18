@@ -13,6 +13,7 @@
   },
   "scripts": {
     "build": "wireit",
+    "dev": "wireit",
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "wireit": {
@@ -24,6 +25,18 @@
       ],
       "output": [
         "dist/**"
+      ]
+    },
+    "dev": {
+      "command": "tsc -p tsconfig.json --watch --preserveWatchOutput",
+      "service": {
+        "readyWhen": {
+          "lineMatches": "Watching for file changes"
+        }
+      },
+      "files": [
+        "src/**/*.ts",
+        "tsconfig.json"
       ]
     }
   },

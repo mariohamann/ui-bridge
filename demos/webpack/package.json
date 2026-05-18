@@ -15,7 +15,7 @@
         }
       },
       "dependencies": [
-        "../../integrations/unplugin:build"
+        "../../integrations/unplugin:dev"
       ],
       "files": [
         "src/**",

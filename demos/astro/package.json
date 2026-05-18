@@ -21,7 +21,7 @@
         }
       },
       "dependencies": [
-        "../../integrations/astro:build"
+        "../../integrations/astro:dev"
       ],
       "files": [
         "src/**",

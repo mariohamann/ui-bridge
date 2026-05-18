@@ -16,7 +16,7 @@
         }
       },
       "dependencies": [
-        "../../integrations/next:build"
+        "../../integrations/next:dev"
       ],
       "files": [
         "app/**",

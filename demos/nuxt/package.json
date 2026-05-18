@@ -17,7 +17,7 @@
         }
       },
       "dependencies": [
-        "../../integrations/nuxt:build"
+        "../../integrations/nuxt:dev"
       ],
       "files": [
         "src/**",

@@ -12,7 +12,7 @@
   },
   "scripts": {
     "build": "wireit",
-    "dev": "node build.mjs --watch",
+    "dev": "wireit",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "playwright test"
   },
@@ -29,6 +29,22 @@
       ],
       "output": [
         "dist/**"
+      ]
+    },
+    "dev": {
+      "command": "node build.mjs --watch",
+      "service": {
+        "readyWhen": {
+          "lineMatches": "watching for changes"
+        }
+      },
+      "dependencies": [
+        "../../integrations/unplugin:dev"
+      ],
+      "files": [
+        "src/**/*.ts",
+        "build.mjs",
+        "tsconfig.build.json"
       ]
     }
   },

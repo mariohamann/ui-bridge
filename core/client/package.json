@@ -9,7 +9,7 @@
   },
   "scripts": {
     "build": "wireit",
-    "dev": "node build.mjs --watch",
+    "dev": "wireit",
     "test": "playwright test"
   },
   "wireit": {
@@ -24,6 +24,21 @@
       ],
       "output": [
         "dist/**"
+      ]
+    },
+    "dev": {
+      "command": "node build.mjs --watch",
+      "service": {
+        "readyWhen": {
+          "lineMatches": "watching for changes"
+        }
+      },
+      "dependencies": [
+        "../components:dev"
+      ],
+      "files": [
+        "src/**/*.ts",
+        "build.mjs"
       ]
     }
   },
