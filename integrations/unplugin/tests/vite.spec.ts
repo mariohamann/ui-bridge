@@ -77,23 +77,27 @@ test('comment round-trip: created on the page is persisted to the server', async
     .first()
     .click({ modifiers: ['Alt', 'Shift'] });
 
-  const panel = page.locator('db-comment .panel:not([hidden])');
-  const input = panel.locator('textarea').first();
-  await expect(input).toBeVisible();
-  await input.fill('unplugin integration check');
-  await input.press('Enter');
+  const panel = page.locator('#db-items db-comment .panel:not([hidden])');
+  const waInput = panel.locator('wa-textarea[data-role="composer"]');
+  await expect(waInput).toBeVisible();
+  await waInput.locator('textarea').fill('unplugin integration check');
+  await waInput.locator('textarea').press('Enter');
   await expect(panel).toHaveCount(0);
 
   const res = await page.request.get(`${API_BASE}/comments`);
-  const body = (await res.json()) as { comments: { id: string; comment: string }[] };
-  expect(body.comments.some((a) => a.comment === 'unplugin integration check')).toBe(true);
+  const body = (await res.json()) as {
+    comments: { meta: { id: string }; comments?: { text: string }[] }[];
+  };
+  expect(
+    body.comments.some((a) => a.comments?.[0]?.text === 'unplugin integration check'),
+  ).toBe(true);
 
   // File must be written inside the server's root, not somewhere else
-  const ann = body.comments.find((a) => a.comment === 'unplugin integration check')!;
+  const ann = body.comments.find((a) => a.comments?.[0]?.text === 'unplugin integration check')!;
   const commentsDir = await getCommentsDir(request);
-  const expectedPath = resolve(commentsDir, `${ann.id}.json`);
+  const expectedPath = resolve(commentsDir, `${ann.meta.id}.json`);
   await expect(access(expectedPath)).resolves.toBeUndefined();
 
   const files = await readdir(commentsDir);
-  expect(files).toContain(`${ann.id}.json`);
+  expect(files).toContain(`${ann.meta.id}.json`);
 });
