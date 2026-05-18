@@ -350,7 +350,12 @@ server.tool(
         }),
       )
       .describe('DOM elements this comment is attached to'),
-    comment: z.string().describe('The comment / opening message of the thread'),
+    comment: z
+      .string()
+      .describe(
+        'The comment / opening message of the thread. Keep it short and concise — 1–3 sentences max. Write for a non-technical audience: no file paths, no code references, no markdown links. Use only basic Markdown (bold, italic, bullet lists, inline code). Focus on the design observation, not the implementation.',
+      ),
+
     pageUrl: z.string().describe('URL of the page where the comment is anchored'),
     knob: z
       .object({
@@ -433,7 +438,12 @@ server.tool(
   See resource design-bridge://guide/write-scripts for script authoring details.`,
   {
     commentId: z.string().describe('ID of the existing comment thread to reply to'),
-    text: z.string().describe('The reply text — shown inline in the thread'),
+    text: z
+      .string()
+      .describe(
+        'The reply text — shown inline in the thread. Keep it short and concise — 1–3 sentences max. Write for a non-technical audience: no file paths, no code references, no markdown links. Use only basic Markdown (bold, italic, bullet lists). Focus on the design observation or proposed change, not the implementation.',
+      ),
+
     knob: z
       .object({
         label: z.string(),

@@ -1,6 +1,6 @@
 {
   "servers": {
-    "design-bridge/docs": {
+    "design-bridge": {
       "type": "stdio",
       "command": "node",
       "args": ["${workspaceFolder}/docs/node_modules/@design-bridge/core/mcp/index.mjs"]

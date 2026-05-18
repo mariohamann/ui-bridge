@@ -2,46 +2,131 @@
 
 ---
 
-<section
-  id="get-started"
-  class="border-t border-db-border bg-db-surface px-6 py-20"
->
+<section id="get-started" class="border-t border-db-border bg-db-surface px-6 py-20">
   <div class="mx-auto max-w-[640px]">
     <p class="section-label section-label-accent">Setup</p>
 
-    <h2
-      class="mb-4 text-[clamp(28px,4vw,40px)] font-semibold leading-tight tracking-tight"
-    >
-      Add it to your Vite config.<br />That's it.
+    <h2 class="mb-4 text-[clamp(28px,4vw,40px)] font-semibold leading-tight tracking-tight">
+      Add it to your project.<br />That's it.
     </h2>
 
     <p class="mb-9 leading-7 text-db-muted">
-      Design Bridge runs alongside your dev server. The panel appears
-      automatically in the browser. No build step changes. No extra config.
+      Design Bridge runs alongside your dev server. The panel appears automatically in the browser.
+      No build step changes. No extra config.
     </p>
 
-    <div class="code-block mb-7">
-      <div class="code-block-header">
-        <span class="code-block-filename">vite.config.ts</span>
-      </div>
-      <pre
-        class="code-pre"><code><span class="text-db-accent">import</span> <span class="text-db-text">&#123; defineConfig &#125;</span> <span class="text-db-accent">from</span> <span class="text-db-green">'vite'</span>
-<span class="text-db-accent">import</span> <span class="text-db-text">&#123; designBridge &#125;</span> <span class="text-db-accent">from</span> <span class="text-db-green">'@design-bridge/vite-plugin'</span>
+    <h3 class="mb-3 text-sm font-semibold uppercase tracking-widest text-db-ghost">1. Install</h3>
+
+    <wa-tab-group class="mb-9">
+      <wa-tab panel="pnpm">pnpm</wa-tab>
+      <wa-tab panel="npm">npm</wa-tab>
+      <wa-tab panel="yarn">yarn</wa-tab>
+
+      <wa-tab-panel name="pnpm">
+        <div class="code-block">
+          <div class="code-block-header"><span class="code-block-filename">terminal</span></div>
+          <pre
+            class="code-pre"><code><span class="text-db-green">pnpm add</span> <span class="text-db-text">-D @design-bridge/unplugin</span></code></pre>
+        </div>
+      </wa-tab-panel>
+      <wa-tab-panel name="npm">
+        <div class="code-block">
+          <div class="code-block-header"><span class="code-block-filename">terminal</span></div>
+          <pre
+            class="code-pre"><code><span class="text-db-green">npm install</span> <span class="text-db-text">--save-dev @design-bridge/unplugin</span></code></pre>
+        </div>
+      </wa-tab-panel>
+      <wa-tab-panel name="yarn">
+        <div class="code-block">
+          <div class="code-block-header"><span class="code-block-filename">terminal</span></div>
+          <pre
+            class="code-pre"><code><span class="text-db-green">yarn add</span> <span class="text-db-text">-D @design-bridge/unplugin</span></code></pre>
+        </div>
+      </wa-tab-panel>
+    </wa-tab-group>
+
+    <h3 class="mb-3 text-sm font-semibold uppercase tracking-widest text-db-ghost">2. Configure</h3>
+
+    <wa-tab-group class="mb-7">
+      <wa-tab panel="vite">Vite</wa-tab>
+      <wa-tab panel="next">Next.js</wa-tab>
+      <wa-tab panel="nuxt">Nuxt</wa-tab>
+      <wa-tab panel="astro">Astro</wa-tab>
+      <wa-tab panel="webpack">webpack</wa-tab>
+
+      <wa-tab-panel name="vite">
+        <div class="code-block">
+          <div class="code-block-header">
+            <span class="code-block-filename">vite.config.ts</span>
+          </div>
+          <pre
+            class="code-pre"><code><span class="text-db-accent">import</span> <span class="text-db-text">&#123; defineConfig &#125;</span> <span class="text-db-accent">from</span> <span class="text-db-green">'vite'</span>
+<span class="text-db-accent">import</span> <span class="text-db-text">&#123; designBridge &#125;</span> <span class="text-db-accent">from</span> <span class="text-db-green">'@design-bridge/unplugin'</span>
 
 <span class="text-db-accent">export default</span> <span class="text-db-amber">defineConfig</span><span class="text-db-text">(&#123;</span>
-  <span class="text-db-text">plugins:</span> <span class="text-db-text">[</span><span class="text-db-amber">designBridge</span><span class="text-db-text">()]</span>
+  <span class="text-db-text">plugins:</span> <span class="text-db-text">[</span><span class="text-db-amber">designBridge</span><span class="text-db-text">.</span><span class="text-db-amber">vite</span><span class="text-db-text">()]</span>
 <span class="text-db-text">&#125;)</span></code></pre>
-    </div>
+        </div>
+      </wa-tab-panel>
+
+      <wa-tab-panel name="next">
+        <div class="code-block">
+          <div class="code-block-header">
+            <span class="code-block-filename">next.config.mjs</span>
+          </div>
+          <pre
+            class="code-pre"><code><span class="text-db-accent">import</span> <span class="text-db-text">&#123; withDesignBridge &#125;</span> <span class="text-db-accent">from</span> <span class="text-db-green">'@design-bridge/next'</span>
+
+<span class="text-db-accent">export default</span> <span class="text-db-amber">withDesignBridge</span><span class="text-db-text">(&#123;</span>
+  <span class="text-db-comment">// your Next.js config</span>
+<span class="text-db-text">&#125;)</span></code></pre>
+        </div>
+      </wa-tab-panel>
+
+      <wa-tab-panel name="nuxt">
+        <div class="code-block">
+          <div class="code-block-header">
+            <span class="code-block-filename">nuxt.config.ts</span>
+          </div>
+          <pre
+            class="code-pre"><code><span class="text-db-accent">export default</span> <span class="text-db-amber">defineNuxtConfig</span><span class="text-db-text">(&#123;</span>
+  <span class="text-db-text">modules:</span> <span class="text-db-text">[</span><span class="text-db-green">'@design-bridge/nuxt'</span><span class="text-db-text">]</span>
+<span class="text-db-text">&#125;)</span></code></pre>
+        </div>
+      </wa-tab-panel>
+
+      <wa-tab-panel name="astro">
+        <div class="code-block">
+          <div class="code-block-header">
+            <span class="code-block-filename">astro.config.mjs</span>
+          </div>
+          <pre
+            class="code-pre"><code><span class="text-db-accent">import</span> <span class="text-db-text">&#123; defineConfig &#125;</span> <span class="text-db-accent">from</span> <span class="text-db-green">'astro/config'</span>
+<span class="text-db-accent">import</span> <span class="text-db-text">designBridge</span> <span class="text-db-accent">from</span> <span class="text-db-green">'@design-bridge/astro'</span>
+
+<span class="text-db-accent">export default</span> <span class="text-db-amber">defineConfig</span><span class="text-db-text">(&#123;</span>
+  <span class="text-db-text">integrations:</span> <span class="text-db-text">[</span><span class="text-db-amber">designBridge</span><span class="text-db-text">()]</span>
+<span class="text-db-text">&#125;)</span></code></pre>
+        </div>
+      </wa-tab-panel>
+
+      <wa-tab-panel name="webpack">
+        <div class="code-block">
+          <div class="code-block-header">
+            <span class="code-block-filename">webpack.config.mjs</span>
+          </div>
+          <pre
+            class="code-pre"><code><span class="text-db-accent">import</span> <span class="text-db-text">&#123; designBridge &#125;</span> <span class="text-db-accent">from</span> <span class="text-db-green">'@design-bridge/unplugin'</span>
+
+<span class="text-db-accent">export default</span> <span class="text-db-text">&#123;</span>
+  <span class="text-db-text">plugins:</span> <span class="text-db-text">[</span><span class="text-db-amber">designBridge</span><span class="text-db-text">.</span><span class="text-db-amber">webpack</span><span class="text-db-text">()]</span>
+<span class="text-db-text">&#125;</span></code></pre>
+        </div>
+      </wa-tab-panel>
+    </wa-tab-group>
 
     <p class="mb-3 text-sm text-db-muted">
-      Run <code
-        class="rounded border border-db-border bg-db-surface px-2 py-0.5 text-[13px] text-db-text"
-        >vite dev</code
-      >
-      — the panel appears in your browser. Done.
-    </p>
-    <p class="text-[12px] text-db-ghost">
-      More integrations coming: Next.js, Nuxt, SvelteKit
+      Run your dev server — the panel appears in your browser. Done.
     </p>
   </div>
 </section>

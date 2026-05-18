@@ -75,18 +75,18 @@ export function designBridge(options: DesignBridgeOptions = {}): AstroIntegratio
         injectScript(
           'head-inline',
           `(function(){` +
-          `new MutationObserver(function(ms){` +
-          `ms.forEach(function(m){` +
-          `if(m.oldValue===null)return;` +
-          `m.target.setAttribute(m.attributeName,m.oldValue);` +
-          `});` +
-          `}).observe(document.documentElement,{` +
-          `subtree:true,` +
-          `attributes:true,` +
-          `attributeFilter:['data-astro-source-file','data-astro-source-loc'],` +
-          `attributeOldValue:true` +
-          `});` +
-          `})();`,
+            `new MutationObserver(function(ms){` +
+            `ms.forEach(function(m){` +
+            `if(m.oldValue===null)return;` +
+            `m.target.setAttribute(m.attributeName,m.oldValue);` +
+            `});` +
+            `}).observe(document.documentElement,{` +
+            `subtree:true,` +
+            `attributes:true,` +
+            `attributeFilter:['data-astro-source-file','data-astro-source-loc'],` +
+            `attributeOldValue:true` +
+            `});` +
+            `})();`,
         );
 
         // Inject the WS URL global + a runtime script loader for the client bundle.
@@ -97,9 +97,9 @@ export function designBridge(options: DesignBridgeOptions = {}): AstroIntegratio
         injectScript(
           'head-inline',
           `window.__DB_WS_URL__=${JSON.stringify(wsUrl)};` +
-          `(function(){var s=document.createElement('script');` +
-          `s.src='/__design-bridge/client.js?t='+Date.now();` +
-          `document.head.appendChild(s);})();`,
+            `(function(){var s=document.createElement('script');` +
+            `s.src='/__design-bridge/client.js?t='+Date.now();` +
+            `document.head.appendChild(s);})();`,
         );
       },
     },

@@ -27,20 +27,19 @@ const ANNOTATION_ITEM_LOCAL_STYLES = css`
   }
 
   /* ── Badge ─────────────────────────────── */
-  wa-badge {
+  wa-button.badge {
     pointer-events: auto;
     cursor: pointer;
     user-select: none;
     transition: transform 0.1s;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
   }
-  wa-badge:hover {
+  wa-button.badge:hover {
     transform: scale(1.25);
   }
-  wa-badge.resolved {
+  wa-button.badge.resolved {
     opacity: 0.55;
   }
-  wa-badge.draft {
+  wa-button.badge.draft {
     opacity: 0.75;
   }
 

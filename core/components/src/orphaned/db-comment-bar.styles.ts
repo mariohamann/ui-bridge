@@ -34,7 +34,7 @@ export const dbCommentBarStyles = [
 
     /* ── Collapsed: all badges stack ──────────────────── */
     db-comment {
-      margin-top: -10px;
+      margin-top: -18px;
       transition:
         margin-top 0.2s ease,
         opacity 0.2s ease,
@@ -72,7 +72,7 @@ export const dbCommentBarStyles = [
 
     /* ── Hovered: fan out, show all ──────────────────── */
     .bar:hover db-comment {
-      margin-top: 4px;
+      margin-top: 8px;
       opacity: 1;
       transform: scale(1);
       pointer-events: auto;
