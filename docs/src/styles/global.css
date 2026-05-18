@@ -1,168 +1,155 @@
 @import 'tailwindcss';
+@import '@awesome.me/webawesome/dist/styles/webawesome.css';
 
 @theme {
-  --color-db-bg: #0a0a0f;
-  --color-db-deep: #07070d;
-  --color-db-surface: #13131a;
-  --color-db-raised: #141420;
-  --color-db-inset: #0e0e1a;
-  --color-db-border: #1e1e2e;
-  --color-db-card: #2a2a3e;
-  --color-db-text: #e2e2f0;
-  --color-db-dim: #a0a0b8;
-  --color-db-muted: #6b6b80;
-  --color-db-subtle: #3d3d60;
-  --color-db-ghost: #3d3d50;
-  --color-db-accent: #7c6dfa;
-  --color-db-green: #4ade80;
-  --color-db-amber: #fbbf24;
+  /* #region Colors ~~~~~~~~~~~~~~~~~~~~~~~~~~~ */
 
-  --font-family-sans: 'Inter', system-ui, sans-serif;
-  --font-family-mono: 'JetBrains Mono', 'Fira Code', monospace;
-}
+  /* Surface */
+  --color-wa-surface-raised: var(--wa-color-surface-raised);
+  --color-wa-surface-default: var(--wa-color-surface-default);
+  --color-wa-surface-lowered: var(--wa-color-surface-lowered);
+  --color-wa-surface-border: var(--wa-color-surface-border);
 
-/* ── Reset ────────────────────────────────────────────────────────────────── */
-html {
-  scroll-behavior: smooth;
-}
-body {
-  background: var(--color-db-bg);
-  color: var(--color-db-text);
-  font-family: var(--font-family-sans);
-  overflow-x: hidden;
-  margin: 0;
-}
-code,
-pre,
-.mono {
-  font-family: var(--font-family-mono);
-}
+  /* Text */
+  --color-wa-text-normal: var(--wa-color-text-normal);
+  --color-wa-text-quiet: var(--wa-color-text-quiet);
+  --color-wa-text-link: var(--wa-color-text-link);
 
-/* ── Reusable component classes ───────────────────────────────────────────── */
-@layer components {
-  /* Browser chrome */
-  .browser-frame {
-    @apply bg-db-surface border border-db-border rounded-xl overflow-hidden;
-    box-shadow: 0 32px 80px rgba(0, 0, 0, 0.6);
-  }
-  .browser-bar {
-    @apply bg-db-raised border-b border-db-border px-3.5 py-2.5 flex items-center gap-2.5;
-  }
-  .browser-dot {
-    @apply w-2.5 h-2.5 rounded-full bg-db-border;
-  }
-  .browser-dot-red {
-    background: #ff5f57;
-  }
-  .browser-dot-amber {
-    background: #febc2e;
-  }
-  .browser-dot-green {
-    background: #28c840;
-  }
-  .browser-url {
-    @apply flex-1 bg-db-inset border border-db-border rounded px-2.5 py-1
-           text-[11px] text-db-muted font-mono;
-  }
+  /* Overlays */
+  --color-wa-overlay-modal: var(--wa-color-overlay-modal);
+  --color-wa-overlay-inline: var(--wa-color-overlay-inline);
 
-  /* DB panel mock */
-  .db-panel-mock {
-    @apply absolute bottom-4 right-4 w-[220px] bg-db-surface border border-db-border rounded-xl overflow-hidden z-10;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.7);
-  }
-  .db-panel-header {
-    @apply bg-db-inset border-b border-db-border px-2.5 py-[7px]
-           flex items-center gap-1.5 text-[10px] font-semibold tracking-widest text-db-muted uppercase;
-  }
-  .db-panel-dot {
-    @apply w-1.5 h-1.5 rounded-full bg-db-accent flex-shrink-0;
-    box-shadow: 0 0 6px var(--color-db-accent);
-  }
-  .db-panel-item {
-    @apply bg-db-inset border border-db-border rounded-md px-2 py-1.5 text-[10px] text-db-dim;
-  }
+  /* Focus */
+  --color-wa-focus: var(--wa-color-focus);
 
-  /* Knob panel */
-  .knob-panel {
-    @apply w-[184px] bg-db-surface border border-db-border rounded-xl overflow-hidden;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.8);
-  }
-  .knob-panel-header {
-    @apply bg-db-inset border-b border-db-border px-2.5 py-[7px]
-           flex items-center gap-1.5 text-[9px] font-semibold tracking-widest text-db-muted uppercase;
-  }
-  .knob-label {
-    @apply text-[9px] text-db-muted;
-  }
-  .knob-value {
-    @apply text-[9px] text-db-accent font-mono;
-  }
-  .knob-input-base {
-    @apply w-full bg-db-inset border border-db-border rounded px-1.5 py-0.5
-           text-[10px] text-db-text font-mono;
-  }
+  /* Brand */
+  --color-wa-brand-fill-quiet: var(--wa-color-brand-fill-quiet);
+  --color-wa-brand-fill-normal: var(--wa-color-brand-fill-normal);
+  --color-wa-brand-fill-loud: var(--wa-color-brand-fill-loud);
+  --color-wa-brand-border-quiet: var(--wa-color-brand-border-quiet);
+  --color-wa-brand-border-normal: var(--wa-color-brand-border-normal);
+  --color-wa-brand-border-loud: var(--wa-color-brand-border-loud);
+  --color-wa-brand-on-quiet: var(--wa-color-brand-on-quiet);
+  --color-wa-brand-on-normal: var(--wa-color-brand-on-normal);
+  --color-wa-brand-on-loud: var(--wa-color-brand-on-loud);
 
-  /* Check list item */
-  .check-item {
-    @apply flex items-center gap-3 text-[13px] text-db-muted;
-  }
-  .check-icon {
-    @apply w-[18px] h-[18px] rounded-full flex items-center justify-center
-           flex-shrink-0 text-[9px] text-db-accent;
-    background: rgba(124, 109, 250, 0.13);
-    border: 1px solid rgba(124, 109, 250, 0.27);
-  }
+  /* Success */
+  --color-wa-success-fill-quiet: var(--wa-color-success-fill-quiet);
+  --color-wa-success-fill-normal: var(--wa-color-success-fill-normal);
+  --color-wa-success-fill-loud: var(--wa-color-success-fill-loud);
+  --color-wa-success-border-quiet: var(--wa-color-success-border-quiet);
+  --color-wa-success-border-normal: var(--wa-color-success-border-normal);
+  --color-wa-success-border-loud: var(--wa-color-success-border-loud);
+  --color-wa-success-on-quiet: var(--wa-color-success-on-quiet);
+  --color-wa-success-on-normal: var(--wa-color-success-on-normal);
+  --color-wa-success-on-loud: var(--wa-color-success-on-loud);
 
-  /* Loop diagram */
-  .loop-node {
-    opacity: 0.25;
-  }
-  .loop-line {
-    stroke-opacity: 0.2;
-  }
+  /* Warning */
+  --color-wa-warning-fill-quiet: var(--wa-color-warning-fill-quiet);
+  --color-wa-warning-fill-normal: var(--wa-color-warning-fill-normal);
+  --color-wa-warning-fill-loud: var(--wa-color-warning-fill-loud);
+  --color-wa-warning-border-quiet: var(--wa-color-warning-border-quiet);
+  --color-wa-warning-border-normal: var(--wa-color-warning-border-normal);
+  --color-wa-warning-border-loud: var(--wa-color-warning-border-loud);
+  --color-wa-warning-on-quiet: var(--wa-color-warning-on-quiet);
+  --color-wa-warning-on-normal: var(--wa-color-warning-on-normal);
+  --color-wa-warning-on-loud: var(--wa-color-warning-on-loud);
 
-  /* Section label */
-  .section-label {
-    @apply text-[11px] tracking-widest uppercase mb-5;
-  }
-  .section-label-accent {
-    @apply text-db-accent;
-  }
-  .section-label-amber {
-    @apply text-db-amber;
-  }
+  /* Danger */
+  --color-wa-danger-fill-quiet: var(--wa-color-danger-fill-quiet);
+  --color-wa-danger-fill-normal: var(--wa-color-danger-fill-normal);
+  --color-wa-danger-fill-loud: var(--wa-color-danger-fill-loud);
+  --color-wa-danger-border-quiet: var(--wa-color-danger-border-quiet);
+  --color-wa-danger-border-normal: var(--wa-color-danger-border-normal);
+  --color-wa-danger-border-loud: var(--wa-color-danger-border-loud);
+  --color-wa-danger-on-quiet: var(--wa-color-danger-on-quiet);
+  --color-wa-danger-on-normal: var(--wa-color-danger-on-normal);
+  --color-wa-danger-on-loud: var(--wa-color-danger-on-loud);
 
-  /* Code block */
-  .code-block {
-    @apply bg-db-bg border border-db-border rounded-xl overflow-hidden;
-  }
-  .code-block-header {
-    @apply bg-db-surface border-b border-db-border px-4 py-2.5;
-  }
-  .code-block-filename {
-    @apply text-[11px] text-db-muted font-mono;
-  }
-  .code-pre {
-    @apply m-0 px-6 py-5 text-[13px] leading-[1.8] overflow-x-auto;
-  }
+  /* Neutral */
+  --color-wa-neutral-fill-quiet: var(--wa-color-neutral-fill-quiet);
+  --color-wa-neutral-fill-normal: var(--wa-color-neutral-fill-normal);
+  --color-wa-neutral-fill-loud: var(--wa-color-neutral-fill-loud);
+  --color-wa-neutral-border-quiet: var(--wa-color-neutral-border-quiet);
+  --color-wa-neutral-border-normal: var(--wa-color-neutral-border-normal);
+  --color-wa-neutral-border-loud: var(--wa-color-neutral-border-loud);
+  --color-wa-neutral-on-quiet: var(--wa-color-neutral-on-quiet);
+  --color-wa-neutral-on-normal: var(--wa-color-neutral-on-normal);
+  --color-wa-neutral-on-loud: var(--wa-color-neutral-on-loud);
 
-  /* Pill badge */
-  .pill {
-    @apply inline-flex items-center gap-2 bg-db-surface border border-db-border
-           rounded-full px-3.5 py-1.5 text-[12px] text-db-accent tracking-widest;
-  }
-  .pill-dot {
-    @apply w-1.5 h-1.5 rounded-full bg-db-accent;
-    box-shadow: 0 0 8px var(--color-db-accent);
-  }
+  /* Shadow color (used by shadow composites below) */
+  --color-wa-shadow: var(--wa-color-shadow);
 
-  /* Buttons */
-  .btn-primary {
-    @apply bg-db-accent text-white px-7 py-3 rounded-lg font-medium text-[15px]
-           no-underline transition-opacity hover:opacity-90;
-  }
-  .btn-ghost {
-    @apply bg-db-surface text-db-text px-7 py-3 rounded-lg font-medium text-[15px]
-           no-underline border border-db-border transition-opacity hover:opacity-80;
-  }
+  /* #endregion */
+
+  /* #region Font Families ~~~~~~~~~~~~~~~~~~~~ */
+  --font-wa-body: var(--wa-font-family-body);
+  --font-wa-heading: var(--wa-font-family-heading);
+  --font-wa-code: var(--wa-font-family-code);
+  --font-wa-longform: var(--wa-font-family-longform);
+  /* #endregion */
+
+  /* #region Font Sizes ~~~~~~~~~~~~~~~~~~~~~~~ */
+  --text-wa-3xs: var(--wa-font-size-3xs);
+  --text-wa-2xs: var(--wa-font-size-2xs);
+  --text-wa-xs: var(--wa-font-size-xs);
+  --text-wa-s: var(--wa-font-size-s);
+  --text-wa-m: var(--wa-font-size-m);
+  --text-wa-l: var(--wa-font-size-l);
+  --text-wa-xl: var(--wa-font-size-xl);
+  --text-wa-2xl: var(--wa-font-size-2xl);
+  --text-wa-3xl: var(--wa-font-size-3xl);
+  --text-wa-4xl: var(--wa-font-size-4xl);
+  --text-wa-5xl: var(--wa-font-size-5xl);
+  /* #endregion */
+
+  /* #region Font Weights ~~~~~~~~~~~~~~~~~~~~~ */
+  --font-weight-wa-light: var(--wa-font-weight-light);
+  --font-weight-wa-normal: var(--wa-font-weight-normal);
+  --font-weight-wa-semibold: var(--wa-font-weight-semibold);
+  --font-weight-wa-bold: var(--wa-font-weight-bold);
+  /* #endregion */
+
+  /* #region Line Heights ~~~~~~~~~~~~~~~~~~~~~ */
+  --leading-wa-condensed: var(--wa-line-height-condensed);
+  --leading-wa-normal: var(--wa-line-height-normal);
+  --leading-wa-expanded: var(--wa-line-height-expanded);
+  /* #endregion */
+
+  /* #region Spacing ~~~~~~~~~~~~~~~~~~~~~~~~~~ */
+  --spacing-wa-3xs: var(--wa-space-3xs);
+  --spacing-wa-2xs: var(--wa-space-2xs);
+  --spacing-wa-xs: var(--wa-space-xs);
+  --spacing-wa-s: var(--wa-space-s);
+  --spacing-wa-m: var(--wa-space-m);
+  --spacing-wa-l: var(--wa-space-l);
+  --spacing-wa-xl: var(--wa-space-xl);
+  --spacing-wa-2xl: var(--wa-space-2xl);
+  --spacing-wa-3xl: var(--wa-space-3xl);
+  --spacing-wa-4xl: var(--wa-space-4xl);
+  --spacing-wa-5xl: var(--wa-space-5xl);
+  /* #endregion */
+
+  /* #region Border Radius ~~~~~~~~~~~~~~~~~~~~ */
+  --radius-wa-s: var(--wa-border-radius-s);
+  --radius-wa-m: var(--wa-border-radius-m);
+  --radius-wa-l: var(--wa-border-radius-l);
+  --radius-wa-pill: var(--wa-border-radius-pill);
+  --radius-wa-circle: var(--wa-border-radius-circle);
+  --radius-wa-square: var(--wa-border-radius-square);
+  /* #endregion */
+
+  /* #region Shadows ~~~~~~~~~~~~~~~~~~~~~~~~~~ */
+  --shadow-wa-s: var(--wa-shadow-s);
+  --shadow-wa-m: var(--wa-shadow-m);
+  --shadow-wa-l: var(--wa-shadow-l);
+  /* #endregion */
+
+  /* #region Transitions ~~~~~~~~~~~~~~~~~~~~~~ */
+  --ease-wa: var(--wa-transition-easing);
+
+  --duration-wa-slow: var(--wa-transition-slow);
+  --duration-wa-normal: var(--wa-transition-normal);
+  --duration-wa-fast: var(--wa-transition-fast);
+  /* #endregion */
 }

@@ -72,6 +72,9 @@ onIntent((intent) => {
         payload: { commentId: intent.commentId, marker: intent.marker },
       });
       break;
+    case 'comment:read':
+      sendMessage({ type: 'comment:read', payload: { id: intent.id } });
+      break;
     // comment:delete / clear are handled locally by inspector.ts which also
     // calls sendMessage. Panel dispatches these through the comment store.
     default:

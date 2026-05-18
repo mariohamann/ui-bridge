@@ -140,6 +140,14 @@ describe('comments store', () => {
     assert.equal(stored.replies[0].author, 'user');
     assert.equal(stored.replies[1].author, 'agent');
   });
+  test('preserves lastReadAt field on thread meta', () => {
+    const now = Date.now();
+    const comment = makeComment('read-test', { lastReadAt: now });
+    updateComments([comment]);
+    const stored = commentsSignal.get()[0];
+    assert.equal(stored.lastReadAt, now);
+  });
+
 });
 
 // ── intent bus ────────────────────────────────────────────────────────────────
@@ -202,6 +210,7 @@ describe('intent bus', () => {
       { type: 'comment:delete', id: 'ann1' },
       { type: 'comment:clear' },
       { type: 'comment:open', id: 'ann1' },
+      { type: 'comment:read', id: 'ann1' },
       { type: 'panel:set-tab', tab: 'comments' },
       { type: 'panel:set-collapsed', collapsed: true },
     ];

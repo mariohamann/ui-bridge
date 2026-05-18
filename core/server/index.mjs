@@ -232,6 +232,15 @@ wss.on('connection', (ws) => {
       case 'comment:focus':
         broadcast({ type: 'comment:focus', payload: msg.payload });
         break;
+
+      case 'comment:read': {
+        const thread = store.get(msg.payload.id);
+        if (thread) {
+          store.upsert({ ...thread, meta: { ...thread.meta, lastReadAt: Date.now() } });
+          broadcast({ type: 'comments:sync', payload: store.all() });
+        }
+        break;
+      }
     }
   });
 });

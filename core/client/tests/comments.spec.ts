@@ -1582,3 +1582,130 @@ test.describe('Edit and delete own comments', () => {
     await expect(panel.locator('.comment-text')).toHaveCount(1);
   });
 });
+
+// ─── Unread badge (brand/neutral variant) ────────────────────────────────────
+
+test.describe('Unread agent reply indicator', () => {
+  test('badge is brand variant when there is an unread agent reply', async ({ page }) => {
+    const now = Date.now();
+    await injectComment(page, {
+      id: 'test-unread-brand',
+      replies: [
+        { id: 'r1', type: 'comment', text: 'User comment', createdAt: now, author: 'user' },
+        { id: 'r2', type: 'comment', text: 'Agent reply', createdAt: now + 1, author: 'agent' },
+      ],
+      // lastReadAt not set → unread
+    });
+    await page.reload();
+    await expect(page.locator('#db-items db-comment wa-button.badge[variant="brand"]')).toBeVisible();
+  });
+
+  test('badge is neutral variant when all agent replies have been read', async ({ page }) => {
+    const now = Date.now();
+    await injectComment(page, {
+      id: 'test-read-neutral',
+      replies: [
+        { id: 'r1', type: 'comment', text: 'User comment', createdAt: now, author: 'user' },
+        { id: 'r2', type: 'comment', text: 'Agent reply', createdAt: now + 1, author: 'agent' },
+      ],
+    });
+    // Set lastReadAt to after the agent reply
+    await page.request.post(`${API_BASE}/comments/test-read-neutral/read`).catch(() => {});
+    // Directly patch via upsert with lastReadAt already set
+    const existing = await (await page.request.get(`${API_BASE}/comments/test-read-neutral`)).json() as Record<string, unknown>;
+    const patched = { ...existing, meta: { ...(existing.meta as Record<string, unknown>), lastReadAt: now + 10 } };
+    await page.request.post(`${API_BASE}/comments`, { data: patched });
+
+    await page.reload();
+    await expect(page.locator('#db-items db-comment wa-button.badge[variant="neutral"]')).toBeVisible();
+  });
+
+  test('badge is neutral variant when thread has no agent replies', async ({ page }) => {
+    const now = Date.now();
+    await injectComment(page, {
+      id: 'test-no-agent-neutral',
+      replies: [
+        { id: 'r1', type: 'comment', text: 'User comment', createdAt: now, author: 'user' },
+      ],
+    });
+    await page.reload();
+    await expect(page.locator('#db-items db-comment wa-button.badge[variant="neutral"]')).toBeVisible();
+  });
+
+  test('opening the panel marks the comment as read and switches badge to neutral', async ({ page }) => {
+    const now = Date.now();
+    await injectComment(page, {
+      id: 'test-mark-read-on-open',
+      replies: [
+        { id: 'r1', type: 'comment', text: 'User comment', createdAt: now, author: 'user' },
+        { id: 'r2', type: 'comment', text: 'Agent reply', createdAt: now + 1, author: 'agent' },
+      ],
+    });
+    await page.reload();
+
+    // Initially brand (unread)
+    await expect(page.locator('#db-items db-comment wa-button.badge[variant="brand"]')).toBeVisible();
+
+    // Open the panel — should trigger comment:read
+    await openCommentPanel(page);
+    await expect(commentPanel(page)).toBeVisible();
+
+    // After WS round-trip, badge should become neutral
+    await expect(page.locator('#db-items db-comment wa-button.badge[variant="neutral"]')).toBeVisible();
+
+    // Verify lastReadAt was persisted to the server
+    const res = await page.request.get(`${API_BASE}/comments/test-mark-read-on-open`);
+    const body = (await res.json()) as { meta: { lastReadAt?: number } };
+    expect(typeof body.meta.lastReadAt).toBe('number');
+  });
+
+  test('opening the panel scrolls to the first unread agent reply', async ({ page }) => {
+    const now = Date.now();
+    const lastReadAt = now + 5;
+
+    // Build a thread: 10 old replies (read), then 1 unread agent reply
+    const replies: unknown[] = [];
+    for (let i = 1; i <= 10; i++) {
+      replies.push({
+        id: `r${i}`,
+        type: 'comment',
+        text: `Reply number ${i} — some padding text to take vertical space in the panel`,
+        createdAt: now + i,
+        author: i % 2 === 0 ? 'agent' : 'user',
+      });
+    }
+    // Unread agent reply comes after lastReadAt
+    replies.push({
+      id: 'r-unread',
+      type: 'comment',
+      text: 'This is the first unread agent reply',
+      createdAt: lastReadAt + 1,
+      author: 'agent',
+    });
+
+    const id = 'test-scroll-unread';
+    const thread = {
+      meta: {
+        id,
+        pageUrl: 'http://localhost:5173/',
+        timestamp: now,
+        createdAt: now,
+        lastReadAt,
+      },
+      elements: [{ minimalSelector: 'h1', tag: 'h1', classes: [] }],
+      comments: replies,
+    };
+    const res = await page.request.post(`${API_BASE}/comments`, { data: thread });
+    expect(res.status()).toBe(200);
+
+    await page.reload();
+    await openCommentPanel(page);
+
+    const panel = commentPanel(page);
+    await expect(panel).toBeVisible();
+
+    // The unread reply row should be visible (scrolled into view)
+    const unreadRow = panel.locator(`[data-entry-id="r-unread"]`);
+    await expect(unreadRow).toBeVisible();
+  });
+});

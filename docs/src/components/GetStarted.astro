@@ -1,53 +1,84 @@
 ---
+import { Code } from 'astro:components';
 
+const installUnplugin = `# pnpm
+pnpm add -D @design-bridge/unplugin
+# npm
+npm install --save-dev @design-bridge/unplugin
+# yarn
+yarn add -D @design-bridge/unplugin`;
+
+const installNext = `# pnpm
+pnpm add -D @design-bridge/next
+# npm
+npm install --save-dev @design-bridge/next
+# yarn
+yarn add -D @design-bridge/next`;
+
+const installNuxt = `# pnpm
+pnpm add -D @design-bridge/nuxt
+# npm
+npm install --save-dev @design-bridge/nuxt
+# yarn
+yarn add -D @design-bridge/nuxt`;
+
+const installAstro = `# pnpm
+pnpm add -D @design-bridge/astro
+# npm
+npm install --save-dev @design-bridge/astro
+# yarn
+yarn add -D @design-bridge/astro`;
+
+const configVite = `import { defineConfig } from 'vite'
+import { designBridge } from '@design-bridge/unplugin'
+
+export default defineConfig({
+  plugins: [designBridge.vite()]
+})`;
+
+const configNext = `import { withDesignBridge } from '@design-bridge/next'
+
+export default withDesignBridge({
+  // your Next.js config
+})`;
+
+const configNuxt = `export default defineNuxtConfig({
+  modules: ['@design-bridge/nuxt']
+})`;
+
+const configAstro = `import { defineConfig } from 'astro/config'
+import designBridge from '@design-bridge/astro'
+
+export default defineConfig({
+  integrations: [designBridge()]
+})`;
+
+const configWebpack = `import { designBridge } from '@design-bridge/unplugin'
+
+export default {
+  plugins: [designBridge.webpack()]
+}`;
 ---
+
+<script>
+  import '@awesome.me/webawesome/dist/components/tab/tab.js';
+  import '@awesome.me/webawesome/dist/components/tab-group/tab-group.js';
+</script>
 
 <section id="get-started" class="border-t border-db-border bg-db-surface px-6 py-20">
   <div class="mx-auto max-w-[640px]">
     <p class="section-label section-label-accent">Setup</p>
 
-    <h2 class="mb-4 text-[clamp(28px,4vw,40px)] font-semibold leading-tight tracking-tight">
+    <h2>
       Add it to your project.<br />That's it.
     </h2>
 
-    <p class="mb-9 leading-7 text-db-muted">
+    <p>
       Design Bridge runs alongside your dev server. The panel appears automatically in the browser.
       No build step changes. No extra config.
     </p>
 
-    <h3 class="mb-3 text-sm font-semibold uppercase tracking-widest text-db-ghost">1. Install</h3>
-
     <wa-tab-group class="mb-9">
-      <wa-tab panel="pnpm">pnpm</wa-tab>
-      <wa-tab panel="npm">npm</wa-tab>
-      <wa-tab panel="yarn">yarn</wa-tab>
-
-      <wa-tab-panel name="pnpm">
-        <div class="code-block">
-          <div class="code-block-header"><span class="code-block-filename">terminal</span></div>
-          <pre
-            class="code-pre"><code><span class="text-db-green">pnpm add</span> <span class="text-db-text">-D @design-bridge/unplugin</span></code></pre>
-        </div>
-      </wa-tab-panel>
-      <wa-tab-panel name="npm">
-        <div class="code-block">
-          <div class="code-block-header"><span class="code-block-filename">terminal</span></div>
-          <pre
-            class="code-pre"><code><span class="text-db-green">npm install</span> <span class="text-db-text">--save-dev @design-bridge/unplugin</span></code></pre>
-        </div>
-      </wa-tab-panel>
-      <wa-tab-panel name="yarn">
-        <div class="code-block">
-          <div class="code-block-header"><span class="code-block-filename">terminal</span></div>
-          <pre
-            class="code-pre"><code><span class="text-db-green">yarn add</span> <span class="text-db-text">-D @design-bridge/unplugin</span></code></pre>
-        </div>
-      </wa-tab-panel>
-    </wa-tab-group>
-
-    <h3 class="mb-3 text-sm font-semibold uppercase tracking-widest text-db-ghost">2. Configure</h3>
-
-    <wa-tab-group class="mb-7">
       <wa-tab panel="vite">Vite</wa-tab>
       <wa-tab panel="next">Next.js</wa-tab>
       <wa-tab panel="nuxt">Nuxt</wa-tab>
@@ -55,72 +86,57 @@
       <wa-tab panel="webpack">webpack</wa-tab>
 
       <wa-tab-panel name="vite">
+        <div class="code-block mb-3">
+          <div class="code-block-header"><span class="code-block-filename">terminal</span></div>
+          <Code code={installUnplugin} lang="sh" theme="github-dark" />
+        </div>
         <div class="code-block">
-          <div class="code-block-header">
-            <span class="code-block-filename">vite.config.ts</span>
-          </div>
-          <pre
-            class="code-pre"><code><span class="text-db-accent">import</span> <span class="text-db-text">&#123; defineConfig &#125;</span> <span class="text-db-accent">from</span> <span class="text-db-green">'vite'</span>
-<span class="text-db-accent">import</span> <span class="text-db-text">&#123; designBridge &#125;</span> <span class="text-db-accent">from</span> <span class="text-db-green">'@design-bridge/unplugin'</span>
-
-<span class="text-db-accent">export default</span> <span class="text-db-amber">defineConfig</span><span class="text-db-text">(&#123;</span>
-  <span class="text-db-text">plugins:</span> <span class="text-db-text">[</span><span class="text-db-amber">designBridge</span><span class="text-db-text">.</span><span class="text-db-amber">vite</span><span class="text-db-text">()]</span>
-<span class="text-db-text">&#125;)</span></code></pre>
+          <div class="code-block-header"><span class="code-block-filename">vite.config.ts</span></div>
+          <Code code={configVite} lang="ts" theme="github-dark" />
         </div>
       </wa-tab-panel>
 
       <wa-tab-panel name="next">
+        <div class="code-block mb-3">
+          <div class="code-block-header"><span class="code-block-filename">terminal</span></div>
+          <Code code={installNext} lang="sh" theme="github-dark" />
+        </div>
         <div class="code-block">
-          <div class="code-block-header">
-            <span class="code-block-filename">next.config.mjs</span>
-          </div>
-          <pre
-            class="code-pre"><code><span class="text-db-accent">import</span> <span class="text-db-text">&#123; withDesignBridge &#125;</span> <span class="text-db-accent">from</span> <span class="text-db-green">'@design-bridge/next'</span>
-
-<span class="text-db-accent">export default</span> <span class="text-db-amber">withDesignBridge</span><span class="text-db-text">(&#123;</span>
-  <span class="text-db-comment">// your Next.js config</span>
-<span class="text-db-text">&#125;)</span></code></pre>
+          <div class="code-block-header"><span class="code-block-filename">next.config.mjs</span></div>
+          <Code code={configNext} lang="js" theme="github-dark" />
         </div>
       </wa-tab-panel>
 
       <wa-tab-panel name="nuxt">
+        <div class="code-block mb-3">
+          <div class="code-block-header"><span class="code-block-filename">terminal</span></div>
+          <Code code={installNuxt} lang="sh" theme="github-dark" />
+        </div>
         <div class="code-block">
-          <div class="code-block-header">
-            <span class="code-block-filename">nuxt.config.ts</span>
-          </div>
-          <pre
-            class="code-pre"><code><span class="text-db-accent">export default</span> <span class="text-db-amber">defineNuxtConfig</span><span class="text-db-text">(&#123;</span>
-  <span class="text-db-text">modules:</span> <span class="text-db-text">[</span><span class="text-db-green">'@design-bridge/nuxt'</span><span class="text-db-text">]</span>
-<span class="text-db-text">&#125;)</span></code></pre>
+          <div class="code-block-header"><span class="code-block-filename">nuxt.config.ts</span></div>
+          <Code code={configNuxt} lang="ts" theme="github-dark" />
         </div>
       </wa-tab-panel>
 
       <wa-tab-panel name="astro">
+        <div class="code-block mb-3">
+          <div class="code-block-header"><span class="code-block-filename">terminal</span></div>
+          <Code code={installAstro} lang="sh" theme="github-dark" />
+        </div>
         <div class="code-block">
-          <div class="code-block-header">
-            <span class="code-block-filename">astro.config.mjs</span>
-          </div>
-          <pre
-            class="code-pre"><code><span class="text-db-accent">import</span> <span class="text-db-text">&#123; defineConfig &#125;</span> <span class="text-db-accent">from</span> <span class="text-db-green">'astro/config'</span>
-<span class="text-db-accent">import</span> <span class="text-db-text">designBridge</span> <span class="text-db-accent">from</span> <span class="text-db-green">'@design-bridge/astro'</span>
-
-<span class="text-db-accent">export default</span> <span class="text-db-amber">defineConfig</span><span class="text-db-text">(&#123;</span>
-  <span class="text-db-text">integrations:</span> <span class="text-db-text">[</span><span class="text-db-amber">designBridge</span><span class="text-db-text">()]</span>
-<span class="text-db-text">&#125;)</span></code></pre>
+          <div class="code-block-header"><span class="code-block-filename">astro.config.mjs</span></div>
+          <Code code={configAstro} lang="js" theme="github-dark" />
         </div>
       </wa-tab-panel>
 
       <wa-tab-panel name="webpack">
+        <div class="code-block mb-3">
+          <div class="code-block-header"><span class="code-block-filename">terminal</span></div>
+          <Code code={installUnplugin} lang="sh" theme="github-dark" />
+        </div>
         <div class="code-block">
-          <div class="code-block-header">
-            <span class="code-block-filename">webpack.config.mjs</span>
-          </div>
-          <pre
-            class="code-pre"><code><span class="text-db-accent">import</span> <span class="text-db-text">&#123; designBridge &#125;</span> <span class="text-db-accent">from</span> <span class="text-db-green">'@design-bridge/unplugin'</span>
-
-<span class="text-db-accent">export default</span> <span class="text-db-text">&#123;</span>
-  <span class="text-db-text">plugins:</span> <span class="text-db-text">[</span><span class="text-db-amber">designBridge</span><span class="text-db-text">.</span><span class="text-db-amber">webpack</span><span class="text-db-text">()]</span>
-<span class="text-db-text">&#125;</span></code></pre>
+          <div class="code-block-header"><span class="code-block-filename">webpack.config.mjs</span></div>
+          <Code code={configWebpack} lang="js" theme="github-dark" />
         </div>
       </wa-tab-panel>
     </wa-tab-group>

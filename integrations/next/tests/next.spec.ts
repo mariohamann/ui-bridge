@@ -89,7 +89,7 @@ test.describe('comment round-trip', () => {
 
     const res = await page.request.get(`${API_BASE}/comments`);
     const body = (await res.json()) as {
-      comments: { meta: { id: string }; comments?: { text: string }[] }[];
+      comments: { meta: { id: string; }; comments?: { text: string; }[]; }[];
     };
     expect(
       body.comments.some((a) => a.comments?.[0]?.text === 'next integration check'),

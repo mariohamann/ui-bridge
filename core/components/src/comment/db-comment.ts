@@ -139,12 +139,41 @@ export class DbComment extends LitElement {
     return this._draft.trim().length > 0 || this._replyDraft.trim().length > 0;
   }
 
+  /** Returns true if the thread has an agent reply not yet read by the user. */
+  private _hasUnread(): boolean {
+    const thread = this.comment;
+    if (!thread) return false;
+    const lastReadAt = thread.meta.lastReadAt ?? 0;
+    return thread.comments.some((e) => e.author === 'agent' && e.createdAt > lastReadAt);
+  }
+
   /** Open the panel (called from inspector). */
   openPanel(): void {
     this._open = true;
     this._wobbling = false;
     this._repositionBadge();
     this._focusTextarea();
+    if (this.comment) {
+      dispatchIntent({ type: 'comment:read', id: this.comment.meta.id });
+      this._scrollToFirstUnread();
+    }
+  }
+
+  /** Scroll the panel to the first unread agent reply after render. */
+  private _scrollToFirstUnread(): void {
+    const thread = this.comment;
+    if (!thread) return;
+    const lastReadAt = thread.meta.lastReadAt ?? 0;
+    const firstUnread = thread.comments.find(
+      (e) => e.author === 'agent' && e.createdAt > lastReadAt,
+    );
+    if (!firstUnread) return;
+    void this.updateComplete.then(() => {
+      const row = this.renderRoot.querySelector<HTMLElement>(
+        `[data-entry-id="${firstUnread.id}"]`,
+      );
+      row?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    });
   }
 
   /** Close without discarding the comment. */
@@ -785,7 +814,7 @@ export class DbComment extends LitElement {
       const isFirst = index === 0;
       const showMenu = isUser && r.type === 'comment';
       return html`
-        <div class="reply-row">
+        <div class="reply-row" data-entry-id=${r.id}>
           ${this._renderReplyAuthorIcon(r.author as string | undefined)}
           <div class="reply-body">
             ${isEditing
@@ -937,7 +966,11 @@ export class DbComment extends LitElement {
     const canSendNew = this._draft.trim().length > 0;
     const canSendReply = this._replyDraft.trim().length > 0;
 
-    const badgeVariant = isResolved ? 'success' : this.orphaned ? 'warning' : 'brand';
+    const badgeVariant = isResolved
+      ? 'success'
+      : this._hasUnread()
+        ? 'brand'
+        : 'neutral';
 
     return html`
       <!-- Badge dot -->
