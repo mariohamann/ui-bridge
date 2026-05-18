@@ -59,6 +59,36 @@ export function designBridge(options: DesignBridgeOptions = {}): AstroIntegratio
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         updateConfig({ vite: { plugins: [designBridgeVite(options) as any] } });
 
+        // Preserve data-astro-source-* attributes across HMR cycles.
+        //
+        // Astro's compiler injects data-astro-source-file and data-astro-source-loc
+        // in dev mode so that tools can map DOM elements back to their source files.
+        // However, Astro's Dev Toolbar and HMR pipeline strip these attributes during
+        // re-renders, which breaks source-location lookup in the Design Bridge panel.
+        //
+        // This observer fires whenever either attribute is removed or changed. Because
+        // we pass attributeOldValue:true we get the previous value in mutation.oldValue.
+        // We immediately write it back with setAttribute — restoring the attribute before
+        // any other script can read a missing value. The oldValue===null guard prevents
+        // an infinite loop: when *our* setAttribute fires the observer again, oldValue
+        // will be null (the attribute didn't exist before we set it), so we skip it.
+        injectScript(
+          'head-inline',
+          `(function(){` +
+          `new MutationObserver(function(ms){` +
+          `ms.forEach(function(m){` +
+          `if(m.oldValue===null)return;` +
+          `m.target.setAttribute(m.attributeName,m.oldValue);` +
+          `});` +
+          `}).observe(document.documentElement,{` +
+          `subtree:true,` +
+          `attributes:true,` +
+          `attributeFilter:['data-astro-source-file','data-astro-source-loc'],` +
+          `attributeOldValue:true` +
+          `});` +
+          `})();`,
+        );
+
         // Inject the WS URL global + a runtime script loader for the client bundle.
         // We use head-inline (raw HTML injection) so Vite's import-analysis plugin
         // never sees the /__design-bridge/client.js URL — it's loaded at runtime
@@ -67,9 +97,9 @@ export function designBridge(options: DesignBridgeOptions = {}): AstroIntegratio
         injectScript(
           'head-inline',
           `window.__DB_WS_URL__=${JSON.stringify(wsUrl)};` +
-            `(function(){var s=document.createElement('script');` +
-            `s.src='/__design-bridge/client.js?t='+Date.now();` +
-            `document.head.appendChild(s);})();`,
+          `(function(){var s=document.createElement('script');` +
+          `s.src='/__design-bridge/client.js?t='+Date.now();` +
+          `document.head.appendChild(s);})();`,
         );
       },
     },
