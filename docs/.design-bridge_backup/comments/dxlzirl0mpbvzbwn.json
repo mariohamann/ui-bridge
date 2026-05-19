@@ -1,0 +1,63 @@
+{
+  "meta": {
+    "id": "dxlzirl0mpbvzbwn",
+    "pageUrl": "http://localhost:4321/#get-started",
+    "timestamp": 1779150067060,
+    "createdAt": 1779150012935,
+    "lastReadAt": 1779150094069
+  },
+  "elements": [
+    {
+      "minimalSelector": "li:nth-of-type(3) > div",
+      "tag": "div",
+      "classes": [],
+      "source": {
+        "file": "/Users/mario.hamann/Documents/GitHub/design-bridge/docs/src/components/HowItWorks.astro",
+        "line": 46,
+        "column": 14
+      }
+    }
+  ],
+  "comments": [
+    {
+      "id": "0r5m40lhmpbvzmjg",
+      "type": "comment",
+      "text": "Decrese gap here. Make different proposals in a tweak.",
+      "createdAt": 1779150026716,
+      "author": "user"
+    },
+    {
+      "id": "reply-1779150067060-n07lgg",
+      "type": "comment",
+      "text": "Here are four gap proposals for the space between the number badge and the text inside each list item. The current value is `gap-4`. Try the options below and accept whichever feels right.",
+      "createdAt": 1779150067060,
+      "author": "agent"
+    },
+    {
+      "id": "reply-1779150067060-n07lgg-tweak",
+      "type": "tweak",
+      "text": "Here are four gap proposals for the space between the number badge and the text inside each list item. The current value is `gap-4`. Try the options below and accept whichever feels right.",
+      "createdAt": 1779150067060,
+      "author": "agent",
+      "knob": {
+        "label": "List item gap",
+        "type": "select",
+        "value": "gap-4",
+        "options": {
+          "gap-2": "gap-2 (tight)",
+          "gap-3": "gap-3 (snug)",
+          "gap-4": "gap-4 (current)",
+          "gap-6": "gap-6 (roomy)"
+        }
+      },
+      "actions": [
+        {
+          "type": "content-edit",
+          "file": "/Users/mario.hamann/Documents/GitHub/design-bridge/docs/src/components/HowItWorks.astro",
+          "scriptId": "how-it-works-li-gap"
+        }
+      ],
+      "tweakStatus": "pending"
+    }
+  ]
+}

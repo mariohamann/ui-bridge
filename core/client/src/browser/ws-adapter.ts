@@ -13,8 +13,7 @@
  */
 
 import { onMessage, sendMessage } from './ws-client.js';
-import { updateKnobs, updateComments, onIntent, getKnobByMarker } from '@design-bridge/components';
-import { getOpenItem } from './inspector.js';
+import { updateKnobs, updateComments, onIntent } from '@design-bridge/components';
 
 // ── A: Server → stores ───────────────────────────────────────────────────────
 
@@ -37,9 +36,6 @@ onIntent((intent) => {
         type: 'tweak:change',
         payload: { marker: intent.marker, value: intent.value },
       });
-      // Register the value change as a reply on any currently open comment item
-      const label = getKnobByMarker(intent.marker)?.label;
-      getOpenItem()?.registerTweakReply(intent.marker, intent.value, label);
       break;
     }
     case 'tweak:revert':

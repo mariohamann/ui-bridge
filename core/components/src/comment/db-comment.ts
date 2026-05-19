@@ -4,7 +4,6 @@ import '@awesome.me/webawesome/dist/components/dropdown-item/dropdown-item.js';
 import '@awesome.me/webawesome/dist/components/dropdown/dropdown.js';
 import '@awesome.me/webawesome/dist/components/tag/tag.js';
 import '@awesome.me/webawesome/dist/components/textarea/textarea.js';
-import '@awesome.me/webawesome/dist/components/markdown/markdown.js';
 import type {
   CommentThread,
   CommentElement,
@@ -856,13 +855,7 @@ export class DbComment extends LitElement {
                 : html`
                     <div class="reply-main">
                       <div class="reply-content">
-                        <div class="comment-text">
-                          <wa-markdown
-                            ><script type="text/markdown">
-                              ${r.text}
-                            </script></wa-markdown
-                          >
-                        </div>
+                        <div class="comment-text">${r.text}</div>
                         <wa-relative-time
                           sync
                           .date=${new Date(r.createdAt)}

@@ -39,7 +39,13 @@ export class DbKnob extends LitElement {
 
   willUpdate(changed: Map<string, unknown>): void {
     if (changed.has('knob') && this.knob != null) {
-      this._value = this.knob.value;
+      const prev = changed.get('knob') as TweakKnob | null;
+      // Sync _value when switching to a different knob, or when the server
+      // pushes a new value for the same knob (e.g. after tweak:schema update).
+      // Skip when only the object reference changed due to re-render (same marker + same value).
+      if (prev?.marker !== this.knob.marker || prev?.value !== this.knob.value) {
+        this._value = this.knob.value;
+      }
     }
   }
 
@@ -56,10 +62,10 @@ export class DbKnob extends LitElement {
       <wa-select
         size="xs"
         .value=${String(this._value)}
-        @wa-change=${(e: Event) =>
+        @change=${(e: Event) =>
           this._emit((e.target as HTMLSelectElement & { value: string }).value)}
       >
-        ${opts.map(([label, val]) => html`<wa-option value=${val}>${label}</wa-option>`)}
+        ${opts.map(([val, label]) => html`<wa-option value=${val}>${label}</wa-option>`)}
       </wa-select>
     `;
   }
@@ -71,10 +77,10 @@ export class DbKnob extends LitElement {
         size="xs"
         .value=${String(this._value)}
         orientation="horizontal"
-        @wa-change=${(e: Event) => this._emit((e.target as HTMLElement & { value: string }).value)}
+        @change=${(e: Event) => this._emit((e.target as HTMLElement & { value: string }).value)}
       >
         ${opts.map(
-          ([label, val]) => html`<wa-radio appearance="button" value=${val}>${label}</wa-radio>`,
+          ([val, label]) => html`<wa-radio appearance="button" value=${val}>${label}</wa-radio>`,
         )}
       </wa-radio-group>
     `;
@@ -92,7 +98,7 @@ export class DbKnob extends LitElement {
         format="hex"
         without-format-toggle
         .value=${String(this._value)}
-        @wa-change=${(e: Event) => this._emit((e.target as HTMLElement & { value: string }).value)}
+        @change=${(e: Event) => this._emit((e.target as HTMLElement & { value: string }).value)}
       ></wa-color-picker>`;
     }
 
@@ -103,7 +109,7 @@ export class DbKnob extends LitElement {
         min=${min ?? ''}
         max=${max ?? ''}
         step=${step ?? ''}
-        @wa-input=${(e: Event) =>
+        @input=${(e: Event) =>
           this._emit(Number((e.target as HTMLElement & { value: number }).value))}
       ></wa-number-input>`;
     }
@@ -112,7 +118,7 @@ export class DbKnob extends LitElement {
       return html`<wa-switch
         size="xs"
         ?checked=${Boolean(this._value)}
-        @wa-change=${(e: Event) =>
+        @change=${(e: Event) =>
           this._emit((e.target as HTMLElement & { checked: boolean }).checked)}
       ></wa-switch>`;
     }
@@ -130,7 +136,7 @@ export class DbKnob extends LitElement {
     return html`<wa-input
       size="xs"
       .value=${String(this._value)}
-      @wa-input=${(e: Event) => this._emit((e.target as HTMLElement & { value: string }).value)}
+      @input=${(e: Event) => this._emit((e.target as HTMLElement & { value: string }).value)}
     ></wa-input>`;
   }
 }
