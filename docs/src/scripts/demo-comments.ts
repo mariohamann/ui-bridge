@@ -1,92 +1,512 @@
 /**
  * demo-comments.ts
  *
- * Seeds two client-side-only demo CommentThreads into the Design Bridge signal
+ * Seeds client-side-only demo CommentThreads into the Design Bridge signal
  * store so the docs page shows realistic comment badges and panels without any
  * server round-trips.
  *
- * Comment 1 — plain comment on the <h1> headline.
- * Comment 2 — comment + agent reply + live color-picker tweak on the subtitle.
+ * One thread per knob type:
+ *   dc-color      — color    — subtitle text color
+ *   dc-number     — number   — hero section padding
+ *   dc-string     — string   — CTA button label
+ *   dc-textarea   — textarea — setup section description
+ *   dc-boolean    — boolean  — show/hide the subtitle
+ *   dc-select     — select   — "How it works" heading size
+ *   dc-button-group — button-group — hero text alignment
  *
- * Both threads carry  meta.demo = true  so the ws-adapter never forwards
+ * Extra narrative variety:
+ *   dc-plain      — plain text only (no tweak), resolved thread
+ *   dc-resolved   — accepted tweak (shows accepted badge)
+ *   dc-followup   — discarded tweak + follow-up user comment + new pending tweak
+ *
+ * All threads carry  meta.demo = true  so the ws-adapter never forwards
  * them to the server (see core/client/src/browser/ws-adapter.ts).
  */
 
 type DbComponents = {
   updateComments: (threads: unknown[]) => void;
   upsertComment: (thread: unknown) => void;
-  commentsSignal: { get: () => unknown[] };
+  commentsSignal: { get: () => unknown[]; };
   updateKnobs: (knobs: unknown[]) => void;
-  knobsSignal: { get: () => unknown[] };
+  knobsSignal: { get: () => unknown[]; };
   onIntent: (handler: (intent: Record<string, unknown>) => void) => () => void;
 };
 
-const SUBTITLE_COLOR_KNOB_MARKER = 'demo-comment-2';
+// ── Marker constants ──────────────────────────────────────────────────────────
 
-// ── Fixture data ──────────────────────────────────────────────────────────────
+const M_COLOR = 'dc-color';
+const M_NUMBER = 'dc-number';
+const M_STRING = 'dc-string';
+const M_TEXTAREA = 'dc-textarea';
+const M_BOOLEAN = 'dc-boolean';
+const M_SELECT = 'dc-select';
+const M_BUTTON_GROUP = 'dc-button-group';
+const M_FOLLOWUP = 'dc-followup';
 
-function makeThread(id: string, selector: string, tag: string, comments: unknown[]): unknown {
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function makeThread(
+  id: string,
+  selector: string,
+  tag: string,
+  comments: unknown[],
+  resolvedAt?: number,
+): unknown {
   const now = Date.now();
   return {
-    meta: { id, pageUrl: location.href, timestamp: now, createdAt: now, demo: true as const },
+    meta: {
+      id,
+      pageUrl: location.href,
+      timestamp: now,
+      createdAt: now,
+      demo: true as const,
+      ...(resolvedAt !== undefined ? { resolvedAt } : {}),
+    },
     elements: [{ minimalSelector: selector, tag, classes: [] }],
     comments,
   };
 }
 
-function makeTextEntry(id: string, text: string, author: 'user' | 'agent', ago = 0): unknown {
+function makeText(id: string, text: string, author: 'user' | 'agent', ago = 0): unknown {
   return { id, type: 'comment', text, createdAt: Date.now() - ago, author };
 }
 
-function makeTweakEntry(id: string): unknown {
+function makeTweak(
+  id: string,
+  text: string,
+  knob: Record<string, unknown>,
+  status: 'pending' | 'accepted' | 'discarded' = 'pending',
+  ago = 0,
+): unknown {
   return {
     id,
     type: 'tweak',
-    text: 'Tweak subtitle color',
-    createdAt: Date.now() - 1000,
+    text,
+    createdAt: Date.now() - ago,
     author: 'agent',
-    tweakStatus: 'pending',
-    knob: {
-      label: 'Subtitle color',
-      type: 'color',
-      value: '#8888a0',
-    },
+    tweakStatus: status,
+    knob,
     actions: [],
   };
 }
 
-const DEMO_THREAD_1 = makeThread('demo-comment-1', 'h1', 'h1', [
-  makeTextEntry(
-    'dc1-r1',
-    'The headline could be punchier — maybe lead with the pain point instead of the tool name?',
-    'user',
-    120_000,
-  ),
-]);
+// ── Thread definitions ────────────────────────────────────────────────────────
 
-const DEMO_THREAD_2 = makeThread('demo-comment-2', 'p.text-wa-text-quiet', 'p', [
-  makeTextEntry(
-    'dc2-r1',
-    'The subtitle feels a bit generic. Can we make it more concrete?',
+// 1. Plain — no tweak, resolved
+const THREAD_PLAIN = makeThread(
+  'dc-plain',
+  'h1',
+  'h1',
+  [
+    makeText(
+      'dc-plain-1',
+      'The headline could be punchier — maybe lead with the pain point instead of the tool name?',
+      'user',
+      7_200_000,
+    ),
+    makeText(
+      'dc-plain-2',
+      "Good point. Let's revisit the copy once we nail the tagline.",
+      'agent',
+      7_100_000,
+    ),
+    makeText('dc-plain-3', 'Sounds good, marking as resolved.', 'user', 7_000_000),
+  ],
+  Date.now() - 6_900_000,
+);
+
+// 2. Color knob — pending
+const THREAD_COLOR = makeThread('dc-color', 'p.text-wa-text-quiet', 'p', [
+  makeText(
+    'dc-color-1',
+    'The subtitle feels a bit low-contrast on dark backgrounds. Can we punch it up?',
     'user',
     300_000,
   ),
-  makeTextEntry(
-    'dc2-r2',
-    'Agreed. How about "Annotate, tweak, and iterate without leaving the browser"? Also — I\'ve attached a color knob so you can try different tones.',
+  makeText(
+    'dc-color-2',
+    "Here's a color knob — try a brighter tone and see what feels right.",
     'agent',
     240_000,
   ),
-  makeTweakEntry('dc2-tweak'),
+  makeTweak('dc-color-tweak', 'Tweak subtitle color', {
+    label: 'Subtitle color',
+    type: 'color',
+    value: '#8888a0',
+  }),
 ]);
 
-const DEMO_KNOB = {
-  marker: SUBTITLE_COLOR_KNOB_MARKER,
-  commentId: SUBTITLE_COLOR_KNOB_MARKER,
-  label: 'Subtitle color',
-  type: 'color',
-  value: '#8888a0',
-};
+// 3. Number knob — accepted (resolved tweak with follow-up)
+const THREAD_NUMBER = makeThread('dc-number', '#hero', 'section', [
+  makeText(
+    'dc-number-1',
+    'Hero section feels cramped on smaller viewports. Can we reduce the vertical padding?',
+    'user',
+    3_600_000,
+  ),
+  makeText(
+    'dc-number-2',
+    "I've attached a number knob — drag it down to around 60px and see how it feels.",
+    'agent',
+    3_500_000,
+  ),
+  makeTweak(
+    'dc-number-tweak',
+    'Tweak hero padding',
+    { label: 'Vertical padding (px)', type: 'number', value: 96, min: 32, max: 160, step: 8 },
+    'accepted',
+    3_400_000,
+  ),
+  makeText('dc-number-3', '80px looks great — accepted. Thanks!', 'user', 3_300_000),
+]);
+
+// 4. String knob — pending
+const THREAD_STRING = makeThread(
+  'dc-string',
+  '#hero-content wa-button[appearance="accent"]',
+  'wa-button',
+  [
+    makeText(
+      'dc-string-1',
+      '"Get Started ↓" is fine but feels a bit passive. Can we test something more action-oriented?',
+      'user',
+      180_000,
+    ),
+    makeText(
+      'dc-string-2',
+      'Sure — use the text knob to try different labels live. I\'d suggest something like "Start in 2 minutes".',
+      'agent',
+      120_000,
+    ),
+    makeTweak('dc-string-tweak', 'Tweak CTA label', {
+      label: 'Button label',
+      type: 'string',
+      value: 'Get Started ↓',
+    }),
+  ],
+);
+
+// 5. Textarea knob — pending
+const THREAD_TEXTAREA = makeThread('dc-textarea', '#get-started p', 'p', [
+  makeText(
+    'dc-textarea-1',
+    'The setup intro is a bit terse. Could we expand it to set expectations better?',
+    'user',
+    900_000,
+  ),
+  makeText(
+    'dc-textarea-2',
+    "Here's a textarea knob so you can draft and preview alternative copy directly on the page.",
+    'agent',
+    840_000,
+  ),
+  makeTweak('dc-textarea-tweak', 'Tweak setup description', {
+    label: 'Setup description',
+    type: 'textarea',
+    value:
+      'Install the package for your framework, add it to your config, and run your dev server.',
+  }),
+]);
+
+// 6. Boolean knob — discarded + follow-up with new pending tweak
+const THREAD_BOOLEAN = makeThread('dc-boolean', 'p.text-wa-text-quiet', 'p', [
+  makeText(
+    'dc-boolean-1',
+    'What if we hide the subtitle entirely and let the headline carry the full weight?',
+    'user',
+    5_400_000,
+  ),
+  makeText('dc-boolean-2', "Let's try it — toggle the boolean below.", 'agent', 5_300_000),
+  makeTweak(
+    'dc-boolean-tweak-1',
+    'Toggle subtitle visibility',
+    { label: 'Show subtitle', type: 'boolean', value: true },
+    'discarded',
+    5_200_000,
+  ),
+  makeText(
+    'dc-boolean-3',
+    'Hiding it felt too bare. But maybe we just reduce its opacity instead?',
+    'user',
+    5_100_000,
+  ),
+  makeText(
+    'dc-boolean-4',
+    "Good idea — here's another knob: toggle dimmed mode (50% opacity).",
+    'agent',
+    5_000_000,
+  ),
+  makeTweak('dc-boolean-tweak-2', 'Toggle dimmed mode', {
+    label: 'Dimmed subtitle',
+    type: 'boolean',
+    value: false,
+  }),
+]);
+
+// 7. Select knob — pending
+const THREAD_SELECT = makeThread('dc-select', '#how-it-works h2', 'h2', [
+  makeText(
+    'dc-select-1',
+    '"How it works" heading feels a bit large relative to the body text. Can we try a smaller size?',
+    'user',
+    600_000,
+  ),
+  makeText(
+    'dc-select-2',
+    "Use the select knob to try the three size options — I'd start with md.",
+    'agent',
+    540_000,
+  ),
+  makeTweak('dc-select-tweak', 'Tweak heading size', {
+    label: 'Heading size',
+    type: 'select',
+    value: 'text-3xl',
+    options: {
+      'text-2xl': 'sm',
+      'text-3xl': 'md',
+      'text-4xl': 'lg',
+    },
+  }),
+]);
+
+// 8. Button-group knob — pending
+const THREAD_BUTTON_GROUP = makeThread('dc-button-group', '#hero-content', 'div', [
+  makeText(
+    'dc-bg-1',
+    'Hero text is always centered — but on wide screens a left-aligned layout might feel more editorial.',
+    'user',
+    420_000,
+  ),
+  makeText(
+    'dc-bg-2',
+    "Here's a button-group knob to switch alignment. Try left or right and see which feels better.",
+    'agent',
+    360_000,
+  ),
+  makeTweak('dc-bg-tweak', 'Tweak hero alignment', {
+    label: 'Hero alignment',
+    type: 'button-group',
+    value: 'center',
+    options: { left: 'Left', center: 'Center', right: 'Right' },
+  }),
+]);
+
+// 9. Follow-up thread — discarded tweak already in history, new pending tweak
+const THREAD_FOLLOWUP = makeThread(M_FOLLOWUP, '#get-started h2', 'h2', [
+  makeText('dc-fu-1', 'Can we rename "Setup" to something more inviting?', 'user', 2_700_000),
+  makeText(
+    'dc-fu-2',
+    'Sure — here\'s a string knob, try "Get up and running" or "Quick start".',
+    'agent',
+    2_600_000,
+  ),
+  makeTweak(
+    'dc-fu-tweak-1',
+    'Tweak section heading',
+    { label: 'Section heading', type: 'string', value: 'Setup' },
+    'discarded',
+    2_500_000,
+  ),
+  makeText(
+    'dc-fu-3',
+    'Hmm, discarded — "Setup" is more scannable after all. But what about the font weight?',
+    'user',
+    2_400_000,
+  ),
+  makeText(
+    'dc-fu-4',
+    "Fair enough. Here's a button-group knob for the font weight.",
+    'agent',
+    2_300_000,
+  ),
+  makeTweak('dc-fu-tweak-2', 'Tweak heading font weight', {
+    label: 'Font weight',
+    type: 'button-group',
+    value: 'semibold',
+    options: { normal: 'Normal', medium: 'Medium', semibold: 'Semibold', bold: 'Bold' },
+  }),
+]);
+
+// ── Initial knob state (pending tweaks only) ──────────────────────────────────
+
+const INITIAL_KNOBS = [
+  {
+    marker: M_COLOR,
+    commentId: M_COLOR,
+    label: 'Subtitle color',
+    type: 'color',
+    value: '#8888a0',
+  },
+  {
+    marker: M_STRING,
+    commentId: M_STRING,
+    label: 'Button label',
+    type: 'string',
+    value: 'Get Started ↓',
+  },
+  {
+    marker: M_TEXTAREA,
+    commentId: M_TEXTAREA,
+    label: 'Setup description',
+    type: 'textarea',
+    value:
+      'Install the package for your framework, add it to your config, and run your dev server.',
+  },
+  // Boolean: second tweak is pending
+  {
+    marker: M_BOOLEAN,
+    commentId: M_BOOLEAN,
+    label: 'Dimmed subtitle',
+    type: 'boolean',
+    value: false,
+  },
+  {
+    marker: M_SELECT,
+    commentId: M_SELECT,
+    label: 'Heading size',
+    type: 'select',
+    value: 'text-3xl',
+    options: { 'text-2xl': 'sm', 'text-3xl': 'md', 'text-4xl': 'lg' },
+  },
+  {
+    marker: M_BUTTON_GROUP,
+    commentId: M_BUTTON_GROUP,
+    label: 'Hero alignment',
+    type: 'button-group',
+    value: 'center',
+    options: { left: 'Left', center: 'Center', right: 'Right' },
+  },
+  {
+    marker: M_FOLLOWUP,
+    commentId: M_FOLLOWUP,
+    label: 'Font weight',
+    type: 'button-group',
+    value: 'semibold',
+    options: { normal: 'Normal', medium: 'Medium', semibold: 'Semibold', bold: 'Bold' },
+  },
+];
+
+// ── Knob-change visual effects ────────────────────────────────────────────────
+
+function applyKnobChange(marker: string, value: unknown): void {
+  if (marker === M_COLOR) {
+    const el = document.querySelector<HTMLElement>('p.text-wa-text-quiet');
+    if (el) el.style.color = String(value);
+    return;
+  }
+
+  if (marker === M_NUMBER) {
+    const el = document.querySelector<HTMLElement>('#hero');
+    if (el) {
+      el.style.paddingTop = `${value}px`;
+      el.style.paddingBottom = `${value}px`;
+    }
+    return;
+  }
+
+  if (marker === M_STRING) {
+    const el = document.querySelector<HTMLElement>('#hero-content wa-button[appearance="accent"]');
+    if (el) el.textContent = String(value);
+    return;
+  }
+
+  if (marker === M_TEXTAREA) {
+    const el = document.querySelector<HTMLElement>('#get-started p');
+    if (el) el.textContent = String(value);
+    return;
+  }
+
+  if (marker === M_BOOLEAN) {
+    const el = document.querySelector<HTMLElement>('p.text-wa-text-quiet');
+    if (el) el.style.opacity = value === true ? '0.5' : '';
+    return;
+  }
+
+  if (marker === M_SELECT) {
+    const el = document.querySelector<HTMLElement>('#how-it-works h2');
+    if (el) {
+      el.classList.remove('text-2xl', 'text-3xl', 'text-4xl');
+      el.classList.add(String(value));
+    }
+    return;
+  }
+
+  if (marker === M_BUTTON_GROUP) {
+    const el = document.querySelector<HTMLElement>('#hero-content');
+    if (el) {
+      const map: Record<string, string> = {
+        left: 'items-start text-left',
+        center: 'items-center text-center',
+        right: 'items-end text-right',
+      };
+      el.classList.remove(
+        'items-start',
+        'text-left',
+        'items-center',
+        'text-center',
+        'items-end',
+        'text-right',
+      );
+      const classes = map[String(value)];
+      if (classes) el.classList.add(...classes.split(' '));
+    }
+    return;
+  }
+
+  if (marker === M_FOLLOWUP) {
+    const el = document.querySelector<HTMLElement>('#get-started h2');
+    if (el) {
+      el.style.fontWeight =
+        value === 'normal'
+          ? '400'
+          : value === 'medium'
+            ? '500'
+            : value === 'semibold'
+              ? '600'
+              : '700';
+    }
+    return;
+  }
+}
+
+function revertKnob(marker: string): void {
+  if (marker === M_COLOR) {
+    const el = document.querySelector<HTMLElement>('p.text-wa-text-quiet');
+    if (el) el.style.color = '';
+  } else if (marker === M_NUMBER) {
+    const el = document.querySelector<HTMLElement>('#hero');
+    if (el) {
+      el.style.paddingTop = '';
+      el.style.paddingBottom = '';
+    }
+  } else if (marker === M_STRING) {
+    const el = document.querySelector<HTMLElement>('#hero-content wa-button[appearance="accent"]');
+    if (el) el.textContent = 'Get Started ↓';
+  } else if (marker === M_TEXTAREA) {
+    const el = document.querySelector<HTMLElement>('#get-started p');
+    if (el)
+      el.textContent =
+        'Install the package for your framework, add it to your config, and run your dev server.';
+  } else if (marker === M_BOOLEAN) {
+    const el = document.querySelector<HTMLElement>('p.text-wa-text-quiet');
+    if (el) el.style.opacity = '';
+  } else if (marker === M_SELECT) {
+    const el = document.querySelector<HTMLElement>('#how-it-works h2');
+    if (el) {
+      el.classList.remove('text-2xl', 'text-3xl', 'text-4xl');
+      el.classList.add('text-3xl');
+    }
+  } else if (marker === M_BUTTON_GROUP) {
+    const el = document.querySelector<HTMLElement>('#hero-content');
+    if (el) {
+      el.classList.remove('items-start', 'text-left', 'items-end', 'text-right');
+      el.classList.add('items-center', 'text-center');
+    }
+  } else if (marker === M_FOLLOWUP) {
+    const el = document.querySelector<HTMLElement>('#get-started h2');
+    if (el) el.style.fontWeight = '';
+  }
+}
 
 // ── Boot ──────────────────────────────────────────────────────────────────────
 
@@ -107,90 +527,85 @@ function waitForDb(): Promise<DbComponents> {
 }
 
 waitForDb().then((db) => {
-  // Seed comments via upsertComment so the inspector creates DOM items
-  // (db-comment elements) and positions badges against real DOM nodes.
-  db.upsertComment(DEMO_THREAD_1);
-  db.upsertComment(DEMO_THREAD_2);
+  // Seed all threads
+  for (const thread of [
+    THREAD_PLAIN,
+    THREAD_COLOR,
+    THREAD_NUMBER,
+    THREAD_STRING,
+    THREAD_TEXTAREA,
+    THREAD_BOOLEAN,
+    THREAD_SELECT,
+    THREAD_BUTTON_GROUP,
+    THREAD_FOLLOWUP,
+  ]) {
+    db.upsertComment(thread);
+  }
 
-  // Seed the color knob for comment 2 so the live knob renders immediately.
-  db.updateKnobs([...(db.knobsSignal.get() as unknown[]), DEMO_KNOB]);
+  // Seed all pending knobs
+  db.updateKnobs([...(db.knobsSignal.get() as unknown[]), ...INITIAL_KNOBS]);
 
-  // Handle intents for demo threads locally — never reaches ws-adapter.
+  type KnobLike = { marker: string; value: unknown; };
+
+  function updateKnobValue(marker: string, value: unknown): void {
+    const knobs = db.knobsSignal.get() as KnobLike[];
+    db.updateKnobs(knobs.map((k) => (k.marker === marker ? { ...k, value } : k)));
+  }
+
+  function resolveKnob(commentId: string, status: 'accepted' | 'discarded'): void {
+    const threads = db.commentsSignal.get() as {
+      meta: { id: string; };
+      comments: { type: string; tweakStatus?: string; }[];
+    }[];
+    db.updateComments(
+      threads.map((t) =>
+        t.meta.id === commentId
+          ? {
+            ...t,
+            comments: t.comments.map((c) =>
+              c.type === 'tweak' && (c as { tweakStatus?: string; }).tweakStatus === 'pending'
+                ? { ...c, tweakStatus: status }
+                : c,
+            ),
+          }
+          : t,
+      ),
+    );
+    const knobs = db.knobsSignal.get() as KnobLike[];
+    db.updateKnobs(knobs.filter((k) => k.marker !== commentId));
+  }
+
+  // Handle intents for all demo threads locally
   db.onIntent((intent) => {
-    // ── tweak:change — apply color to the subtitle element ────────────────
-    if (intent['type'] === 'tweak:change' && intent['marker'] === SUBTITLE_COLOR_KNOB_MARKER) {
-      const el = document.querySelector<HTMLElement>('p.text-wa-text-quiet');
-      if (el) el.style.color = String(intent['value']);
+    const type = intent['type'] as string;
+    const marker = intent['marker'] as string | undefined;
+    const commentId = intent['commentId'] as string | undefined;
 
-      // Update knob value in the signal so db-knob reflects the current selection.
-      const knobs = db.knobsSignal.get() as (typeof DEMO_KNOB)[];
-      db.updateKnobs(
-        knobs.map((k) =>
-          k.marker === SUBTITLE_COLOR_KNOB_MARKER ? { ...k, value: intent['value'] } : k,
-        ),
-      );
+    const ALL_MARKERS = [
+      M_COLOR,
+      M_NUMBER,
+      M_STRING,
+      M_TEXTAREA,
+      M_BOOLEAN,
+      M_SELECT,
+      M_BUTTON_GROUP,
+      M_FOLLOWUP,
+    ];
+
+    if (type === 'tweak:change' && marker && ALL_MARKERS.includes(marker)) {
+      applyKnobChange(marker, intent['value']);
+      updateKnobValue(marker, intent['value']);
       return;
     }
 
-    // ── tweak:accept-comment — freeze the color, mark tweak accepted ──────
-    if (
-      intent['type'] === 'tweak:accept-comment' &&
-      intent['commentId'] === SUBTITLE_COLOR_KNOB_MARKER
-    ) {
-      const threads = db.commentsSignal.get() as {
-        meta: { id: string };
-        comments: { type: string; tweakStatus?: string }[];
-      }[];
-      db.updateComments(
-        threads.map((t) =>
-          t.meta.id === SUBTITLE_COLOR_KNOB_MARKER
-            ? {
-                ...t,
-                comments: t.comments.map((c) =>
-                  c.type === 'tweak' ? { ...c, tweakStatus: 'accepted' } : c,
-                ),
-              }
-            : t,
-        ),
-      );
-      // Remove the knob from the schema.
-      db.updateKnobs(
-        (db.knobsSignal.get() as (typeof DEMO_KNOB)[]).filter(
-          (k) => k.marker !== SUBTITLE_COLOR_KNOB_MARKER,
-        ),
-      );
+    if (type === 'tweak:accept-comment' && commentId && ALL_MARKERS.includes(commentId)) {
+      resolveKnob(commentId, 'accepted');
       return;
     }
 
-    // ── tweak:discard-comment — restore original color, mark discarded ────
-    if (
-      intent['type'] === 'tweak:discard-comment' &&
-      intent['commentId'] === SUBTITLE_COLOR_KNOB_MARKER
-    ) {
-      const el = document.querySelector<HTMLElement>('p.text-wa-text-quiet');
-      if (el) el.style.color = '';
-
-      const threads = db.commentsSignal.get() as {
-        meta: { id: string };
-        comments: { type: string; tweakStatus?: string }[];
-      }[];
-      db.updateComments(
-        threads.map((t) =>
-          t.meta.id === SUBTITLE_COLOR_KNOB_MARKER
-            ? {
-                ...t,
-                comments: t.comments.map((c) =>
-                  c.type === 'tweak' ? { ...c, tweakStatus: 'discarded' } : c,
-                ),
-              }
-            : t,
-        ),
-      );
-      db.updateKnobs(
-        (db.knobsSignal.get() as (typeof DEMO_KNOB)[]).filter(
-          (k) => k.marker !== SUBTITLE_COLOR_KNOB_MARKER,
-        ),
-      );
+    if (type === 'tweak:discard-comment' && commentId && ALL_MARKERS.includes(commentId)) {
+      revertKnob(commentId);
+      resolveKnob(commentId, 'discarded');
     }
   });
 });
