@@ -682,48 +682,8 @@ export class DbComment extends LitElement {
   // ────────────────────────────────────────────────────────────────────────
 
   private _renderTweaksSection(): TemplateResult {
-    const latestTweak = this.comment ? this._latestTweak(this.comment) : undefined;
-    const activeTweak = this.comment ? this._activeTweak(this.comment) : undefined;
-    const knobDef = activeTweak?.knob;
-    const tweakStatus = latestTweak?.tweakStatus;
-
-    // Resolved tweaks are rendered inline in _renderReplies; nothing to show here.
-    if (tweakStatus === 'accepted' || tweakStatus === 'discarded') return html``;
-
-    if (!knobDef) return html``;
-    // Build a TweakKnob using the live value from knobsSignal when available.
-    const liveKnob = knobsSignal.get().find((k) => k.marker === this.comment!.meta.id);
-    const knob: TweakKnob = liveKnob ?? {
-      marker: this.comment!.meta.id,
-      commentId: this.comment!.meta.id,
-      ...knobDef,
-    };
-    return html`
-      <div class="tweaks-section">
-        <div class="tweak-row">
-          <span class="tweak-label">${knobDef.label}</span>
-          <db-knob .knob=${knob} @db-knob-change=${this._onKnobChange}></db-knob>
-          <wa-button
-            appearance="plain"
-            size="xs"
-            @click=${this._acceptAllTweaks}
-            title="Accept tweak and resolve comment"
-            >✓</wa-button
-          >
-          <wa-dropdown
-            size="s"
-            @wa-select=${(e: CustomEvent) => {
-        if (e.detail.item.value === 'discard') this._discardTweak();
-      }}
-          >
-            <wa-button slot="trigger" appearance="plain" size="xs" title="More options"
-              >···</wa-button
-            >
-            <wa-dropdown-item value="discard" variant="danger">Discard changes</wa-dropdown-item>
-          </wa-dropdown>
-        </div>
-      </div>
-    `;
+    // Pending tweaks are now rendered inline in _renderReplies as agent bubbles.
+    return html``;
   }
 
   private _renderHeader(): TemplateResult {
@@ -785,118 +745,165 @@ export class DbComment extends LitElement {
   private _renderReplyAuthorIcon(author: string | undefined): TemplateResult {
     const isAgent = author === 'agent';
     if (!isAgent) return html``;
-    return html` <span class="reply-author-icon agent" title="Agent">✦</span> `;
+    return html``;
   }
 
   private _renderReplies(): TemplateResult {
     if (!this.comment) return html``;
-    return html`${this._getComments(this.comment)
-      .filter((r) => r.type !== 'tweak' || (r as TweakCommentEntry).tweakStatus !== 'pending')
-      .map((r, index) => {
-        if (r.type === 'tweak') {
-          const tweak = r as TweakCommentEntry;
-          if (tweak.tweakStatus === 'accepted') {
-            return html`
-              <div class="tweak-status accepted" data-entry-id=${r.id}>
-                <span class="tweak-status-icon">✓</span>
-                <span>Tweak accepted</span>
-              </div>
-            `;
-          }
-          if (tweak.tweakStatus === 'discarded') {
-            return html`
-              <div class="tweak-status discarded" data-entry-id=${r.id}>
-                <span class="tweak-status-icon">✕</span>
-                <span>Tweak discarded</span>
-              </div>
-            `;
-          }
-          return html``;
+    // Include pending tweaks in the list so they render inside agent bubbles.
+    const entries = this._getComments(this.comment);
+
+    // Determine which entries render as agent bubbles for grouping purposes.
+    const isAgentBubble = (e: CommentEntry) => {
+      if (e.type === 'tweak') return (e as TweakCommentEntry).tweakStatus === 'pending';
+      return e.author === 'agent';
+    };
+
+    return html`${entries.map((r, index) => {
+      if (r.type === 'tweak') {
+        const tweak = r as TweakCommentEntry;
+        if (tweak.tweakStatus === 'accepted') {
+          return html`
+            <div class="tweak-status accepted" data-entry-id=${r.id}>
+              <span class="tweak-status-icon">✓</span>
+              <span>Tweak accepted</span>
+            </div>
+          `;
         }
-        const isUser = r.author !== 'agent';
-        const isEditing = this._editingReplyId === r.id;
-        const isFirst = index === 0;
-        const showMenu = isUser && r.type === 'comment';
+        if (tweak.tweakStatus === 'discarded') {
+          return html`
+            <div class="tweak-status discarded" data-entry-id=${r.id}>
+              <span class="tweak-status-icon">✕</span>
+              <span>Tweak discarded</span>
+            </div>
+          `;
+        }
+        // Pending tweak — render inline as an agent bubble.
+        const liveKnob = knobsSignal.get().find((k) => k.marker === this.comment!.meta.id);
+        const knob: TweakKnob = liveKnob ?? {
+          marker: this.comment!.meta.id,
+          commentId: this.comment!.meta.id,
+          ...tweak.knob,
+        };
+        const prevIsAgent = index > 0 && isAgentBubble(entries[index - 1]);
+        const nextIsAgent = index < entries.length - 1 && isAgentBubble(entries[index + 1]);
+        const bubbleClass = `agent-bubble${prevIsAgent ? ' no-top-radius' : ''}${nextIsAgent ? ' no-bottom-radius' : ''}`;
+        const replyClass = `reply agent${prevIsAgent ? ' no-top-radius' : ''}${nextIsAgent ? ' no-bottom-radius group-gap' : ''}`;
         return html`
-          <div class="reply-row" data-entry-id=${r.id}>
-            ${this._renderReplyAuthorIcon(r.author as string | undefined)}
-            <div class="reply-body">
-              ${isEditing
-            ? html`
-                    <wa-textarea
-                      rows="1"
-                      data-edit-id=${r.id}
-                      appearance="filled"
-                      resize="auto"
-                      size="xs"
-                      .value=${this._editDraft}
-                      @input=${(e: Event) => {
-                this._editDraft = (e.target as HTMLElement & { value: string; }).value;
-              }}
-                      @keydown=${(e: KeyboardEvent) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  this._saveEditReply();
-                } else if (e.key === 'Escape') {
-                  e.stopPropagation();
-                  this._cancelEditReply();
-                }
-              }}
-                    ></wa-textarea>
-                    <div class="edit-actions">
-                      <wa-button
-                        appearance="filled"
-                        variant="brand"
-                        size="xs"
-                        ?disabled=${!this._editDraft.trim()}
-                        @click=${this._saveEditReply}
-                        >Save</wa-button
-                      >
-                      <wa-button appearance="plain" size="xs" @click=${this._cancelEditReply}
-                        >Cancel</wa-button
-                      >
-                    </div>
-                  `
-            : html`
-                    <div class="reply-main">
-                      <div class="reply-content">
-                        <div class="comment-text">${r.text}</div>
-                        <wa-relative-time
-                          sync
-                          .date=${new Date(r.createdAt)}
-                          style="font-size:var(--wa-font-size-xs);color:var(--wa-color-text-quiet);"
-                        ></wa-relative-time>
-                      </div>
-                      ${showMenu
-                ? html`
-                            <wa-dropdown
-                              size="xs"
-                              class="reply-menu"
-                              @click=${(e: Event) => e.stopPropagation()}
-                              @wa-select=${(e: CustomEvent) => {
-                    const val = e.detail.item.value;
-                    if (val === 'edit') this._startEditReply(r.id, r.text);
-                    else if (val === 'delete') this._deleteReply(r.id);
-                  }}
-                            >
-                              <wa-button slot="trigger" appearance="plain" size="xs" title="More"
-                                >···</wa-button
-                              >
-                              <wa-dropdown-item value="edit">Edit</wa-dropdown-item>
-                              ${!isFirst
-                    ? html`<wa-dropdown-item value="delete" variant="danger"
-                                    >Delete</wa-dropdown-item
-                                  >`
-                    : ''}
-                            </wa-dropdown>
-                          `
-                : ''}
-                    </div>
-                  `}
+          <div class=${replyClass} data-entry-id=${r.id}>
+            ${!prevIsAgent ? html`<span class="reply-author-tag">✦ Agent</span>` : ''}
+            <div class="tweak-row">
+              <span class="tweak-label">${tweak.knob.label}</span>
+              <db-knob .knob=${knob} @db-knob-change=${this._onKnobChange}></db-knob>
+              <wa-button
+                appearance="plain"
+                size="xs"
+                @click=${this._acceptAllTweaks}
+                title="Accept tweak and resolve comment"
+                >✓</wa-button
+              >
+              <wa-dropdown
+                size="s"
+                @wa-select=${(e: CustomEvent) => {
+            if (e.detail.item.value === 'discard') this._discardTweak();
+          }}
+              >
+                <wa-button slot="trigger" appearance="plain" size="xs" title="More options"
+                  >···</wa-button
+                >
+                <wa-dropdown-item value="discard" variant="danger">Discard changes</wa-dropdown-item>
+              </wa-dropdown>
             </div>
           </div>
         `;
-      })}`;
+      }
+      const isUser = r.author !== 'agent';
+      const isEditing = this._editingReplyId === r.id;
+      const isFirst = index === 0;
+      const showMenu = isUser && r.type === 'comment';
+      const prevIsAgent = !isUser && index > 0 && isAgentBubble(entries[index - 1]);
+      const nextIsAgent = !isUser && index < entries.length - 1 && isAgentBubble(entries[index + 1]);
+      const replyClass = isUser
+        ? 'reply'
+        : `reply agent${prevIsAgent ? ' no-top-radius' : ''}${nextIsAgent ? ' no-bottom-radius group-gap' : ''}`;
+      return html`
+        <div class=${replyClass} data-entry-id=${r.id}>
+          ${!isUser && !prevIsAgent ? html`<span class="reply-author-tag">✦ Agent</span>` : ''}
+          ${isEditing
+          ? html`
+                <wa-textarea
+                  rows="1"
+                  data-edit-id=${r.id}
+                  appearance="filled"
+                  resize="auto"
+                  size="xs"
+                  .value=${this._editDraft}
+                  @input=${(e: Event) => {
+              this._editDraft = (e.target as HTMLElement & { value: string; }).value;
+            }}
+                  @keydown=${(e: KeyboardEvent) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                this._saveEditReply();
+              } else if (e.key === 'Escape') {
+                e.stopPropagation();
+                this._cancelEditReply();
+              }
+            }}
+                ></wa-textarea>
+                <div class="edit-actions">
+                  <wa-button
+                    appearance="filled"
+                    variant="brand"
+                    size="xs"
+                    ?disabled=${!this._editDraft.trim()}
+                    @click=${this._saveEditReply}
+                    >Save</wa-button
+                  >
+                  <wa-button appearance="plain" size="xs" @click=${this._cancelEditReply}
+                    >Cancel</wa-button
+                  >
+                </div>
+              `
+          : html`
+                <div class="reply-main">
+                  <div class="reply-content">
+                    <div class="comment-text">${r.text}</div>
+                    <wa-relative-time
+                      sync
+                      .date=${new Date(r.createdAt)}
+                      style="font-size:var(--wa-font-size-xs);color:var(--wa-color-text-quiet);"
+                    ></wa-relative-time>
+                  </div>
+                  ${showMenu
+              ? html`
+                        <wa-dropdown
+                          size="xs"
+                          class="reply-menu"
+                          @click=${(e: Event) => e.stopPropagation()}
+                          @wa-select=${(e: CustomEvent) => {
+                  const val = e.detail.item.value;
+                  if (val === 'edit') this._startEditReply(r.id, r.text);
+                  else if (val === 'delete') this._deleteReply(r.id);
+                }}
+                        >
+                          <wa-button slot="trigger" appearance="plain" size="xs" title="More"
+                            >···</wa-button
+                          >
+                          <wa-dropdown-item value="edit">Edit</wa-dropdown-item>
+                          ${!isFirst
+                  ? html`<wa-dropdown-item value="delete" variant="danger"
+                                >Delete</wa-dropdown-item
+                              >`
+                  : ''}
+                        </wa-dropdown>
+                      `
+              : ''}
+                </div>
+              `}
+        </div>
+      `;
+    })}`;
   }
 
   private _renderChipsBar(editable: boolean): TemplateResult {

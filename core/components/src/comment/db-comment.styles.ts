@@ -265,31 +265,34 @@ const ANNOTATION_ITEM_LOCAL_STYLES = css`
     color: var(--wa-color-neutral);
   }
 
-  /* ── Reply author icon ──────────────────────── */
-  .reply-row {
-    display: flex;
-    align-items: flex-start;
-    gap: var(--wa-space-xs);
+  /* ── Replies ──────────────────────────────────── */
+  .reply {
     margin-bottom: var(--wa-space-xs);
+    font-size: var(--wa-font-size-s);
   }
-  .reply-author-icon {
-    flex-shrink: 0;
-    width: 18px;
-    height: 18px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 10px;
-    margin-top: 2px;
+  .reply.agent {
+    background: var(--wa-color-brand-05);
+    border-radius: var(--wa-border-radius-m);
+    padding: var(--wa-space-xs) var(--wa-space-s);
   }
-  .reply-author-icon.agent {
-    background: var(--wa-color-brand-fill-quiet);
+  .reply.agent.no-top-radius {
+    border-top-left-radius: 2px;
+    border-top-right-radius: 2px;
+  }
+  .reply.agent.no-bottom-radius {
+    border-bottom-left-radius: 2px;
+    border-bottom-right-radius: 2px;
+  }
+  .reply.group-gap {
+    margin-bottom: 1px;
+  }
+  .reply-author-tag {
+    display: block;
     color: var(--wa-color-brand);
-  }
-  .reply-body {
-    flex: 1;
-    min-width: 0;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    margin-bottom: var(--wa-space-2xs);
   }
   .reply-main {
     display: flex;
@@ -302,6 +305,11 @@ const ANNOTATION_ITEM_LOCAL_STYLES = css`
   }
   .reply-menu {
     flex-shrink: 0;
+  }
+  /* Tweak row inside agent reply */
+  .reply.agent .tweak-row {
+    padding: 0;
+    margin: 0;
   }
   .edit-actions {
     display: flex;
