@@ -151,17 +151,17 @@ export type CommentThread = z.infer<typeof CommentThreadSchema>;
 
 export interface TweakChangeMsg {
   type: 'tweak:change';
-  payload: { marker: string; value: string; };
+  payload: { marker: string; value: string };
 }
 
 export interface TweakFinalizeMsg {
   type: 'tweak:finalize';
-  payload: { markers: string[]; };
+  payload: { markers: string[] };
 }
 
 export interface TweakResetMsg {
   type: 'tweak:reset';
-  payload: { marker: string; };
+  payload: { marker: string };
 }
 
 export interface TweakResetAllMsg {
@@ -174,22 +174,22 @@ export interface TweakDiscardAllMsg {
 
 export interface TweakDiscardMsg {
   type: 'tweak:discard';
-  payload: { commentId: string; };
+  payload: { commentId: string };
 }
 
 export interface TweakAcceptCommentMsg {
   type: 'tweak:accept-comment';
-  payload: { commentId: string; };
+  payload: { commentId: string };
 }
 
 export interface TweakAcceptTweakMsg {
   type: 'tweak:accept-tweak';
-  payload: { commentId: string; marker: string; };
+  payload: { commentId: string; marker: string };
 }
 
 export interface TweakDismissMsg {
   type: 'tweak:dismiss';
-  payload: { commentId: string; marker: string; };
+  payload: { commentId: string; marker: string };
 }
 
 export interface CommentUpsertMsg {
@@ -199,7 +199,7 @@ export interface CommentUpsertMsg {
 
 export interface CommentDeleteMsg {
   type: 'comment:delete';
-  payload: { id: string; };
+  payload: { id: string };
 }
 
 export interface CommentClearMsg {
@@ -208,12 +208,12 @@ export interface CommentClearMsg {
 
 export interface CommentFocusMsg {
   type: 'comment:focus';
-  payload: { id: string; };
+  payload: { id: string };
 }
 
 export interface CommentReadMsg {
   type: 'comment:read';
-  payload: { id: string; };
+  payload: { id: string };
 }
 
 export type BrowserMessage =
@@ -251,7 +251,7 @@ export interface InspectPickMsg {
 
 export interface CommentFocusBroadcastMsg {
   type: 'comment:focus';
-  payload: { id: string; };
+  payload: { id: string };
 }
 
 export type ServerMessage =

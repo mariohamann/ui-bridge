@@ -393,18 +393,18 @@ server.tool(
     };
     const comments = knob
       ? [
-        rootEntry,
-        {
-          id: `${id}-tweak`,
-          type: 'tweak',
-          text: comment,
-          createdAt: now,
-          author: 'agent',
-          knob,
-          actions: actions ?? [],
-          tweakStatus: 'pending',
-        },
-      ]
+          rootEntry,
+          {
+            id: `${id}-tweak`,
+            type: 'tweak',
+            text: comment,
+            createdAt: now,
+            author: 'agent',
+            knob,
+            actions: actions ?? [],
+            tweakStatus: 'pending',
+          },
+        ]
       : [rootEntry];
     const payload = {
       meta: { id, pageUrl, timestamp: now, createdAt: now },
@@ -476,19 +476,19 @@ server.tool(
     const textEntry = { id: replyId, type: 'comment', text, createdAt: now, author: 'agent' };
     const newComments = knob
       ? [
-        ...(existing.comments ?? []),
-        textEntry,
-        {
-          id: `${replyId}-tweak`,
-          type: 'tweak',
-          text,
-          createdAt: now,
-          author: 'agent',
-          knob,
-          actions: actions ?? [],
-          tweakStatus: 'pending',
-        },
-      ]
+          ...(existing.comments ?? []),
+          textEntry,
+          {
+            id: `${replyId}-tweak`,
+            type: 'tweak',
+            text,
+            createdAt: now,
+            author: 'agent',
+            knob,
+            actions: actions ?? [],
+            tweakStatus: 'pending',
+          },
+        ]
       : [...(existing.comments ?? []), textEntry];
     const updated = {
       ...existing,
@@ -532,8 +532,8 @@ server.tool(
     const updatedComments =
       comment !== undefined
         ? existing.comments.map((c, i) =>
-          i === 0 && c.type === 'comment' ? { ...c, text: comment } : c,
-        )
+            i === 0 && c.type === 'comment' ? { ...c, text: comment } : c,
+          )
         : existing.comments;
     const updated = {
       ...existing,

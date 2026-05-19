@@ -215,20 +215,6 @@ const ANNOTATION_ITEM_LOCAL_STYLES = css`
     border-top: 1px solid var(--wa-color-surface-border);
     padding: var(--wa-space-xs) var(--wa-space-s) var(--wa-space-3xs);
   }
-  .tweaks-section-header {
-    display: flex;
-    align-items: center;
-    gap: var(--wa-space-3xs);
-    margin-bottom: var(--wa-space-3xs);
-  }
-  .tweaks-section-title {
-    flex: 1;
-    font-size: var(--wa-font-size-2xs);
-    font-weight: var(--wa-font-weight-bold);
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: var(--wa-color-text-quiet);
-  }
   .tweak-row {
     display: flex;
     align-items: center;

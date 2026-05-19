@@ -700,28 +700,27 @@ export class DbComment extends LitElement {
     };
     return html`
       <div class="tweaks-section">
-        <div class="tweaks-section-header">
-          <span class="tweaks-section-title">Tweak</span>
-          <wa-button
-            appearance="outlined"
-            variant="success"
-            size="xs"
-            @click=${this._acceptAllTweaks}
-            title="Accept tweak and resolve comment"
-            >Accept ✓</wa-button
-          >
-          <wa-button
-            appearance="outlined"
-            variant="warning"
-            size="xs"
-            @click=${this._discardTweak}
-            title="Discard tweak"
-            >Discard ✕</wa-button
-          >
-        </div>
         <div class="tweak-row">
           <span class="tweak-label">${knobDef.label}</span>
           <db-knob .knob=${knob} @db-knob-change=${this._onKnobChange}></db-knob>
+          <wa-button
+            appearance="plain"
+            size="xs"
+            @click=${this._acceptAllTweaks}
+            title="Accept tweak and resolve comment"
+            >✓</wa-button
+          >
+          <wa-dropdown
+            size="s"
+            @wa-select=${(e: CustomEvent) => {
+        if (e.detail.item.value === 'discard') this._discardTweak();
+      }}
+          >
+            <wa-button slot="trigger" appearance="plain" size="xs" title="More options"
+              >···</wa-button
+            >
+            <wa-dropdown-item value="discard" variant="danger">Discard changes</wa-dropdown-item>
+          </wa-dropdown>
         </div>
       </div>
     `;
@@ -825,6 +824,7 @@ export class DbComment extends LitElement {
               ${isEditing
             ? html`
                     <wa-textarea
+                      rows="1"
                       data-edit-id=${r.id}
                       appearance="filled"
                       resize="auto"
@@ -1010,6 +1010,7 @@ export class DbComment extends LitElement {
               <wa-textarea
                 data-role=${isDraft ? 'composer' : 'reply'}
                 appearance="filled"
+                rows="1"
                 resize="auto"
                 size="xs"
                 placeholder=${isDraft ? 'Add a comment\u2026' : 'Reply\u2026'}

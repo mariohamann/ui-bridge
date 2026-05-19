@@ -846,7 +846,7 @@ async function injectComment(
 async function openCommentPanel(page: Page): Promise<void> {
   const badge = page.locator('#db-items db-comment wa-button.badge').first();
   await badge.waitFor({ state: 'visible' });
-  await badge.click();
+  await badge.dispatchEvent('click');
 }
 
 /** Build an comment with a select knob and empty actions (UI-only, no file side-effects). */
@@ -864,7 +864,7 @@ function makeTweakComment(id: string): Record<string, unknown> {
       label: 'Feature icon',
       type: 'select',
       value: '🎨',
-      options: { Palette: '🎨', Fire: '🔥', Rocket: '🚀' },
+      options: { '🎨': 'Palette', '🔥': 'Fire', '🚀': 'Rocket' },
     },
     actions: [],
   };
@@ -989,9 +989,12 @@ test.describe('Tweaks in comments', () => {
       .toBe('🚀');
 
     // Now discard
-    const discardBtn = page.locator('#db-items db-comment wa-button[title="Discard tweak"]');
-    await expect(discardBtn).toBeVisible();
-    await discardBtn.click();
+    const moreBtn = page.locator('#db-items db-comment .tweak-row wa-button[title="More options"]');
+    await expect(moreBtn).toBeVisible();
+    await moreBtn.click();
+    const discardItem = page.locator('#db-items db-comment wa-dropdown-item[value="discard"]');
+    await expect(discardItem).toBeVisible();
+    await discardItem.click();
 
     // Comment should still exist
     await expect
@@ -1015,9 +1018,12 @@ test.describe('Tweaks in comments', () => {
     await page.reload();
     await openCommentPanel(page);
 
-    const discardBtn = page.locator('#db-items db-comment wa-button[title="Discard tweak"]');
-    await expect(discardBtn).toBeVisible();
-    await discardBtn.click();
+    const moreBtn = page.locator('#db-items db-comment .tweak-row wa-button[title="More options"]');
+    await expect(moreBtn).toBeVisible();
+    await moreBtn.click();
+    const discardItem = page.locator('#db-items db-comment wa-dropdown-item[value="discard"]');
+    await expect(discardItem).toBeVisible();
+    await discardItem.click();
 
     // API should reflect tweakStatus=discarded
     await expect
