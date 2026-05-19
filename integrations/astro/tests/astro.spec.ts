@@ -55,13 +55,11 @@ test('serves the client bundle at /__design-bridge/client.js', async ({ request 
 test('Design Bridge server health endpoint is reachable', async ({ request }) => {
   const res = await request.get(`http://localhost:${DB_PORT}/health`);
   expect(res.status()).toBe(200);
-  const body = (await res.json()) as { port: number; };
+  const body = (await res.json()) as { port: number };
   expect(typeof body.port).toBe('number');
 });
 
-test('comment round-trip: created on the page appears on the review UI', async ({
-  page,
-}) => {
+test('comment round-trip: created on the page appears on the review UI', async ({ page }) => {
   // 1. Load the Astro demo and wait for the Design Bridge client to be ready
   await page.goto('/');
   await page.waitForFunction(() => !!customElements.get('db-comment'), { timeout: 10_000 });
@@ -82,11 +80,11 @@ test('comment round-trip: created on the page appears on the review UI', async (
   // 3. Verify it was persisted via the API
   const res = await page.request.get(`${API_BASE}/comments`);
   const body = (await res.json()) as {
-    comments: { meta: { id: string; }; comments?: { text: string; }[]; }[];
+    comments: { meta: { id: string }; comments?: { text: string }[] }[];
   };
-  expect(
-    body.comments.some((a) => a.comments?.[0]?.text === 'Round-trip check from Astro'),
-  ).toBe(true);
+  expect(body.comments.some((a) => a.comments?.[0]?.text === 'Round-trip check from Astro')).toBe(
+    true,
+  );
 
   // File must be written inside the Astro demo root, not somewhere else
   const ann = body.comments.find((a) => a.comments?.[0]?.text === 'Round-trip check from Astro')!;
@@ -95,5 +93,4 @@ test('comment round-trip: created on the page appears on the review UI', async (
 
   const files = await readdir(ANNOTATIONS_DIR);
   expect(files).toContain(`${ann.meta.id}.json`);
-
 });

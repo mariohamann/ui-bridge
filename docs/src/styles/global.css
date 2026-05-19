@@ -156,7 +156,7 @@
 
 @layer components {
   .pill {
-    @apply inline-flex items-center gap-2 rounded-full border border-wa-surface-border bg-wa-surface-raised px-3.5 py-1.5 text-[12px] tracking-widest text-wa-brand-fill-normal;
+    @apply inline-flex items-center gap-2 rounded-full border border-wa-brand-fill-normal/30 bg-wa-surface-default px-3.5 py-1.5 text-[12px] tracking-widest text-wa-brand-fill-normal;
   }
 
   .pill-dot {

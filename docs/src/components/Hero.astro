@@ -1,6 +1,6 @@
 <section
   id="hero"
-  class="relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-6 py-20 text-center"
+  class="relative flex flex-col items-center justify-center overflow-hidden px-6 py-24 text-center"
 >
   <!-- Background glow -->
   <div
@@ -10,12 +10,6 @@
   </div>
 
   <div id="hero-content" class="relative z-10 max-w-[680px]">
-    <!-- Pill -->
-    <div class="pill mb-8">
-      <span class="pill-dot"></span>
-      OPEN SOURCE · MIT
-    </div>
-
     <h1 class="mb-6 text-[clamp(40px,6vw,72px)] font-semibold leading-[1.1] tracking-tight">
       Design Bridge
     </h1>
@@ -25,19 +19,6 @@
     >
       The missing layer between your browser and your agent.
     </p>
-
-    <!-- Install command -->
-    <div
-      class="mb-10 inline-flex items-center gap-3 rounded-lg border border-wa-surface-border bg-wa-surface-lowered px-5 py-3.5 font-mono text-sm"
-    >
-      <span class="select-none text-wa-text-quiet">$</span>
-      <span class="text-wa-text-normal">npm install @design-bridge/vite-plugin</span>
-      <button
-        onclick="navigator.clipboard.writeText('npm install @design-bridge/vite-plugin');this.textContent='✓';setTimeout(()=>this.textContent='Copy',1500)"
-        class="rounded border border-wa-surface-border bg-wa-surface-default px-2.5 py-1 text-[11px] text-wa-text-quiet cursor-pointer hover:text-wa-text-normal transition-colors"
-        >Copy</button
-      >
-    </div>
 
     <div class="flex flex-wrap justify-center gap-4">
       <wa-button href="#get-started" appearance="accent" variant="brand">Get Started ↓</wa-button>

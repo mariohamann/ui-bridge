@@ -20,10 +20,10 @@ const API_BASE = `http://localhost:${DB_PORT}/api`;
 
 /** Resolve the comment directory from the running server's reported root. */
 async function getCommentsDir(request: {
-  get: (url: string) => Promise<{ json: () => Promise<unknown>; }>;
+  get: (url: string) => Promise<{ json: () => Promise<unknown> }>;
 }): Promise<string> {
   const res = await request.get(`http://localhost:${DB_PORT}/health`);
-  const body = (await res.json()) as { root: string; };
+  const body = (await res.json()) as { root: string };
   return resolve(body.root, '.design-bridge', 'comments');
 }
 
@@ -58,7 +58,7 @@ test('serves the client bundle at /__design-bridge/client.js', async ({ request 
 test('Design Bridge server health endpoint is reachable', async ({ request }) => {
   const res = await request.get(`http://localhost:${DB_PORT}/health`);
   expect(res.status()).toBe(200);
-  const body = (await res.json()) as { port: number; };
+  const body = (await res.json()) as { port: number };
   expect(typeof body.port).toBe('number');
 });
 
@@ -86,11 +86,11 @@ test('comment round-trip: created on the page is persisted to the server', async
 
   const res = await page.request.get(`${API_BASE}/comments`);
   const body = (await res.json()) as {
-    comments: { meta: { id: string; }; comments?: { text: string; }[]; }[];
+    comments: { meta: { id: string }; comments?: { text: string }[] }[];
   };
-  expect(
-    body.comments.some((a) => a.comments?.[0]?.text === 'unplugin integration check'),
-  ).toBe(true);
+  expect(body.comments.some((a) => a.comments?.[0]?.text === 'unplugin integration check')).toBe(
+    true,
+  );
 
   // File must be written inside the server's root, not somewhere else
   const ann = body.comments.find((a) => a.comments?.[0]?.text === 'unplugin integration check')!;

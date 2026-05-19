@@ -309,6 +309,8 @@ const ANNOTATION_ITEM_LOCAL_STYLES = css`
     display: flex;
     align-items: flex-start;
     gap: var(--wa-space-xs);
+    margin-top: -8px;
+    margin-bottom: -24px;
   }
   .reply-content {
     flex: 1;

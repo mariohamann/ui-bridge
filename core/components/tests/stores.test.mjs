@@ -147,7 +147,6 @@ describe('comments store', () => {
     const stored = commentsSignal.get()[0];
     assert.equal(stored.lastReadAt, now);
   });
-
 });
 
 // ── intent bus ────────────────────────────────────────────────────────────────

@@ -15,9 +15,9 @@
 type DbComponents = {
   updateComments: (threads: unknown[]) => void;
   upsertComment: (thread: unknown) => void;
-  commentsSignal: { get: () => unknown[]; };
+  commentsSignal: { get: () => unknown[] };
   updateKnobs: (knobs: unknown[]) => void;
-  knobsSignal: { get: () => unknown[]; };
+  knobsSignal: { get: () => unknown[] };
   onIntent: (handler: (intent: Record<string, unknown>) => void) => () => void;
 };
 
@@ -138,18 +138,18 @@ waitForDb().then((db) => {
       intent['commentId'] === SUBTITLE_COLOR_KNOB_MARKER
     ) {
       const threads = db.commentsSignal.get() as {
-        meta: { id: string; };
-        comments: { type: string; tweakStatus?: string; }[];
+        meta: { id: string };
+        comments: { type: string; tweakStatus?: string }[];
       }[];
       db.updateComments(
         threads.map((t) =>
           t.meta.id === SUBTITLE_COLOR_KNOB_MARKER
             ? {
-              ...t,
-              comments: t.comments.map((c) =>
-                c.type === 'tweak' ? { ...c, tweakStatus: 'accepted' } : c,
-              ),
-            }
+                ...t,
+                comments: t.comments.map((c) =>
+                  c.type === 'tweak' ? { ...c, tweakStatus: 'accepted' } : c,
+                ),
+              }
             : t,
         ),
       );
@@ -171,18 +171,18 @@ waitForDb().then((db) => {
       if (el) el.style.color = '';
 
       const threads = db.commentsSignal.get() as {
-        meta: { id: string; };
-        comments: { type: string; tweakStatus?: string; }[];
+        meta: { id: string };
+        comments: { type: string; tweakStatus?: string }[];
       }[];
       db.updateComments(
         threads.map((t) =>
           t.meta.id === SUBTITLE_COLOR_KNOB_MARKER
             ? {
-              ...t,
-              comments: t.comments.map((c) =>
-                c.type === 'tweak' ? { ...c, tweakStatus: 'discarded' } : c,
-              ),
-            }
+                ...t,
+                comments: t.comments.map((c) =>
+                  c.type === 'tweak' ? { ...c, tweakStatus: 'discarded' } : c,
+                ),
+              }
             : t,
         ),
       );
