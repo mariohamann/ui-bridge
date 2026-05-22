@@ -258,9 +258,7 @@ When in doubt, prefer Mode A. Only use Mode B when the comment clearly signals e
 
 - \`create_comment\`      — start a new thread on one or more elements (agent-authored)
 - \`reply_to_comment\`    — add an agent reply (text only, or text + live tweak)
-- \`update_own_comment\`  — edit an agent-authored comment or reply
-- \`close_tweak\`         — retract the agent's pending tweak on a comment
-- \`list_comments\`       — read all threads (call this at session start)
+- \`list_comments\`       — read open (unresolved) threads by default; pass \`includeResolved: true\` to see all
 - \`get_comment\`         — read a single thread with full knob + actions + replies
 - \`get_tweaks\`          — list all live knobs with current values
 - \`get_server_info\`     — get root, scriptsDir, commentsDir paths
@@ -330,12 +328,23 @@ server.tool(
   `List all comments stored in Design Bridge.
   Call this proactively at the start of a session to discover pending design feedback and active
   tweaks. Each comment may carry a \`knob\` (live tweak), an \`actions\` array, and a \`replies\`
-  thread. Comments without a \`resolvedAt\` field are still open.`,
-  {},
-  async () => {
+  thread. Comments without a \`resolvedAt\` field are still open.
+  By default only open (unresolved) comments are returned. Set \`includeResolved\` to true to also include resolved comments.`,
+  {
+    includeResolved: {
+      type: 'boolean',
+      description: 'When true, resolved comments are included in the response. Defaults to false.',
+    },
+  },
+  async ({ includeResolved = false } = {}) => {
     const url = await resolveBaseUrl();
     const data = await apiFetch(url, '/api/comments');
-    return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
+    const comments = Array.isArray(data.comments)
+      ? includeResolved
+        ? data.comments
+        : data.comments.filter((c) => !c.meta?.resolvedAt)
+      : data;
+    return { content: [{ type: 'text', text: JSON.stringify(comments, null, 2) }] };
   },
 );
 
@@ -367,7 +376,7 @@ server.tool(
      ⚠ Reversing the params (e.g. (value, content)) corrupts or empties the file.
   4. Include knob + actions in this call.
 
-  The comment is stamped author='agent'. You can only edit it later via update_own_comment.
+  The comment is stamped author='agent'.
 
   Call get_write_scripts_guide for the full script reference (knob types, regex rules, HMR notes).`,
   {
@@ -540,52 +549,6 @@ server.tool(
 );
 
 server.tool(
-  'update_own_comment',
-  `Update an agent-authored comment. You may only update comments where author='agent'.
-  Attempting to update user-authored comments will return an error.
-
-  Use this to correct the opening message, selectors, or labels of a comment you created.
-  To add a reply, use reply_to_comment instead.`,
-  {
-    id: z.string().describe('ID of the agent-authored comment to update'),
-    comment: z.string().optional().describe('Updated opening message'),
-    elements: z
-      .array(
-        z.object({
-          minimalSelector: z.string(),
-          tag: z.string(),
-          id: z.string().optional(),
-          classes: z.array(z.string()),
-          source: z.object({ file: z.string(), line: z.number(), column: z.number() }).optional(),
-        }),
-      )
-      .optional()
-      .describe('Updated elements'),
-  },
-  async ({ id, comment, elements }) => {
-    const url = await resolveBaseUrl();
-    const existing = await apiFetch(url, `/api/comments/${encodeURIComponent(id)}`);
-    if (existing.comments?.[0]?.author !== 'agent') {
-      throw new Error(`Comment "${id}" is not agent-authored — cannot update.`);
-    }
-    const updatedComments =
-      comment !== undefined
-        ? existing.comments.map((c, i) =>
-          i === 0 && c.type === 'comment' ? { ...c, text: comment } : c,
-        )
-        : existing.comments;
-    const updated = {
-      ...existing,
-      meta: { ...existing.meta, timestamp: Date.now() },
-      ...(elements !== undefined ? { elements } : {}),
-      comments: updatedComments,
-    };
-    const data = await apiFetch(url, '/api/comments', { method: 'POST', body: updated });
-    return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
-  },
-);
-
-server.tool(
   'get_tweaks',
   `Get the current knobs schema — lists all active tweak knobs with their current values.
   Useful to check which tweaks are live and summarise the current exploration state to the user.
@@ -594,25 +557,6 @@ server.tool(
   async () => {
     const url = await resolveBaseUrl();
     const data = await apiFetch(url, '/api/tweaks');
-    return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
-  },
-);
-
-server.tool(
-  'close_tweak',
-  `Retract the agent's pending tweak on a comment by discarding the knob and restoring the
-  original files. Use this before posting a new tweak reply to replace an existing one,
-  or when the agent wants to withdraw a suggestion.
-
-  Only works on comments where the knob was created by the agent (tweakStatus='pending').`,
-  {
-    commentId: z.string().describe('ID of the comment whose tweak should be closed'),
-  },
-  async ({ commentId }) => {
-    const url = await resolveBaseUrl();
-    const data = await apiFetch(url, `/api/comments/${encodeURIComponent(commentId)}/discard`, {
-      method: 'POST',
-    });
     return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
   },
 );
