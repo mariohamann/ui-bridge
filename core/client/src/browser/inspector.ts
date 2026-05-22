@@ -186,11 +186,11 @@ function reconcileOrphans(): void {
 
 function reconcileItems(): void {
   if (!itemContainer) return;
-  const annList = [...comments.values()];
+  const annList = [...comments.values()].filter((ann) => !ann.meta.resolvedAt);
 
-  // Remove items whose comment was deleted
+  // Remove items whose comment was deleted or resolved
   for (const [id, el] of itemEls) {
-    if (!comments.has(id)) {
+    if (!comments.has(id) || comments.get(id)?.meta.resolvedAt) {
       el.remove();
       itemEls.delete(id);
     }
@@ -307,7 +307,7 @@ function onPointerDownForInspect(e: PointerEvent): void {
 }
 
 function onTrackCode(e: Event): void {
-  const detail = (e as CustomEvent<{ path?: string; line?: number; column?: number }>).detail;
+  const detail = (e as CustomEvent<{ path?: string; line?: number; column?: number; }>).detail;
   hideHighlight();
   if (!itemContainer) return;
 
@@ -343,7 +343,7 @@ function onTrackCode(e: Event): void {
 // ─── Cross-tab BroadcastChannel ──────────────────────────────────────────────
 
 channel.addEventListener('message', (e) => {
-  const { type, payload } = e.data as { type: string; payload: CommentThread[] };
+  const { type, payload } = e.data as { type: string; payload: CommentThread[]; };
   if (type === 'comments:sync') syncComments(payload);
 });
 

@@ -26,9 +26,9 @@
 type DbComponents = {
   updateComments: (threads: unknown[]) => void;
   upsertComment: (thread: unknown) => void;
-  commentsSignal: { get: () => unknown[] };
+  commentsSignal: { get: () => unknown[]; };
   updateKnobs: (knobs: unknown[]) => void;
-  knobsSignal: { get: () => unknown[] };
+  knobsSignal: { get: () => unknown[]; };
   onIntent: (handler: (intent: Record<string, unknown>) => void) => () => void;
 };
 
@@ -153,7 +153,18 @@ const THREAD_NUMBER = makeThread('dc-number', '#hero', 'section', [
   makeTweak(
     'dc-number-tweak',
     'Tweak hero padding',
-    { label: 'Vertical padding (px)', type: 'number', value: 96, min: 32, max: 160, step: 8 },
+    {
+      label: 'Vertical padding',
+      type: 'select',
+      value: 'py-20',
+      options: {
+        'py-10': 'Compact (40px)',
+        'py-16': 'Cozy (64px)',
+        'py-20': 'Comfortable (80px)',
+        'py-28': 'Spacious (112px)',
+        'py-36': 'Airy (144px)',
+      },
+    },
     'accepted',
     3_400_000,
   ),
@@ -180,8 +191,16 @@ const THREAD_STRING = makeThread(
     ),
     makeTweak('dc-string-tweak', 'Tweak CTA label', {
       label: 'Button label',
-      type: 'string',
+      type: 'select',
       value: 'Get Started ↓',
+      options: {
+        'Get Started ↓': 'Get Started ↓',
+        'Start in 2 minutes': 'Start in 2 minutes',
+        'Try it free': 'Try it free',
+        'See it in action': 'See it in action',
+        'Install now': 'Install now',
+        'Get up and running': 'Get up and running',
+      },
     }),
   ],
 );
@@ -253,18 +272,20 @@ const THREAD_SELECT = makeThread('dc-select', '#how-it-works h2', 'h2', [
   ),
   makeText(
     'dc-select-2',
-    "Use the select knob to try the three size options — I'd start with md.",
+    "Use the select knob to try different sizes — it'll update both section headings at once. I'd start with SM.",
     'agent',
     540_000,
   ),
   makeTweak('dc-select-tweak', 'Tweak heading size', {
     label: 'Heading size',
     type: 'select',
-    value: 'text-3xl',
+    value: '1.875rem',
     options: {
-      'text-2xl': 'sm',
-      'text-3xl': 'md',
-      'text-4xl': 'lg',
+      '1.25rem': 'XS — 1.25rem',
+      '1.5rem': 'SM — 1.5rem',
+      '1.875rem': 'MD — 1.875rem',
+      '2.25rem': 'LG — 2.25rem',
+      '3rem': 'XL — 3rem',
     },
   }),
 ]);
@@ -327,64 +348,22 @@ const THREAD_FOLLOWUP = makeThread(M_FOLLOWUP, '#get-started h2', 'h2', [
   }),
 ]);
 
-// ── Initial knob state (pending tweaks only) ──────────────────────────────────
+// ── Initial knob state — derived from pending tweaks in threads ───────────────
 
-const INITIAL_KNOBS = [
-  {
-    marker: M_COLOR,
-    commentId: M_COLOR,
-    label: 'Subtitle color',
-    type: 'color',
-    value: '#8888a0',
-  },
-  {
-    marker: M_STRING,
-    commentId: M_STRING,
-    label: 'Button label',
-    type: 'string',
-    value: 'Get Started ↓',
-  },
-  {
-    marker: M_TEXTAREA,
-    commentId: M_TEXTAREA,
-    label: 'Setup description',
-    type: 'textarea',
-    value:
-      'Install the package for your framework, add it to your config, and run your dev server.',
-  },
-  // Boolean: second tweak is pending
-  {
-    marker: M_BOOLEAN,
-    commentId: M_BOOLEAN,
-    label: 'Dimmed subtitle',
-    type: 'boolean',
-    value: false,
-  },
-  {
-    marker: M_SELECT,
-    commentId: M_SELECT,
-    label: 'Heading size',
-    type: 'select',
-    value: 'text-3xl',
-    options: { 'text-2xl': 'sm', 'text-3xl': 'md', 'text-4xl': 'lg' },
-  },
-  {
-    marker: M_BUTTON_GROUP,
-    commentId: M_BUTTON_GROUP,
-    label: 'Hero alignment',
-    type: 'button-group',
-    value: 'center',
-    options: { left: 'Left', center: 'Center', right: 'Right' },
-  },
-  {
-    marker: M_FOLLOWUP,
-    commentId: M_FOLLOWUP,
-    label: 'Font weight',
-    type: 'button-group',
-    value: 'semibold',
-    options: { normal: 'Normal', medium: 'Medium', semibold: 'Semibold', bold: 'Bold' },
-  },
-];
+type ThreadLike = {
+  meta: { id: string; };
+  comments: { type: string; tweakStatus?: string; knob?: Record<string, unknown>; }[];
+};
+
+function extractPendingKnobs(threads: unknown[]): unknown[] {
+  return (threads as ThreadLike[]).flatMap((thread) => {
+    const pending = [...thread.comments]
+      .reverse()
+      .find((c) => c.type === 'tweak' && c.tweakStatus === 'pending');
+    if (!pending?.knob) return [];
+    return [{ marker: thread.meta.id, commentId: thread.meta.id, ...pending.knob }];
+  });
+}
 
 // ── Knob-change visual effects ────────────────────────────────────────────────
 
@@ -418,15 +397,14 @@ function applyKnobChange(marker: string, value: unknown): void {
 
   if (marker === M_BOOLEAN) {
     const el = document.querySelector<HTMLElement>('p.text-wa-text-quiet');
-    if (el) el.style.opacity = value === true ? '0.5' : '';
+    if (el) el.style.opacity = value === true || value === 'true' ? '0.5' : '';
     return;
   }
 
   if (marker === M_SELECT) {
-    const el = document.querySelector<HTMLElement>('#how-it-works h2');
-    if (el) {
-      el.classList.remove('text-2xl', 'text-3xl', 'text-4xl');
-      el.classList.add(String(value));
+    for (const selector of ['#how-it-works h2', '#get-started h2']) {
+      const el = document.querySelector<HTMLElement>(selector);
+      if (el) el.style.fontSize = String(value);
     }
     return;
   }
@@ -491,10 +469,9 @@ function revertKnob(marker: string): void {
     const el = document.querySelector<HTMLElement>('p.text-wa-text-quiet');
     if (el) el.style.opacity = '';
   } else if (marker === M_SELECT) {
-    const el = document.querySelector<HTMLElement>('#how-it-works h2');
-    if (el) {
-      el.classList.remove('text-2xl', 'text-3xl', 'text-4xl');
-      el.classList.add('text-3xl');
+    for (const selector of ['#how-it-works h2', '#get-started h2']) {
+      const el = document.querySelector<HTMLElement>(selector);
+      if (el) el.style.fontSize = '';
     }
   } else if (marker === M_BUTTON_GROUP) {
     const el = document.querySelector<HTMLElement>('#hero-content');
@@ -527,9 +504,7 @@ function waitForDb(): Promise<DbComponents> {
 }
 
 waitForDb().then((db) => {
-  // Seed all threads
-  for (const thread of [
-    THREAD_PLAIN,
+  const ALL_THREADS = [
     THREAD_COLOR,
     THREAD_NUMBER,
     THREAD_STRING,
@@ -538,14 +513,17 @@ waitForDb().then((db) => {
     THREAD_SELECT,
     THREAD_BUTTON_GROUP,
     THREAD_FOLLOWUP,
-  ]) {
+  ];
+
+  // Seed all threads
+  for (const thread of ALL_THREADS) {
     db.upsertComment(thread);
   }
 
-  // Seed all pending knobs
-  db.updateKnobs([...(db.knobsSignal.get() as unknown[]), ...INITIAL_KNOBS]);
+  // Seed pending knobs — derived from threads, no separate list to maintain
+  db.updateKnobs([...(db.knobsSignal.get() as unknown[]), ...extractPendingKnobs(ALL_THREADS)]);
 
-  type KnobLike = { marker: string; value: unknown };
+  type KnobLike = { marker: string; value: unknown; };
 
   function updateKnobValue(marker: string, value: unknown): void {
     const knobs = db.knobsSignal.get() as KnobLike[];
@@ -554,20 +532,20 @@ waitForDb().then((db) => {
 
   function resolveKnob(commentId: string, status: 'accepted' | 'discarded'): void {
     const threads = db.commentsSignal.get() as {
-      meta: { id: string };
-      comments: { type: string; tweakStatus?: string }[];
+      meta: { id: string; };
+      comments: { type: string; tweakStatus?: string; }[];
     }[];
     db.updateComments(
       threads.map((t) =>
         t.meta.id === commentId
           ? {
-              ...t,
-              comments: t.comments.map((c) =>
-                c.type === 'tweak' && (c as { tweakStatus?: string }).tweakStatus === 'pending'
-                  ? { ...c, tweakStatus: status }
-                  : c,
-              ),
-            }
+            ...t,
+            comments: t.comments.map((c) =>
+              c.type === 'tweak' && (c as { tweakStatus?: string; }).tweakStatus === 'pending'
+                ? { ...c, tweakStatus: status }
+                : c,
+            ),
+          }
           : t,
       ),
     );
@@ -576,34 +554,27 @@ waitForDb().then((db) => {
   }
 
   // Handle intents for all demo threads locally
+  const DEMO_IDS = new Set(
+    ALL_THREADS.map((t) => (t as { meta: { id: string; }; }).meta.id),
+  );
+
   db.onIntent((intent) => {
     const type = intent['type'] as string;
     const marker = intent['marker'] as string | undefined;
     const commentId = intent['commentId'] as string | undefined;
 
-    const ALL_MARKERS = [
-      M_COLOR,
-      M_NUMBER,
-      M_STRING,
-      M_TEXTAREA,
-      M_BOOLEAN,
-      M_SELECT,
-      M_BUTTON_GROUP,
-      M_FOLLOWUP,
-    ];
-
-    if (type === 'tweak:change' && marker && ALL_MARKERS.includes(marker)) {
+    if (type === 'tweak:change' && marker && DEMO_IDS.has(marker)) {
       applyKnobChange(marker, intent['value']);
       updateKnobValue(marker, intent['value']);
       return;
     }
 
-    if (type === 'tweak:accept-comment' && commentId && ALL_MARKERS.includes(commentId)) {
+    if (type === 'tweak:accept-comment' && commentId && DEMO_IDS.has(commentId)) {
       resolveKnob(commentId, 'accepted');
       return;
     }
 
-    if (type === 'tweak:discard-comment' && commentId && ALL_MARKERS.includes(commentId)) {
+    if (type === 'tweak:discard-comment' && commentId && DEMO_IDS.has(commentId)) {
       revertKnob(commentId);
       resolveKnob(commentId, 'discarded');
     }

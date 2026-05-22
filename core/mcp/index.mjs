@@ -84,7 +84,9 @@ different files or different lines, the replay engine composes them correctly.
 
 1. \`get_server_info\` — note \`scriptsDir\`.
 2. Read the target source file to find the exact string to transform.
-3. Write \`{scriptsDir}/{scriptId}.mjs\` — \`export default (content, value) => string\`.
+3. Write \`{scriptsDir}/{scriptId}.mjs\` — signature: \`export default (content, value) => string\`
+   where \`content\` is the full file text (first) and \`value\` is the knob value (second).
+   ⚠ Reversing the parameters corrupts or empties the file.
 4. \`reply_to_comment\` with \`text\`, \`knob\`, and \`actions\` referencing the scriptId.
 5. The browser shows the knob inline in the reply thread. The user accepts or discards.
 `;
@@ -102,11 +104,15 @@ export default (content, value) =>
 \`\`\`
 
 The function receives:
-- \`content\` — the **original** source file text (always restored before replay)
-- \`value\` — the current knob value as a **string** (all types are coerced)
+- \`content\` — the **original** source file text (always restored before replay) — **FIRST parameter**
+- \`value\` — the current knob value as a **string** (all types are coerced) — **SECOND parameter**
 
 It must return the modified file content as a string.
 The function must be **pure** — no imports, no async, no side effects.
+
+> ⚠️ **Common mistake — reversed parameters**: the first parameter is \`content\` (the file text),
+> the second is \`value\` (the knob). Writing \`(value, content)\` or \`(value, original)\` means
+> your regex runs on the knob string, returns \`undefined\`, and the file is emptied or corrupted.
 
 ## Where to write the script
 
@@ -247,9 +253,17 @@ done from the browser panel. Never attempt those actions on the user's behalf.
 - \`get_tweaks\`          — list all live knobs with current values
 - \`get_server_info\`     — get root, scriptsDir, commentsDir paths
 
-For tweak scripts, knob types, HMR behaviour, and complete examples see:
-- \`design-bridge://guide/workflow\` — conversational flow and when to tweak vs. edit
-- \`design-bridge://guide/write-scripts\` — full script authoring reference
+## Transform script contract (mandatory — read before writing any script)
+
+Every script MUST use this exact signature:
+  export default (content, value) => string
+  • content = the full source file text (FIRST parameter)
+  • value   = the knob value as a string  (SECOND parameter)
+⚠ Reversing the parameters (e.g. (value, content) or (value, original)) corrupts the file.
+
+Call \`get_write_scripts_guide\` to get the full reference (knob types, regex rules, HMR notes).
+
+For conversational flow see resource \`design-bridge://guide/workflow\`.
 `;
 
 const server = new McpServer(
@@ -295,6 +309,17 @@ server.resource(
 // ── Tools ─────────────────────────────────────────────────────────────────────
 
 server.tool(
+  'get_write_scripts_guide',
+  `Return the full Design Bridge transform script authoring reference.
+  Call this BEFORE writing any transform script (.mjs file) for a tweak.
+  Covers: required function signature, parameter order, knob types, regex rules, HMR behaviour, and complete examples.`,
+  {},
+  async () => ({
+    content: [{ type: 'text', text: GUIDE_WRITE_SCRIPTS }],
+  }),
+);
+
+server.tool(
   'list_comments',
   `List all comments stored in Design Bridge.
   Call this proactively at the start of a session to discover pending design feedback and active
@@ -329,12 +354,16 @@ server.tool(
   Can optionally attach a live tweak knob (knob + actions). If creating a tweak:
   1. Call get_server_info — note scriptsDir.
   2. Read the target source file to find the exact string to replace.
-  3. Write {scriptsDir}/{scriptId}.mjs using your file tools.
+  3. Write {scriptsDir}/{scriptId}.mjs — REQUIRED signature:
+        export default (content, value) => string
+     • content = the full file text (FIRST param)
+     • value   = the knob value as a string (SECOND param)
+     ⚠ Reversing the params (e.g. (value, content)) corrupts or empties the file.
   4. Include knob + actions in this call.
 
   The comment is stamped author='agent'. You can only edit it later via update_own_comment.
 
-  See resource design-bridge://guide/write-scripts for script authoring details.`,
+  Call get_write_scripts_guide for the full script reference (knob types, regex rules, HMR notes).`,
   {
     elements: z
       .array(
@@ -393,18 +422,18 @@ server.tool(
     };
     const comments = knob
       ? [
-          rootEntry,
-          {
-            id: `${id}-tweak`,
-            type: 'tweak',
-            text: comment,
-            createdAt: now,
-            author: 'agent',
-            knob,
-            actions: actions ?? [],
-            tweakStatus: 'pending',
-          },
-        ]
+        rootEntry,
+        {
+          id: `${id}-tweak`,
+          type: 'tweak',
+          text: comment,
+          createdAt: now,
+          author: 'agent',
+          knob,
+          actions: actions ?? [],
+          tweakStatus: 'pending',
+        },
+      ]
       : [rootEntry];
     const payload = {
       meta: { id, pageUrl, timestamp: now, createdAt: now },
@@ -428,14 +457,18 @@ server.tool(
   If adding a tweak reply:
   1. Call get_server_info — note scriptsDir.
   2. Read the target source file to find the exact string to replace.
-  3. Write {scriptsDir}/{scriptId}.mjs using your file tools.
+  3. Write {scriptsDir}/{scriptId}.mjs — REQUIRED signature:
+        export default (content, value) => string
+     • content = the full file text (FIRST param)
+     • value   = the knob value as a string (SECOND param)
+     ⚠ Reversing the params (e.g. (value, content)) corrupts or empties the file.
   4. Include knob + actions in this call.
 
   The knob appears inline in the thread at the position of this reply.
   The user accepts or discards from the panel — the knob collapses with a status badge either way.
   Multiple tweak replies on the same thread are allowed as long as they touch different code.
 
-  See resource design-bridge://guide/write-scripts for script authoring details.`,
+  Call get_write_scripts_guide for the full script reference (knob types, regex rules, HMR notes).`,
   {
     commentId: z.string().describe('ID of the existing comment thread to reply to'),
     text: z
@@ -476,19 +509,19 @@ server.tool(
     const textEntry = { id: replyId, type: 'comment', text, createdAt: now, author: 'agent' };
     const newComments = knob
       ? [
-          ...(existing.comments ?? []),
-          textEntry,
-          {
-            id: `${replyId}-tweak`,
-            type: 'tweak',
-            text,
-            createdAt: now,
-            author: 'agent',
-            knob,
-            actions: actions ?? [],
-            tweakStatus: 'pending',
-          },
-        ]
+        ...(existing.comments ?? []),
+        textEntry,
+        {
+          id: `${replyId}-tweak`,
+          type: 'tweak',
+          text,
+          createdAt: now,
+          author: 'agent',
+          knob,
+          actions: actions ?? [],
+          tweakStatus: 'pending',
+        },
+      ]
       : [...(existing.comments ?? []), textEntry];
     const updated = {
       ...existing,
@@ -532,8 +565,8 @@ server.tool(
     const updatedComments =
       comment !== undefined
         ? existing.comments.map((c, i) =>
-            i === 0 && c.type === 'comment' ? { ...c, text: comment } : c,
-          )
+          i === 0 && c.type === 'comment' ? { ...c, text: comment } : c,
+        )
         : existing.comments;
     const updated = {
       ...existing,

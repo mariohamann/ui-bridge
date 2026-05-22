@@ -57,8 +57,8 @@ before(async () => {
     stdio: 'pipe',
   });
 
-  serverProc.stderr.on('data', () => {});
-  serverProc.stdout.on('data', () => {});
+  serverProc.stderr.on('data', () => { });
+  serverProc.stdout.on('data', () => { });
 
   await waitForServer();
 
@@ -167,12 +167,13 @@ describe('MCP initialize', () => {
 });
 
 describe('MCP tools/list', () => {
-  it('returns all 8 tools', async () => {
+  it('returns all 9 tools', async () => {
     const responses = await mcpCall('tools/list', {});
     const res = findResponse(responses, 2);
     assert.ok(res?.result?.tools, 'tools missing');
     const names = res.result.tools.map((t) => t.name);
     const expected = [
+      'get_write_scripts_guide',
       'list_comments',
       'get_comment',
       'create_comment',
@@ -185,7 +186,7 @@ describe('MCP tools/list', () => {
     for (const name of expected) {
       assert.ok(names.includes(name), `tool "${name}" missing`);
     }
-    assert.equal(names.length, 8);
+    assert.equal(names.length, 9);
   });
 });
 
@@ -678,7 +679,7 @@ describe('Port discovery integration — MCP server finds Design Bridge via .por
         }
       }
     });
-    proc.stderr.on('data', () => {});
+    proc.stderr.on('data', () => { });
 
     const send = (obj) => proc.stdin.write(JSON.stringify(obj) + '\n');
     send({
@@ -731,7 +732,7 @@ describe('Port discovery integration — MCP server finds Design Bridge via .por
         }
       }
     });
-    proc.stderr.on('data', () => {});
+    proc.stderr.on('data', () => { });
 
     const send = (obj) => proc.stdin.write(JSON.stringify(obj) + '\n');
     send({
