@@ -66,13 +66,14 @@ participant that can reply with text, code changes, or live tweaks.
 
 ## Use a tweak when
 
-- The user wants to compare options or try variants side-by-side in the browser.
-- The decision isn't final — exploring, not committing.
+- The user's comment signals exploration: "try", "compare", "I'm not sure", "options", "let me see".
+- The decision isn't final — the user needs to see variants to decide.
 
 ## Use a direct edit when
 
-- The decision is already clear: bug fixes, structural refactors, single correct outcome.
-- The user says "just change it".
+- The user's intent is clear and decided: "fix", "change X to Y", "it's wrong", "make it smaller".
+- Bug fixes, structural refactors, single correct outcome.
+- When in doubt — default to a direct edit.
 
 ## Multiple tweaks at once
 
@@ -238,9 +239,20 @@ done from the browser panel. Never attempt those actions on the user's behalf.
 ## Conversational flow
 
 1. User annotates an element in the browser; a thread is created.
-2. LLM calls \`list_comments\` at session start, then \`reply_to_comment\` to respond.
-3. User accepts or discards the tweak from the panel. The knob collapses with a status badge.
-4. If the user replies again, the LLM can post a new \`reply_to_comment\` with another tweak.
+2. LLM calls \`list_comments\` at session start, then reads each open thread and responds.
+3. For each thread, choose **one** of two response modes based on the user's intent:
+
+**Mode A — Direct edit** (default): The user's intent is clear and decided.
+Examples: "fix this", "change X to Y", "the spacing is wrong".
+→ Make the code change directly, then \`reply_to_comment\` with text explaining what was done.
+→ No knob, no script.
+
+**Mode B — Live tweak**: The user wants to explore options interactively in the browser.
+Examples: "try different sizes", "I'm not sure which color", "let me see options", "explore this".
+→ Call \`get_write_scripts_guide\` first, create the script, then \`reply_to_comment\` with a knob.
+→ The user tries values live and accepts or discards from the panel.
+
+When in doubt, prefer Mode A. Only use Mode B when the comment clearly signals exploration.
 
 ## Key tools
 
@@ -253,17 +265,11 @@ done from the browser panel. Never attempt those actions on the user's behalf.
 - \`get_tweaks\`          — list all live knobs with current values
 - \`get_server_info\`     — get root, scriptsDir, commentsDir paths
 
-## Transform script contract (mandatory — read before writing any script)
+## When writing a tweak script (Mode B only)
 
-Every script MUST use this exact signature:
-  export default (content, value) => string
-  • content = the full source file text (FIRST parameter)
-  • value   = the knob value as a string  (SECOND parameter)
-⚠ Reversing the parameters (e.g. (value, content) or (value, original)) corrupts the file.
-
-Call \`get_write_scripts_guide\` to get the full reference (knob types, regex rules, HMR notes).
-
-For conversational flow see resource \`design-bridge://guide/workflow\`.
+Call \`get_write_scripts_guide\` before writing any script. Required signature:
+  export default (content, value) => string  — content FIRST, value SECOND.
+⚠ Reversing the parameters corrupts the file.
 `;
 
 const server = new McpServer(
