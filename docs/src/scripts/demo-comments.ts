@@ -26,9 +26,9 @@
 type DbComponents = {
   updateComments: (threads: unknown[]) => void;
   upsertComment: (thread: unknown) => void;
-  commentsSignal: { get: () => unknown[]; };
+  commentsSignal: { get: () => unknown[] };
   updateKnobs: (knobs: unknown[]) => void;
-  knobsSignal: { get: () => unknown[]; };
+  knobsSignal: { get: () => unknown[] };
   onIntent: (handler: (intent: Record<string, unknown>) => void) => () => void;
 };
 
@@ -545,7 +545,7 @@ waitForDb().then((db) => {
   // Seed all pending knobs
   db.updateKnobs([...(db.knobsSignal.get() as unknown[]), ...INITIAL_KNOBS]);
 
-  type KnobLike = { marker: string; value: unknown; };
+  type KnobLike = { marker: string; value: unknown };
 
   function updateKnobValue(marker: string, value: unknown): void {
     const knobs = db.knobsSignal.get() as KnobLike[];
@@ -554,20 +554,20 @@ waitForDb().then((db) => {
 
   function resolveKnob(commentId: string, status: 'accepted' | 'discarded'): void {
     const threads = db.commentsSignal.get() as {
-      meta: { id: string; };
-      comments: { type: string; tweakStatus?: string; }[];
+      meta: { id: string };
+      comments: { type: string; tweakStatus?: string }[];
     }[];
     db.updateComments(
       threads.map((t) =>
         t.meta.id === commentId
           ? {
-            ...t,
-            comments: t.comments.map((c) =>
-              c.type === 'tweak' && (c as { tweakStatus?: string; }).tweakStatus === 'pending'
-                ? { ...c, tweakStatus: status }
-                : c,
-            ),
-          }
+              ...t,
+              comments: t.comments.map((c) =>
+                c.type === 'tweak' && (c as { tweakStatus?: string }).tweakStatus === 'pending'
+                  ? { ...c, tweakStatus: status }
+                  : c,
+              ),
+            }
           : t,
       ),
     );

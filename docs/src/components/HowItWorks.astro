@@ -1,3 +1,28 @@
+---
+const steps = [
+  {
+    title: 'Select an element',
+    description:
+      'Hold Alt and click any element in your browser. A comment thread opens attached to that element.',
+  },
+  {
+    title: 'Write a comment',
+    description:
+      'Describe what you want to change. The comment is stored locally and surfaced to your agent through the MCP server.',
+  },
+  {
+    title: 'Get a live tweak',
+    description:
+      'The agent can reply with a knob — a live control that updates your source file on the fly so you can try values without switching to an editor.',
+  },
+  {
+    title: 'Accept or discard',
+    description:
+      'Keep the change by accepting it — the file is updated permanently. Discard to restore the original. Either way the thread stays as a record.',
+  },
+];
+---
+
 <section id="how-it-works" class="bg-wa-surface-raised px-6 py-20">
   <div class="mx-auto max-w-[640px]">
     <h2>How it works</h2>
@@ -8,63 +33,21 @@
     </p>
 
     <ol class="mt-8 space-y-6">
-      <li class="flex gap-6">
-        <span
-          class="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-wa-brand-fill-normal text-[11px] font-semibold text-wa-brand-on-normal"
-          >1</span
-        >
-        <div>
-          <p class="font-medium">Select an element</p>
-          <p class="mt-1 text-wa-text-quiet">
-            Hold <kbd
-              class="rounded border border-wa-surface-border px-1.5 py-0.5 font-mono text-xs"
-              >Alt</kbd
-            > and click any element in your browser. A comment thread opens attached to that element.
-          </p>
-        </div>
-      </li>
-
-      <li class="flex gap-6">
-        <span
-          class="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-wa-brand-fill-normal text-[11px] font-semibold text-wa-brand-on-normal"
-          >2</span
-        >
-        <div>
-          <p class="font-medium">Write a comment</p>
-          <p class="mt-1 text-wa-text-quiet">
-            Describe what you want to change. The comment is stored locally and surfaced to your
-            agent through the MCP server.
-          </p>
-        </div>
-      </li>
-
-      <li class="flex gap-6">
-        <span
-          class="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-wa-brand-fill-normal text-[11px] font-semibold text-wa-brand-on-normal"
-          >3</span
-        >
-        <div>
-          <p class="font-medium">Get a live tweak</p>
-          <p class="mt-1 text-wa-text-quiet">
-            The agent can reply with a knob — a live control that updates your source file on the
-            fly so you can try values without switching to an editor.
-          </p>
-        </div>
-      </li>
-
-      <li class="flex gap-6">
-        <span
-          class="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-wa-brand-fill-normal text-[11px] font-semibold text-wa-brand-on-normal"
-          >4</span
-        >
-        <div>
-          <p class="font-medium">Accept or discard</p>
-          <p class="mt-1 text-wa-text-quiet">
-            Keep the change by accepting it — the file is updated permanently. Discard to restore
-            the original. Either way the thread stays as a record.
-          </p>
-        </div>
-      </li>
+      {
+        steps.map((step, i) => (
+          <li class="flex gap-6">
+            <div>
+              <wa-badge variant="neutral" size="m">
+                {i + 1}
+              </wa-badge>
+            </div>
+            <div>
+              <p class="font-medium">{step.title}</p>
+              <p class="mt-1 text-wa-text-quiet">{step.description}</p>
+            </div>
+          </li>
+        ))
+      }
     </ol>
   </div>
 </section>

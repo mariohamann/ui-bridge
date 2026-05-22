@@ -29,6 +29,9 @@ export class DbKnob extends LitElement {
   /** The knob descriptor coming from the server schema. */
   @property({ attribute: false }) knob: TweakKnob | null = null;
 
+  /** The knob's label. */
+  @property({ type: String }) label: string | null = null;
+
   /** Locally-tracked current value — initialised from knob.value. */
   @state() private _value: string | number | boolean = '';
 
@@ -60,10 +63,11 @@ export class DbKnob extends LitElement {
     const opts = Object.entries(this.knob!.options ?? {});
     return html`
       <wa-select
+        label=${this.label ?? ''}
         size="xs"
         .value=${String(this._value)}
         @change=${(e: Event) =>
-          this._emit((e.target as HTMLSelectElement & { value: string }).value)}
+        this._emit((e.target as HTMLSelectElement & { value: string; }).value)}
       >
         ${opts.map(([val, label]) => html`<wa-option value=${val}>${label}</wa-option>`)}
       </wa-select>
@@ -74,14 +78,15 @@ export class DbKnob extends LitElement {
     const opts = Object.entries(this.knob!.options ?? {});
     return html`
       <wa-radio-group
+        label=${this.label ?? ''}
         size="xs"
         .value=${String(this._value)}
         orientation="horizontal"
-        @change=${(e: Event) => this._emit((e.target as HTMLElement & { value: string }).value)}
+        @change=${(e: Event) => this._emit((e.target as HTMLElement & { value: string; }).value)}
       >
         ${opts.map(
-          ([val, label]) => html`<wa-radio appearance="button" value=${val}>${label}</wa-radio>`,
-        )}
+      ([val, label]) => html`<wa-radio appearance="button" value=${val}>${label}</wa-radio>`,
+    )}
       </wa-radio-group>
     `;
   }
@@ -95,48 +100,53 @@ export class DbKnob extends LitElement {
 
     if (type === 'color') {
       return html`<wa-color-picker
+        label=${this.label ?? ''}
         format="hex"
         without-format-toggle
         .value=${String(this._value)}
-        @change=${(e: Event) => this._emit((e.target as HTMLElement & { value: string }).value)}
+        @change=${(e: Event) => this._emit((e.target as HTMLElement & { value: string; }).value)}
       ></wa-color-picker>`;
     }
 
     if (type === 'number') {
       return html`<wa-number-input
+        label=${this.label ?? ''}
         size="xs"
         .value=${Number(this._value)}
         min=${min ?? ''}
         max=${max ?? ''}
         step=${step ?? ''}
         @input=${(e: Event) =>
-          this._emit(Number((e.target as HTMLElement & { value: number }).value))}
+          this._emit(Number((e.target as HTMLElement & { value: number; }).value))}
       ></wa-number-input>`;
     }
 
     if (type === 'boolean') {
       return html`<wa-switch
+        label=${this.label ?? ''}
         size="xs"
         ?checked=${Boolean(this._value)}
         @change=${(e: Event) =>
-          this._emit((e.target as HTMLElement & { checked: boolean }).checked)}
+          this._emit((e.target as HTMLElement & { checked: boolean; }).checked)}
       ></wa-switch>`;
     }
 
     if (type === 'textarea') {
       return html`<wa-textarea
+        label=${this.label ?? ''}
         size="xs"
         .value=${String(this._value)}
         rows="3"
-        @input=${(e: Event) => this._emit((e.target as HTMLElement & { value: string }).value)}
+        @input=${(e: Event) => this._emit((e.target as HTMLElement & { value: string; }).value)}
       ></wa-textarea>`;
     }
 
     // string / fallback
     return html`<wa-input
+      label=${this.label ?? ''}
       size="xs"
       .value=${String(this._value)}
-      @input=${(e: Event) => this._emit((e.target as HTMLElement & { value: string }).value)}
+      @input=${(e: Event) => this._emit((e.target as HTMLElement & { value: string; }).value)}
     ></wa-input>`;
   }
 }

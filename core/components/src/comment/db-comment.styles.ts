@@ -13,6 +13,11 @@ const ANNOTATION_ITEM_LOCAL_STYLES = css`
     color-scheme: dark;
   }
 
+  /* Raise the stacking context above other badge dots when the panel is open */
+  :host([panel-open]) {
+    z-index: 2147483647;
+  }
+
   /* When hosted inside db-orphaned-bar the element flows in the bar layout */
   :host([docked]) {
     position: relative;
@@ -217,18 +222,37 @@ const ANNOTATION_ITEM_LOCAL_STYLES = css`
   }
   .tweak-row {
     display: flex;
-    align-items: center;
+    flex-direction: column;
+    align-items: stretch;
     gap: var(--wa-space-xs);
     padding: 3px 0;
     font-size: var(--wa-font-size-xs);
+    position: relative;
   }
-  .tweak-label {
-    flex: 1;
-    color: var(--wa-color-text-normal);
-    white-space: nowrap;
+  .tweak-actions {
+    position: absolute;
+    top: -8px;
+    right: 0;
+    display: flex;
+    align-items: center;
+    gap: 0;
+    transform: scale(0.9);
+    transform-origin: top right;
+  }
+  /* Shorten the WA form-control label so it doesn't slide under the action buttons */
+  .tweak-row wa-select::part(form-control-label),
+  .tweak-row wa-radio-group::part(form-control-label),
+  .tweak-row wa-input::part(form-control-label),
+  .tweak-row wa-number-input::part(form-control-label),
+  .tweak-row wa-textarea::part(form-control-label),
+  .tweak-row wa-switch::part(form-control-label) {
+    max-width: calc(100% - 56px);
     overflow: hidden;
     text-overflow: ellipsis;
-    min-width: 0;
+    white-space: nowrap;
+  }
+  .tweak-actions wa-dropdown {
+    margin-left: auto;
   }
   .tweak-value {
     font-family: var(--wa-font-family-code);
