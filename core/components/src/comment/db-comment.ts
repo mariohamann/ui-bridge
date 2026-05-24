@@ -441,7 +441,21 @@ export class DbComment extends LitElement {
 
   private _onDocPointerDown = (e: PointerEvent): void => {
     if (!this._open) return;
-    if (e.composedPath().includes(this)) return;
+    if (e.composedPath().includes(this)) {
+      // The click landed inside this component's shadow DOM (panel, badge, dropdown, etc.).
+      // Exception: our elevated z-index panel can physically cover another db-comment's badge.
+      // If the click coordinates land on a sibling badge, treat it as an outside click and
+      // forward the intent so the other panel opens in the same interaction.
+      const otherId = this._otherBadgeIdAt(e.clientX, e.clientY);
+      if (otherId) {
+        if (this._mode === 'view') {
+          if (this.hasDirtyDraft) { this.wobble(); return; }
+          this._open = false;
+          dispatchIntent({ type: 'comment:badge-click', id: otherId });
+        }
+      }
+      return;
+    }
     // Alt+Shift click is an inspect-mode multi-select, not a dismiss action
     if (e.altKey && e.shiftKey) return;
     if (this._mode === 'view') {
@@ -456,6 +470,20 @@ export class DbComment extends LitElement {
       this._cancelDraft();
     }
   };
+
+  private _otherBadgeIdAt(x: number, y: number): string | null {
+    const siblings = document.querySelectorAll<Element>('db-comment');
+    for (const el of siblings) {
+      if (el === this) continue;
+      const badge = el.shadowRoot?.querySelector<HTMLElement>('wa-button.badge');
+      if (!badge) continue;
+      const r = badge.getBoundingClientRect();
+      if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) {
+        return (el as DbComment).comment?.meta.id ?? null;
+      }
+    }
+    return null;
+  }
 
   private _onKeyDown = (e: KeyboardEvent): void => {
     if (e.key === 'Escape') {
@@ -796,7 +824,11 @@ export class DbComment extends LitElement {
           <div class=${replyClass} data-entry-id=${r.id}>
             ${!prevIsAgent ? html`<span class="reply-author-tag">✦ Agent</span>` : ''}
             <div class="tweak-row">
-              <db-knob label=${tweak.knob.label} .knob=${knob} @db-knob-change=${this._onKnobChange}></db-knob>
+              <db-knob
+                label=${tweak.knob.label}
+                .knob=${knob}
+                @db-knob-change=${this._onKnobChange}
+              ></db-knob>
               <div class="tweak-actions">
                 <wa-button
                   appearance="plain"

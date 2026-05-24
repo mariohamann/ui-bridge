@@ -26,9 +26,9 @@
 type DbComponents = {
   updateComments: (threads: unknown[]) => void;
   upsertComment: (thread: unknown) => void;
-  commentsSignal: { get: () => unknown[]; };
+  commentsSignal: { get: () => unknown[] };
   updateKnobs: (knobs: unknown[]) => void;
-  knobsSignal: { get: () => unknown[]; };
+  knobsSignal: { get: () => unknown[] };
   onIntent: (handler: (intent: Record<string, unknown>) => void) => () => void;
 };
 
@@ -351,8 +351,8 @@ const THREAD_FOLLOWUP = makeThread(M_FOLLOWUP, '#get-started h2', 'h2', [
 // ── Initial knob state — derived from pending tweaks in threads ───────────────
 
 type ThreadLike = {
-  meta: { id: string; };
-  comments: { type: string; tweakStatus?: string; knob?: Record<string, unknown>; }[];
+  meta: { id: string };
+  comments: { type: string; tweakStatus?: string; knob?: Record<string, unknown> }[];
 };
 
 function extractPendingKnobs(threads: unknown[]): unknown[] {
@@ -523,7 +523,7 @@ waitForDb().then((db) => {
   // Seed pending knobs — derived from threads, no separate list to maintain
   db.updateKnobs([...(db.knobsSignal.get() as unknown[]), ...extractPendingKnobs(ALL_THREADS)]);
 
-  type KnobLike = { marker: string; value: unknown; };
+  type KnobLike = { marker: string; value: unknown };
 
   function updateKnobValue(marker: string, value: unknown): void {
     const knobs = db.knobsSignal.get() as KnobLike[];
@@ -532,20 +532,20 @@ waitForDb().then((db) => {
 
   function resolveKnob(commentId: string, status: 'accepted' | 'discarded'): void {
     const threads = db.commentsSignal.get() as {
-      meta: { id: string; };
-      comments: { type: string; tweakStatus?: string; }[];
+      meta: { id: string };
+      comments: { type: string; tweakStatus?: string }[];
     }[];
     db.updateComments(
       threads.map((t) =>
         t.meta.id === commentId
           ? {
-            ...t,
-            comments: t.comments.map((c) =>
-              c.type === 'tweak' && (c as { tweakStatus?: string; }).tweakStatus === 'pending'
-                ? { ...c, tweakStatus: status }
-                : c,
-            ),
-          }
+              ...t,
+              comments: t.comments.map((c) =>
+                c.type === 'tweak' && (c as { tweakStatus?: string }).tweakStatus === 'pending'
+                  ? { ...c, tweakStatus: status }
+                  : c,
+              ),
+            }
           : t,
       ),
     );
@@ -554,9 +554,7 @@ waitForDb().then((db) => {
   }
 
   // Handle intents for all demo threads locally
-  const DEMO_IDS = new Set(
-    ALL_THREADS.map((t) => (t as { meta: { id: string; }; }).meta.id),
-  );
+  const DEMO_IDS = new Set(ALL_THREADS.map((t) => (t as { meta: { id: string } }).meta.id));
 
   db.onIntent((intent) => {
     const type = intent['type'] as string;

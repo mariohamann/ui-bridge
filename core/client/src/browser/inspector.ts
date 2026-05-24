@@ -162,6 +162,31 @@ export function focusComment(id: string): boolean {
 
   pendingFocusId = null;
   target.openPanel();
+
+  // Scroll the annotated DOM element into view only when it isn't already visible.
+  const ann = comments.get(id);
+  if (ann) {
+    for (const el of ann.elements) {
+      try {
+        const domEl = document.querySelector(el.minimalSelector);
+        if (domEl) {
+          const rect = domEl.getBoundingClientRect();
+          const inViewport =
+            rect.top >= 0 &&
+            rect.left >= 0 &&
+            rect.bottom <= window.innerHeight &&
+            rect.right <= window.innerWidth;
+          if (!inViewport) {
+            domEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          }
+          break;
+        }
+      } catch {
+        /* noop */
+      }
+    }
+  }
+
   return true;
 }
 
@@ -354,25 +379,6 @@ onMessage((msg) => {
     syncComments(msg.payload);
   } else if (msg.type === 'inspect:pick') {
     if (draftItem) draftItem.setDraftSource(msg.payload);
-  } else if (msg.type === 'comment:focus') {
-    const opened = focusComment(msg.payload.id);
-    // Scroll annotated element into view only when the panel actually opened
-    if (opened) {
-      const ann = comments.get(msg.payload.id);
-      if (ann) {
-        for (const el of ann.elements) {
-          try {
-            const domEl = document.querySelector(el.minimalSelector);
-            if (domEl) {
-              domEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-              break;
-            }
-          } catch {
-            /* noop */
-          }
-        }
-      }
-    }
   }
 });
 

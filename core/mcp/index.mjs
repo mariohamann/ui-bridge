@@ -331,10 +331,12 @@ server.tool(
   thread. Comments without a \`resolvedAt\` field are still open.
   By default only open (unresolved) comments are returned. Set \`includeResolved\` to true to also include resolved comments.`,
   {
-    includeResolved: {
-      type: 'boolean',
-      description: 'When true, resolved comments are included in the response. Defaults to false.',
-    },
+    includeResolved: z
+      .boolean()
+      .optional()
+      .describe(
+        'When true, resolved comments are included in the response. Defaults to false.',
+      ),
   },
   async ({ includeResolved = false } = {}) => {
     const url = await resolveBaseUrl();
@@ -343,8 +345,8 @@ server.tool(
       ? includeResolved
         ? data.comments
         : data.comments.filter((c) => !c.meta?.resolvedAt)
-      : data;
-    return { content: [{ type: 'text', text: JSON.stringify(comments, null, 2) }] };
+      : [];
+    return { content: [{ type: 'text', text: JSON.stringify({ comments }, null, 2) }] };
   },
 );
 

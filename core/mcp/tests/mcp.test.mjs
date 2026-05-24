@@ -167,7 +167,7 @@ describe('MCP initialize', () => {
 });
 
 describe('MCP tools/list', () => {
-  it('returns all 9 tools', async () => {
+  it('returns all 7 tools', async () => {
     const responses = await mcpCall('tools/list', {});
     const res = findResponse(responses, 2);
     assert.ok(res?.result?.tools, 'tools missing');
@@ -178,15 +178,13 @@ describe('MCP tools/list', () => {
       'get_comment',
       'create_comment',
       'reply_to_comment',
-      'update_own_comment',
-      'close_tweak',
       'get_tweaks',
       'get_server_info',
     ];
     for (const name of expected) {
       assert.ok(names.includes(name), `tool "${name}" missing`);
     }
-    assert.equal(names.length, 9);
+    assert.equal(names.length, 7);
   });
 });
 
@@ -381,90 +379,6 @@ describe('MCP tools/call — reply_to_comment', () => {
     assert.equal(tweakEntry?.tweakStatus, 'pending', 'tweakStatus should be pending');
     assert.ok(tweakEntry?.knob, 'knob should be set');
     assert.equal(tweakEntry?.knob.label, 'Color');
-  });
-});
-
-describe('MCP tools/call — update_own_comment', () => {
-  let agentCommentId;
-  let userCommentId;
-
-  before(async () => {
-    const now = Date.now();
-    agentCommentId = `mcp-agent-own-${now}`;
-    userCommentId = `mcp-user-other-${now}`;
-
-    await fetch(`${BASE_URL}/api/comments`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        meta: {
-          id: agentCommentId,
-          pageUrl: 'http://localhost:5173/',
-          timestamp: now,
-          createdAt: now,
-        },
-        elements: [{ minimalSelector: 'h1', tag: 'h1', classes: [] }],
-        comments: [
-          {
-            id: `${agentCommentId}-root`,
-            type: 'comment',
-            text: 'Original agent text',
-            createdAt: now,
-            author: 'agent',
-          },
-        ],
-      }),
-    });
-    await fetch(`${BASE_URL}/api/comments`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        meta: {
-          id: userCommentId,
-          pageUrl: 'http://localhost:5173/',
-          timestamp: now,
-          createdAt: now,
-        },
-        elements: [{ minimalSelector: 'p', tag: 'p', classes: [] }],
-        comments: [
-          {
-            id: `${userCommentId}-root`,
-            type: 'comment',
-            text: 'User comment',
-            createdAt: now,
-            author: 'user',
-          },
-        ],
-      }),
-    });
-  });
-
-  after(async () => {
-    await fetch(`${BASE_URL}/api/comments/${agentCommentId}`, { method: 'DELETE' });
-    await fetch(`${BASE_URL}/api/comments/${userCommentId}`, { method: 'DELETE' });
-  });
-
-  it('updates an agent-authored comment text', async () => {
-    const responses = await mcpCall('tools/call', {
-      name: 'update_own_comment',
-      arguments: { id: agentCommentId, comment: 'Updated agent text' },
-    });
-    const res = findResponse(responses, 2);
-    assert.ok(!res?.error, `error: ${JSON.stringify(res?.error)}`);
-
-    const httpRes = await fetch(`${BASE_URL}/api/comments/${agentCommentId}`);
-    const body = await httpRes.json();
-    assert.equal(body.comments[0].text, 'Updated agent text');
-  });
-
-  it('refuses to update a user-authored comment', async () => {
-    const responses = await mcpCall('tools/call', {
-      name: 'update_own_comment',
-      arguments: { id: userCommentId, comment: 'Attempted hijack' },
-    });
-    const res = findResponse(responses, 2);
-    // Should return an error
-    assert.ok(res?.error || res?.result?.isError, 'expected an error when updating user comment');
   });
 });
 

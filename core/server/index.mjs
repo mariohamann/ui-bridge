@@ -212,6 +212,7 @@ wss.on('connection', (ws) => {
       }
 
       case 'comment:upsert':
+        console.log('[server] comment:upsert received, id:', msg.payload?.meta?.id);
         store.upsert(msg.payload);
         broadcast({ type: 'comments:sync', payload: store.all() });
         broadcast({ type: 'tweak:schema', payload: tweaks.buildSchema() });
@@ -227,10 +228,6 @@ wss.on('connection', (ws) => {
         await store.clear();
         broadcast({ type: 'comments:sync', payload: [] });
         broadcast({ type: 'tweak:schema', payload: [] });
-        break;
-
-      case 'comment:focus':
-        broadcast({ type: 'comment:focus', payload: msg.payload });
         break;
 
       case 'comment:read': {

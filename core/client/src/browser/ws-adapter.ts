@@ -23,8 +23,8 @@ onMessage((msg) => {
   } else if (msg.type === 'comments:sync') {
     updateComments(msg.payload);
   }
-  // inspect:pick and comment:focus are handled inside inspector.ts directly
-  // because they need DOM-level coordination (open draft, scroll element).
+  // inspect:pick is handled inside inspector.ts directly
+  // because it needs DOM-level coordination (open draft).
 });
 
 // ── B: Intent bus → server ───────────────────────────────────────────────────
