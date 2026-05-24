@@ -358,6 +358,8 @@ function onTrackCode(e: Event): void {
     const item = document.createElement(DB_COMMENT_TAG) as DbComment;
     itemContainer.appendChild(item);
     draftItem = item;
+    const activeCount = [...comments.values()].filter((c) => !c.meta.resolvedAt).length;
+    item.index = activeCount;
     item.initDraft(el, buildSelector(el));
     if (source) item.setDraftSource(source);
   }

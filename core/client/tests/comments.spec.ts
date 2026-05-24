@@ -1724,3 +1724,31 @@ test.describe('Unread agent reply indicator', () => {
     await expect(unreadRow).toBeVisible();
   });
 });
+
+test.describe('Draft badge number', () => {
+  test('draft badge shows #1 when no existing comments', async ({ page }) => {
+    // Start a draft without saving
+    await page.locator('h1').first().click({ modifiers: ['Alt', 'Shift'] });
+    await expect(commentPanel(page)).toBeVisible();
+
+    const badge = page.locator('#db-items db-comment wa-button.badge');
+    await expect(badge).toHaveText('1');
+  });
+
+  test('draft badge shows the next number after existing comments', async ({ page }) => {
+    await createComment(page, 'h1', 'First comment');
+    await createComment(page, 'strong', 'Second comment');
+
+    // Start a third draft without saving
+    await page.locator('p').first().click({ modifiers: ['Alt', 'Shift'] });
+    await expect(commentPanel(page)).toBeVisible();
+
+    // Three db-comment elements: 2 saved + 1 draft
+    const badges = page.locator('#db-items db-comment wa-button.badge');
+    await expect(badges).toHaveCount(3);
+
+    // The draft badge (last one created) should show #3
+    const draftBadge = page.locator('#db-items db-comment').last().locator('wa-button.badge');
+    await expect(draftBadge).toHaveText('3');
+  });
+});
