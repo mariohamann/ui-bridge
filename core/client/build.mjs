@@ -1,6 +1,22 @@
 import { build, context } from 'esbuild';
-import { mkdirSync, readFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve as resolvePath } from 'node:path';
+
+// Post-process the bundle to rename all Web Awesome custom elements from the
+// `wa-` prefix to `db-` so they never collide with a host page that also loads
+// Web Awesome (e.g. the Design Bridge docs site).
+//   wa-badge  →  db-badge    (tag names in strings/selectors/templates)
+//   WaBadge   →  DbBadge     (PascalCase class names passed to customElements.define)
+// This includes CSS custom properties: --wa-font-family-code → --db-font-family-code etc.
+function renameWaPrefix(outfile) {
+  const src = readFileSync(outfile, 'utf8');
+  const out = src
+    // Match `wa-` when not preceded by a letter — renames tag names, JS class
+    // references, and CSS custom properties (--wa-* → --db-*).
+    .replace(/(?<![A-Za-z])wa-/g, 'db-')
+    .replace(/Wa(?=[A-Z])/g, 'Db');
+  writeFileSync(outfile, out, 'utf8');
+}
 
 const watch = process.argv.includes('--watch');
 
@@ -77,10 +93,22 @@ const panelOptions = {
 };
 
 if (watch) {
-  const ctx1 = await context(panelOptions);
+  const ctx1 = await context({
+    ...panelOptions,
+    plugins: [
+      ...panelOptions.plugins ?? [],
+      {
+        name: 'rename-wa-prefix',
+        setup(b) {
+          b.onEnd(() => renameWaPrefix(panelOptions.outfile));
+        },
+      },
+    ],
+  });
   await ctx1.watch();
   console.log('[design-bridge/client] watching for changes…');
 } else {
   await build(panelOptions);
+  renameWaPrefix(panelOptions.outfile);
   console.log('[design-bridge/client] build complete → dist/design-bridge.js');
 }

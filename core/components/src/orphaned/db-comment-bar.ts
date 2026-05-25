@@ -52,8 +52,8 @@ export class DbCommentBar extends _DbCommentBarBase {
     return html`
       <div class="bar visible">
         ${visible.map((thread, i) => {
-          const isOrphaned = orphanedIds.has(thread.meta.id);
-          return html`
+      const isOrphaned = orphanedIds.has(thread.meta.id);
+      return html`
             <db-comment
               style="z-index:${SHOW_OVERFLOW_AFTER - i}"
               .comment=${thread}
@@ -62,11 +62,11 @@ export class DbCommentBar extends _DbCommentBarBase {
               ?orphaned=${isOrphaned}
             ></db-comment>
           `;
-        })}
+    })}
         ${overflowCount > 0 ? html`<div class="overflow-pill">+${overflowCount}</div>` : ''}
         ${hidden.map((thread) => {
-          const isOrphaned = orphanedIds.has(thread.meta.id);
-          return html`
+      const isOrphaned = orphanedIds.has(thread.meta.id);
+      return html`
             <db-comment
               class="overflow-hidden"
               .comment=${thread}
@@ -75,7 +75,7 @@ export class DbCommentBar extends _DbCommentBarBase {
               ?orphaned=${isOrphaned}
             ></db-comment>
           `;
-        })}
+    })}
       </div>
     `;
   }

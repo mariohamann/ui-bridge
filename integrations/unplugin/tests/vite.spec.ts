@@ -9,6 +9,11 @@
  *  3. The Design Bridge server health endpoint is reachable.
  *  4. The client bundle is served at the expected path.
  *  5. Basic comment round-trip: create on page → persisted to server.
+ *
+ * NOTE — selectors use `db-*` tags (e.g. `db-textarea`, `db-button`) even though
+ * source components are authored with `wa-*`. The client build renames every `wa-`
+ * to `db-` to avoid CustomElementRegistry collisions on host pages that also load
+ * Web Awesome. See core/client/build.mjs and AGENTS.md for details.
  */
 
 import { test, expect } from '@playwright/test';
@@ -78,7 +83,7 @@ test('comment round-trip: created on the page is persisted to the server', async
     .click({ modifiers: ['Alt', 'Shift'] });
 
   const panel = page.locator('#db-items db-comment .panel:not([hidden])');
-  const waInput = panel.locator('wa-textarea[data-role="composer"]');
+  const waInput = panel.locator('db-textarea[data-role="composer"]');
   await expect(waInput).toBeVisible();
   await waInput.locator('textarea').fill('unplugin integration check');
   await waInput.locator('textarea').press('Enter');

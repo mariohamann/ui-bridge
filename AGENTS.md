@@ -37,6 +37,17 @@ The project is a pnpm monorepo with packages split across `core/`, `integrations
 
 UI components in `@design-bridge/components` are transport-agnostic. They read state from shared TC39 signal stores (`comments-store.ts`, `knobs-store.ts`) and express user actions as typed `ComponentIntent` objects dispatched to an intent bus (`intents.ts`). The WS adapter in `@design-bridge/client` subscribes to both the WebSocket (server → stores) and the intent bus (UI → WebSocket), keeping all transport logic out of the component layer.
 
+### `wa-` → `db-` element prefix rename (client bundle only)
+
+The `@design-bridge/components` source uses Web Awesome components (`wa-button`, `wa-textarea`, etc.) written with their native `wa-` tag names. To avoid a `CustomElementRegistry` collision when the client bundle is injected into a host page that _also_ loads Web Awesome (e.g. the Design Bridge docs site itself), the **client build step** (`core/client/build.mjs`) post-processes the esbuild output and renames every `wa-` custom element to `db-`:
+
+- `wa-badge` → `db-badge`, `wa-button` → `db-button`, etc. (tag names / CSS selectors)
+- `WaBadge` → `DbBadge`, etc. (PascalCase class names passed to `customElements.define`)
+
+**Source files are never touched** — the rename only applies to `dist/design-bridge.js`. TypeScript types, Lit templates, and Web Awesome imports all stay `wa-*` in the source.
+
+**Consequence for tests:** Playwright tests query the live DOM, which sees the renamed `db-*` elements from the injected bundle. All test selectors therefore use `db-textarea`, `db-button`, `db-dropdown-item`, etc., even though the source code uses `wa-*`. If you add a new Web Awesome component in source, use `wa-*` in source and `db-*` in tests.
+
 ## Running Tests
 
 Tests are spread across packages in `core/` and `integrations/`, each with a different runner:

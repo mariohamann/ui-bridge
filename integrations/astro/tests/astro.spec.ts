@@ -10,6 +10,11 @@
  *  3. The client bundle is served by the middleware.
  *  4. The Design Bridge WebSocket server is reachable.
  *  5. Full comment round-trip: create on the page → appears on the review UI.
+ *
+ * NOTE — selectors use `db-*` tags (e.g. `db-textarea`, `db-button`) even though
+ * source components are authored with `wa-*`. The client build renames every `wa-`
+ * to `db-` to avoid CustomElementRegistry collisions on host pages that also load
+ * Web Awesome. See core/client/build.mjs and AGENTS.md for details.
  */
 
 import { test, expect } from '@playwright/test';
@@ -71,7 +76,7 @@ test('comment round-trip: created on the page appears on the review UI', async (
   await h1.click({ modifiers: ['Alt', 'Shift'] });
 
   const panel = page.locator('#db-items db-comment .panel:not([hidden])');
-  const waInput = panel.locator('wa-textarea[data-role="composer"]');
+  const waInput = panel.locator('db-textarea[data-role="composer"]');
   await expect(waInput).toBeVisible();
   await waInput.locator('textarea').fill('Round-trip check from Astro');
   await waInput.locator('textarea').press('Enter');
