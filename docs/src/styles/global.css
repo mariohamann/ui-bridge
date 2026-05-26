@@ -154,6 +154,11 @@
   /* #endregion */
 }
 
+body {
+  background-color: var(--wa-color-surface-default);
+  color: var(--wa-color-text-normal);
+}
+
 @layer components {
   .pill {
     @apply inline-flex items-center gap-2 rounded-full border border-wa-brand-fill-normal/30 bg-wa-surface-default px-3.5 py-1.5 text-[12px] tracking-widest text-wa-brand-fill-normal;

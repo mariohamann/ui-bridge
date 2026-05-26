@@ -6,7 +6,7 @@ const { title = 'Design Bridge' } = Astro.props;
 ---
 
 <!doctype html>
-<html lang="en" class="wa-dark">
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -21,8 +21,15 @@ const { title = 'Design Bridge' } = Astro.props;
     <style is:global>
       @import '../styles/global.css';
     </style>
-    <script type="module" src="https://ka-f.webawesome.com/webawesome@3.7.0/webawesome.loader.js"
-    ></script>
+    <script is:inline>
+      (function () {
+        var mq = window.matchMedia('(prefers-color-scheme: dark)');
+        if (mq.matches) document.documentElement.classList.add('wa-dark');
+        mq.addEventListener('change', function (e) {
+          document.documentElement.classList.toggle('wa-dark', e.matches);
+        });
+      })();
+    </script>
   </head>
   <body>
     <slot />
