@@ -19,7 +19,7 @@ import { mkdir, rm, writeFile } from 'node:fs/promises';
 import { resolve, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
-import { resolveBaseUrl } from '../resolve-url.mjs';
+import { resolveBaseUrl, resolveRoot } from '../resolve-url.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(__dirname, '../../..');
@@ -160,7 +160,7 @@ describe('MCP initialize', () => {
     const responses = await mcpCall('ping', {});
     const init = findResponse(responses, 1);
     assert.ok(init, 'initialize response missing');
-    assert.equal(init.result?.serverInfo?.name, 'design-bridge');
+    assert.equal(init.result?.serverInfo?.name, 'Design Bridge');
     assert.ok(init.result?.capabilities?.tools, 'tools capability missing');
     assert.ok(init.result?.capabilities?.resources, 'resources capability missing');
   });
@@ -248,8 +248,6 @@ describe('MCP tools/call — list_comments', () => {
 });
 
 describe('MCP tools/call — create_comment', () => {
-  const ANN_ID_PREFIX = 'mcp-create-test';
-
   it('creates an agent-authored comment', async () => {
     const responses = await mcpCall('tools/call', {
       name: 'create_comment',
@@ -262,21 +260,21 @@ describe('MCP tools/call — create_comment', () => {
     const res = findResponse(responses, 2);
     assert.ok(!res?.error, `error: ${JSON.stringify(res?.error)}`);
 
-    // Verify at least one agent-authored comment exists
-    const httpRes = await fetch(`${BASE_URL}/api/comments`);
-    const body = await httpRes.json();
-    const agentComments = body.comments.filter((c) => c.comments?.[0]?.author === 'agent');
-    assert.ok(agentComments.length > 0, 'no agent-authored comments found');
-    const created = agentComments.find(
-      (c) => c.comments?.[0]?.text === 'Agent created this thread',
-    );
-    assert.ok(created, 'created comment not found');
+    // MCP returns the created payload directly — verify structure
+    const created = JSON.parse(res.result.content[0].text);
     assert.equal(created.comments[0].author, 'agent');
-    assert.ok(
-      Array.isArray(created.comments) && created.comments.length > 0,
-      'missing initial entry',
-    );
-    assert.equal(created.comments[0].author, 'agent');
+    assert.equal(created.comments[0].text, 'Agent created this thread');
+    assert.ok(Array.isArray(created.comments) && created.comments.length > 0);
+
+    // Verify round-trip via get_comment (file-direct, no server needed)
+    const getResponses = await mcpCall('tools/call', {
+      name: 'get_comment',
+      arguments: { id: created.meta.id },
+    });
+    const getRes = findResponse(getResponses, 2);
+    assert.ok(!getRes?.error, `get_comment error: ${JSON.stringify(getRes?.error)}`);
+    const fetched = JSON.parse(getRes.result.content[0].text);
+    assert.equal(fetched.meta.id, created.meta.id);
 
     // Cleanup
     await fetch(`${BASE_URL}/api/comments/${created.meta.id}`, { method: 'DELETE' });
@@ -296,12 +294,7 @@ describe('MCP tools/call — create_comment', () => {
     const res = findResponse(responses, 2);
     assert.ok(!res?.error, `error: ${JSON.stringify(res?.error)}`);
 
-    const httpRes = await fetch(`${BASE_URL}/api/comments`);
-    const body = await httpRes.json();
-    const created = body.comments.find(
-      (c) => c.comments?.[0]?.author === 'agent' && c.comments?.[0]?.text === 'Try this tweak',
-    );
-    assert.ok(created, 'tweak comment not found');
+    const created = JSON.parse(res.result.content[0].text);
     const tweakEntry = created.comments.find(
       (c) => c.type === 'tweak' && c.tweakStatus === 'pending',
     );
@@ -351,8 +344,13 @@ describe('MCP tools/call — reply_to_comment', () => {
     const res = findResponse(responses, 2);
     assert.ok(!res?.error, `error: ${JSON.stringify(res?.error)}`);
 
-    const httpRes = await fetch(`${BASE_URL}/api/comments/${parentId}`);
-    const body = await httpRes.json();
+    // Verify via MCP get_comment (file-direct)
+    const getResponses = await mcpCall('tools/call', {
+      name: 'get_comment',
+      arguments: { id: parentId },
+    });
+    const getRes = findResponse(getResponses, 2);
+    const body = JSON.parse(getRes.result.content[0].text);
     const agentReply = body.comments?.find((r) => r.author === 'agent' && r.type === 'comment');
     assert.ok(agentReply, 'agent reply not found in thread');
     assert.equal(agentReply.text, 'Here is my suggestion.');
@@ -371,8 +369,13 @@ describe('MCP tools/call — reply_to_comment', () => {
     const res = findResponse(responses, 2);
     assert.ok(!res?.error, `error: ${JSON.stringify(res?.error)}`);
 
-    const httpRes = await fetch(`${BASE_URL}/api/comments/${parentId}`);
-    const body = await httpRes.json();
+    // Verify via MCP get_comment (file-direct)
+    const getResponses = await mcpCall('tools/call', {
+      name: 'get_comment',
+      arguments: { id: parentId },
+    });
+    const getRes = findResponse(getResponses, 2);
+    const body = JSON.parse(getRes.result.content[0].text);
     const tweakEntry = body.comments?.find(
       (c) => c.type === 'tweak' && c.tweakStatus === 'pending',
     );
@@ -387,27 +390,30 @@ describe('MCP tools/call — get_comment (backward compat)', () => {
 
   before(async () => {
     const now = Date.now();
-    await fetch(`${BASE_URL}/api/comments`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        meta: { id: ANN_ID, pageUrl: 'http://localhost:5173/', timestamp: now, createdAt: now },
-        elements: [{ minimalSelector: 'h1', tag: 'h1', classes: [] }],
-        comments: [
-          {
-            id: `${ANN_ID}-root`,
-            type: 'comment',
-            text: 'MCP test comment',
-            createdAt: now,
-            author: 'user',
-          },
-        ],
-      }),
-    });
+    const ann = {
+      meta: { id: ANN_ID, pageUrl: 'http://localhost:5173/', timestamp: now, createdAt: now },
+      elements: [{ minimalSelector: 'h1', tag: 'h1', classes: [] }],
+      comments: [
+        {
+          id: `${ANN_ID}-root`,
+          type: 'comment',
+          text: 'MCP test comment',
+          createdAt: now,
+          author: 'user',
+        },
+      ],
+    };
+    // Write directly to file — no server needed
+    await mkdir(resolve(TEST_ROOT, '.design-bridge', 'comments'), { recursive: true });
+    await writeFile(
+      resolve(TEST_ROOT, '.design-bridge', 'comments', `${ANN_ID}.json`),
+      JSON.stringify(ann, null, 2),
+      'utf-8',
+    );
   });
 
   after(async () => {
-    await fetch(`${BASE_URL}/api/comments/${ANN_ID}`, { method: 'DELETE' });
+    await rm(resolve(TEST_ROOT, '.design-bridge', 'comments', `${ANN_ID}.json`), { force: true });
   });
 
   it('gets the comment via get_comment', async () => {
@@ -554,123 +560,38 @@ describe('resolveBaseUrl — port discovery', () => {
   });
 });
 
-// ── Integration: MCP uses .port file to reach the server ─────────────────────
+// ── resolveRoot unit tests ────────────────────────────────────────────────────
 
-describe('Port discovery integration — MCP server finds Design Bridge via .port file', () => {
-  it('list_comments succeeds when discovered via DESIGN_BRIDGE_ROOT (port file)', async () => {
-    // mcpCall already uses DESIGN_BRIDGE_ROOT=TEST_ROOT; the .port file was written
-    // by the server on startup. This test explicitly verifies the end-to-end path.
+describe('resolveRoot — root directory discovery', () => {
+  it('uses DESIGN_BRIDGE_ROOT when set', async () => {
+    const root = await resolveRoot({ DESIGN_BRIDGE_ROOT: TEST_ROOT });
+    assert.equal(root, resolve(TEST_ROOT));
+  });
+
+  it('finds .design-bridge dir by walking up from cwd', async () => {
+    const subDir = resolve(TEST_ROOT, 'src', 'deep');
+    await mkdir(subDir, { recursive: true });
+    const root = await resolveRoot({}, subDir);
+    assert.equal(root, TEST_ROOT);
+  });
+
+  it('falls back to cwd when no .design-bridge dir found', async () => {
+    const root = await resolveRoot({}, tmpdir());
+    assert.equal(root, tmpdir());
+  });
+});
+
+// ── Integration: list_comments works file-direct ─────────────────────────────
+
+describe('list_comments — file-direct (no server required)', () => {
+  it('returns comments from disk when DESIGN_BRIDGE_ROOT is set', async () => {
+    // mcpCall passes DESIGN_BRIDGE_ROOT=TEST_ROOT — MCP reads files directly,
+    // no HTTP call to the server is made.
     const responses = await mcpCall('tools/call', {
       name: 'list_comments',
       arguments: {},
     });
     const res = findResponse(responses, 2);
-    assert.ok(!res?.error, `unexpected error: ${JSON.stringify(res?.error)}`);
-    const body = JSON.parse(res.result.content[0].text);
-    assert.ok(Array.isArray(body.comments), 'expected comments array from discovered server');
-  });
-
-  it('list_comments succeeds when discovered via DESIGN_BRIDGE_PORT env var', async () => {
-    const proc = spawn(process.execPath, [MCP_BIN], {
-      env: { ...process.env, DESIGN_BRIDGE_PORT: String(TEST_PORT) },
-      stdio: ['pipe', 'pipe', 'pipe'],
-    });
-
-    const responses = [];
-    let buf = '';
-    proc.stdout.on('data', (chunk) => {
-      buf += chunk.toString();
-      const lines = buf.split('\n');
-      buf = lines.pop();
-      for (const line of lines) {
-        const t = line.trim();
-        if (t) {
-          try {
-            responses.push(JSON.parse(t));
-          } catch {
-            /* ignore */
-          }
-        }
-      }
-    });
-    proc.stderr.on('data', () => { });
-
-    const send = (obj) => proc.stdin.write(JSON.stringify(obj) + '\n');
-    send({
-      jsonrpc: '2.0',
-      id: 1,
-      method: 'initialize',
-      params: {
-        protocolVersion: '2024-11-05',
-        capabilities: {},
-        clientInfo: { name: 'test', version: '0' },
-      },
-    });
-    send({ jsonrpc: '2.0', method: 'notifications/initialized', params: {} });
-    send({
-      jsonrpc: '2.0',
-      id: 2,
-      method: 'tools/call',
-      params: { name: 'list_comments', arguments: {} },
-    });
-
-    await new Promise((r) => setTimeout(r, 3_000));
-    proc.kill();
-
-    const res = responses.find((r) => r.id === 2);
-    assert.ok(!res?.error, `unexpected error: ${JSON.stringify(res?.error)}`);
-    const body = JSON.parse(res.result.content[0].text);
-    assert.ok(Array.isArray(body.comments), 'expected comments array');
-  });
-
-  it('list_comments succeeds when discovered via DESIGN_BRIDGE_URL env var', async () => {
-    const proc = spawn(process.execPath, [MCP_BIN], {
-      env: { ...process.env, DESIGN_BRIDGE_URL: BASE_URL },
-      stdio: ['pipe', 'pipe', 'pipe'],
-    });
-
-    const responses = [];
-    let buf = '';
-    proc.stdout.on('data', (chunk) => {
-      buf += chunk.toString();
-      const lines = buf.split('\n');
-      buf = lines.pop();
-      for (const line of lines) {
-        const t = line.trim();
-        if (t) {
-          try {
-            responses.push(JSON.parse(t));
-          } catch {
-            /* ignore */
-          }
-        }
-      }
-    });
-    proc.stderr.on('data', () => { });
-
-    const send = (obj) => proc.stdin.write(JSON.stringify(obj) + '\n');
-    send({
-      jsonrpc: '2.0',
-      id: 1,
-      method: 'initialize',
-      params: {
-        protocolVersion: '2024-11-05',
-        capabilities: {},
-        clientInfo: { name: 'test', version: '0' },
-      },
-    });
-    send({ jsonrpc: '2.0', method: 'notifications/initialized', params: {} });
-    send({
-      jsonrpc: '2.0',
-      id: 2,
-      method: 'tools/call',
-      params: { name: 'list_comments', arguments: {} },
-    });
-
-    await new Promise((r) => setTimeout(r, 3_000));
-    proc.kill();
-
-    const res = responses.find((r) => r.id === 2);
     assert.ok(!res?.error, `unexpected error: ${JSON.stringify(res?.error)}`);
     const body = JSON.parse(res.result.content[0].text);
     assert.ok(Array.isArray(body.comments), 'expected comments array');

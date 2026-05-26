@@ -96,7 +96,7 @@ if (watch) {
   const ctx1 = await context({
     ...panelOptions,
     plugins: [
-      ...panelOptions.plugins ?? [],
+      ...(panelOptions.plugins ?? []),
       {
         name: 'rename-wa-prefix',
         setup(b) {

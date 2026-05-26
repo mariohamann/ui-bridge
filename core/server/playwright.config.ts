@@ -16,7 +16,8 @@ export default defineConfig({
   // Tests are pure API — no browser needed, run them sequentially to keep state predictable.
   fullyParallel: false,
   reporter: 'list',
-  timeout: 10_000,
+  retries: 2,
+  timeout: 3_000,
 
   use: {
     baseURL: `http://localhost:${TEST_PORT}`,

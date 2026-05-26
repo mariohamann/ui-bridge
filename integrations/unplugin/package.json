@@ -50,6 +50,7 @@
   },
   "dependencies": {
     "@design-bridge/client": "workspace:*",
+    "@design-bridge/mcp": "workspace:*",
     "@design-bridge/server": "workspace:*",
     "code-inspector-plugin": "^1.5.1",
     "unplugin": "^2.3.4"

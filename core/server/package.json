@@ -5,7 +5,8 @@
   "description": "Standalone Design Bridge server — works with any stack, no Vite required",
   "main": "./index.mjs",
   "exports": {
-    ".": "./index.mjs"
+    ".": "./index.mjs",
+    "./comment-store": "./comment-store.mjs"
   },
   "bin": {
     "design-bridge-server": "./index.mjs"

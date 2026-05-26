@@ -93,6 +93,9 @@ importers:
 
   core/mcp:
     dependencies:
+      '@design-bridge/server':
+        specifier: workspace:*
+        version: link:../server
       '@modelcontextprotocol/sdk':
         specifier: ^1.29.0
         version: 1.29.0(zod@3.25.76)
@@ -303,6 +306,9 @@ importers:
 
   integrations/astro:
     dependencies:
+      '@design-bridge/mcp':
+        specifier: workspace:*
+        version: link:../../core/mcp
       '@design-bridge/unplugin':
         specifier: workspace:*
         version: link:../unplugin
@@ -325,6 +331,9 @@ importers:
 
   integrations/next:
     dependencies:
+      '@design-bridge/mcp':
+        specifier: workspace:*
+        version: link:../../core/mcp
       '@design-bridge/server':
         specifier: workspace:*
         version: link:../../core/server
@@ -353,6 +362,9 @@ importers:
 
   integrations/nuxt:
     dependencies:
+      '@design-bridge/mcp':
+        specifier: workspace:*
+        version: link:../../core/mcp
       '@design-bridge/unplugin':
         specifier: workspace:*
         version: link:../unplugin
@@ -384,6 +396,9 @@ importers:
       '@design-bridge/client':
         specifier: workspace:*
         version: link:../../core/client
+      '@design-bridge/mcp':
+        specifier: workspace:*
+        version: link:../../core/mcp
       '@design-bridge/server':
         specifier: workspace:*
         version: link:../../core/server

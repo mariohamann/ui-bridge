@@ -5,22 +5,45 @@
  * Exposes Design Bridge comment and tweak actions as MCP tools, and
  * provides workflow guidance as MCP resources.
  *
- * Port discovery order:
- *   1. DESIGN_BRIDGE_URL  — full base URL (e.g. http://localhost:7378)
- *   2. DESIGN_BRIDGE_PORT — port number, uses http://localhost
- *   3. Walk up from DESIGN_BRIDGE_ROOT (or cwd) looking for .design-bridge/.port
- *   4. Default: http://localhost:7378
+ * Comment operations work entirely via the file system — no running server
+ * required. The server (if running) will pick up file changes via its watcher
+ * and broadcast them to connected browsers.
+ *
+ * get_tweaks still calls the HTTP server (live knob state lives in memory).
+ * It degrades gracefully when the server is not running.
+ *
+ * Environment:
+ *   DESIGN_BRIDGE_ROOT  — project root (directory containing .design-bridge/)
+ *   DESIGN_BRIDGE_URL   — full server URL (overrides port discovery)
+ *   DESIGN_BRIDGE_PORT  — server port (overrides .port file)
  *
  * Usage in .mcp.json:
  *   { "type": "stdio", "command": "node", "args": ["path/to/core/mcp/index.mjs"] }
  */
 
+import { readFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
-import { resolveBaseUrl } from './resolve-url.mjs';
+import { createCommentStore } from '@design-bridge/server/comment-store';
+import { resolveBaseUrl, resolveRoot } from './resolve-url.mjs';
 
-// ── Fetch helpers ─────────────────────────────────────────────────────────────
+// ── Lazy store ────────────────────────────────────────────────────────────────
+
+let _store = null;
+let _root = null;
+
+async function getStore() {
+  if (!_store) {
+    _root = await resolveRoot();
+    _store = createCommentStore(_root);
+    await _store.load();
+  }
+  return { store: _store, root: _root };
+}
+
+// ── Fetch helpers (server-dependent tools only) ───────────────────────────────
 
 async function apiFetch(baseUrl, path, { method = 'GET', body } = {}) {
   const res = await fetch(`${baseUrl}${path}`, {
@@ -271,7 +294,7 @@ Call \`get_write_scripts_guide\` before writing any script. Required signature:
 `;
 
 const server = new McpServer(
-  { name: 'design-bridge', version: '0.0.1' },
+  { name: 'Design Bridge', version: '0.0.1' },
   { instructions: INSTRUCTIONS },
 );
 
@@ -334,18 +357,12 @@ server.tool(
     includeResolved: z
       .boolean()
       .optional()
-      .describe(
-        'When true, resolved comments are included in the response. Defaults to false.',
-      ),
+      .describe('When true, resolved comments are included in the response. Defaults to false.'),
   },
   async ({ includeResolved = false } = {}) => {
-    const url = await resolveBaseUrl();
-    const data = await apiFetch(url, '/api/comments');
-    const comments = Array.isArray(data.comments)
-      ? includeResolved
-        ? data.comments
-        : data.comments.filter((c) => !c.meta?.resolvedAt)
-      : [];
+    const { store } = await getStore();
+    let comments = store.all();
+    if (!includeResolved) comments = comments.filter((c) => !c.meta?.resolvedAt);
     return { content: [{ type: 'text', text: JSON.stringify({ comments }, null, 2) }] };
   },
 );
@@ -356,9 +373,10 @@ server.tool(
   Use this to inspect the details of a specific tweak before accepting or discarding it.`,
   { id: z.string().describe('Comment id') },
   async ({ id }) => {
-    const url = await resolveBaseUrl();
-    const data = await apiFetch(url, `/api/comments/${encodeURIComponent(id)}`);
-    return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
+    const { store } = await getStore();
+    const comment = store.get(id);
+    if (!comment) throw new Error(`Comment not found: ${id}`);
+    return { content: [{ type: 'text', text: JSON.stringify(comment, null, 2) }] };
   },
 );
 
@@ -427,7 +445,7 @@ server.tool(
       .describe('Ordered actions to execute when the knob value changes'),
   },
   async ({ elements, comment, pageUrl, knob, actions }) => {
-    const url = await resolveBaseUrl();
+    const { store } = await getStore();
     const now = Date.now();
     const id = `agent-${now}-${Math.random().toString(36).slice(2, 8)}`;
     const rootEntry = {
@@ -457,8 +475,8 @@ server.tool(
       elements,
       comments,
     };
-    const data = await apiFetch(url, '/api/comments', { method: 'POST', body: payload });
-    return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
+    await store.upsert(payload);
+    return { content: [{ type: 'text', text: JSON.stringify(payload, null, 2) }] };
   },
 );
 
@@ -518,9 +536,9 @@ server.tool(
       .describe('Ordered actions for the knob — required when knob is provided'),
   },
   async ({ commentId, text, knob, actions }) => {
-    const url = await resolveBaseUrl();
-    // Fetch the current thread
-    const existing = await apiFetch(url, `/api/comments/${encodeURIComponent(commentId)}`);
+    const { store } = await getStore();
+    const existing = store.get(commentId);
+    if (!existing) throw new Error(`Comment not found: ${commentId}`);
     const now = Date.now();
     const replyId = `reply-${now}-${Math.random().toString(36).slice(2, 8)}`;
     const textEntry = { id: replyId, type: 'comment', text, createdAt: now, author: 'agent' };
@@ -545,8 +563,8 @@ server.tool(
       meta: { ...existing.meta, timestamp: now },
       comments: newComments,
     };
-    const data = await apiFetch(url, '/api/comments', { method: 'POST', body: updated });
-    return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
+    await store.upsert(updated);
+    return { content: [{ type: 'text', text: JSON.stringify(updated, null, 2) }] };
   },
 );
 
@@ -557,9 +575,27 @@ server.tool(
   Each knob entry includes the comment id (\`marker\`), label, type, and current value.`,
   {},
   async () => {
-    const url = await resolveBaseUrl();
-    const data = await apiFetch(url, '/api/tweaks');
-    return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
+    try {
+      const url = await resolveBaseUrl();
+      const data = await apiFetch(url, '/api/tweaks');
+      return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
+    } catch {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify(
+              {
+                tweaks: [],
+                note: 'Design Bridge server not running — live tweak state unavailable',
+              },
+              null,
+              2,
+            ),
+          },
+        ],
+      };
+    }
   },
 );
 
@@ -574,16 +610,21 @@ server.tool(
   - commentsDir: where comment JSON files are persisted`,
   {},
   async () => {
-    const url = await resolveBaseUrl();
-    const data = await apiFetch(url, '/health');
-    const root = data.root ?? '';
+    const { root } = await getStore();
+    let port = null;
+    try {
+      const portStr = await readFile(resolve(root, '.design-bridge', '.port'), 'utf-8');
+      port = parseInt(portStr.trim(), 10);
+    } catch {
+      // server not running — port stays null
+    }
     return {
       content: [
         {
           type: 'text',
           text: JSON.stringify(
             {
-              port: data.port,
+              port,
               root,
               scriptsDir: `${root}/.design-bridge/scripts`,
               commentsDir: `${root}/.design-bridge/comments`,

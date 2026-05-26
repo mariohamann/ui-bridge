@@ -49,6 +49,7 @@
     }
   },
   "dependencies": {
+    "@design-bridge/mcp": "workspace:*",
     "@design-bridge/server": "workspace:*"
   },
   "devDependencies": {

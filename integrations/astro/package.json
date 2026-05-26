@@ -49,6 +49,7 @@
     }
   },
   "dependencies": {
+    "@design-bridge/mcp": "workspace:*",
     "@design-bridge/unplugin": "workspace:*"
   },
   "devDependencies": {

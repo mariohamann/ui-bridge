@@ -45,15 +45,17 @@ export class DbCommentBar extends _DbCommentBarBase {
     const ranks = stableRanks(allThreads);
     const overflowCount = Math.max(0, open.length - SHOW_OVERFLOW_AFTER);
     // Newest first so index 0 = top of stack
-    const newest = [...open].sort((a, b) => (a.meta.createdAt || 0) - (b.meta.createdAt || 0)).reverse();
+    const newest = [...open]
+      .sort((a, b) => (a.meta.createdAt || 0) - (b.meta.createdAt || 0))
+      .reverse();
     const visible = newest.slice(0, SHOW_OVERFLOW_AFTER);
     const hidden = newest.slice(SHOW_OVERFLOW_AFTER);
 
     return html`
       <div class="bar visible">
         ${visible.map((thread, i) => {
-      const isOrphaned = orphanedIds.has(thread.meta.id);
-      return html`
+          const isOrphaned = orphanedIds.has(thread.meta.id);
+          return html`
             <db-comment
               style="z-index:${SHOW_OVERFLOW_AFTER - i}"
               .comment=${thread}
@@ -62,11 +64,11 @@ export class DbCommentBar extends _DbCommentBarBase {
               ?orphaned=${isOrphaned}
             ></db-comment>
           `;
-    })}
+        })}
         ${overflowCount > 0 ? html`<div class="overflow-pill">+${overflowCount}</div>` : ''}
         ${hidden.map((thread) => {
-      const isOrphaned = orphanedIds.has(thread.meta.id);
-      return html`
+          const isOrphaned = orphanedIds.has(thread.meta.id);
+          return html`
             <db-comment
               class="overflow-hidden"
               .comment=${thread}
@@ -75,7 +77,7 @@ export class DbCommentBar extends _DbCommentBarBase {
               ?orphaned=${isOrphaned}
             ></db-comment>
           `;
-    })}
+        })}
       </div>
     `;
   }

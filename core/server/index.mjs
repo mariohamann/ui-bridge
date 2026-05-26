@@ -16,6 +16,7 @@
 import { createServer } from 'node:http';
 import { createServer as createNetServer } from 'node:net';
 import { readFileSync } from 'node:fs';
+import { watch } from 'node:fs';
 import { mkdir, writeFile, rm } from 'node:fs/promises';
 import { WebSocketServer, WebSocket } from 'ws';
 import { resolve } from 'node:path';
@@ -474,6 +475,17 @@ httpServer.on('upgrade', (req, socket, head) => {
 
 await store.load();
 
+// Watch for external comment file changes (e.g. from MCP writing files directly)
+const COMMENTS_WATCH_DIR = resolve(ROOT, '.design-bridge', 'comments');
+let commentsWatcher;
+mkdir(COMMENTS_WATCH_DIR, { recursive: true }).then(() => {
+  commentsWatcher = watch(COMMENTS_WATCH_DIR, { persistent: false }, async (_, filename) => {
+    if (!filename?.endsWith('.json')) return;
+    await store.reload();
+    broadcast({ type: 'comments:sync', payload: store.all() });
+  });
+});
+
 // ── Graceful shutdown ─────────────────────────────────────────────────────────
 
 const PORT_FILE = resolve(ROOT, '.design-bridge', '.port');
@@ -488,6 +500,7 @@ async function removePortFile() {
 }
 
 function shutdown() {
+  commentsWatcher?.close();
   removePortFile().finally(() => {
     for (const client of wss.clients) client.terminate();
     wss.close(() => httpServer.close(() => process.exit(0)));

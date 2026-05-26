@@ -89,5 +89,10 @@ export function createCommentStore(rootDir) {
     return comments.has(id);
   }
 
-  return { load, upsert, del, clear, all, get, has };
+  async function reload() {
+    comments.clear();
+    await load();
+  }
+
+  return { load, reload, upsert, del, clear, all, get, has };
 }
