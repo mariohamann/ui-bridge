@@ -1,5 +1,5 @@
 /**
- * Unit tests for @design-bridge/components signal stores and intent bus.
+ * Unit tests for @ui-bridge/components signal stores and intent bus.
  *
  * Runs with: node --test tests/stores.test.mjs
  * No browser, no Playwright — stores are pure JS.

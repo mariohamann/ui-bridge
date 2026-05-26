@@ -3,18 +3,18 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve as resolvePath } from 'node:path';
 
 // Post-process the bundle to rename all Web Awesome custom elements from the
-// `wa-` prefix to `db-` so they never collide with a host page that also loads
-// Web Awesome (e.g. the Design Bridge docs site).
-//   wa-badge  →  db-badge    (tag names in strings/selectors/templates)
-//   WaBadge   →  DbBadge     (PascalCase class names passed to customElements.define)
-// This includes CSS custom properties: --wa-font-family-code → --db-font-family-code etc.
+// `wa-` prefix to `uib-` so they never collide with a host page that also loads
+// Web Awesome (e.g. the UI Bridge docs site).
+//   wa-badge  →  uib-badge    (tag names in strings/selectors/templates)
+//   WaBadge   →  UibBadge     (PascalCase class names passed to customElements.define)
+// This includes CSS custom properties: --wa-font-family-code → --uib-font-family-code etc.
 function renameWaPrefix(outfile) {
   const src = readFileSync(outfile, 'utf8');
   const out = src
     // Match `wa-` when not preceded by a letter — renames tag names, JS class
-    // references, and CSS custom properties (--wa-* → --db-*).
-    .replace(/(?<![A-Za-z])wa-/g, 'db-')
-    .replace(/Wa(?=[A-Z])/g, 'Db');
+    // references, and CSS custom properties (--wa-* → --uib-*).
+    .replace(/(?<![A-Za-z])wa-/g, 'uib-')
+    .replace(/Wa(?=[A-Z])/g, 'Uib');
   writeFileSync(outfile, out, 'utf8');
 }
 
@@ -89,7 +89,7 @@ const sharedOptions = {
 const panelOptions = {
   ...sharedOptions,
   entryPoints: ['src/browser/index.ts'],
-  outfile: 'dist/design-bridge.js',
+  outfile: 'dist/ui-bridge.js',
 };
 
 if (watch) {
@@ -106,9 +106,9 @@ if (watch) {
     ],
   });
   await ctx1.watch();
-  console.log('[design-bridge/client] watching for changes…');
+  console.log('[ui-bridge/client] watching for changes…');
 } else {
   await build(panelOptions);
   renameWaPrefix(panelOptions.outfile);
-  console.log('[design-bridge/client] build complete → dist/design-bridge.js');
+  console.log('[ui-bridge/client] build complete → dist/ui-bridge.js');
 }

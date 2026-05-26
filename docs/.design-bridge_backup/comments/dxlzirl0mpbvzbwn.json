@@ -12,7 +12,7 @@
       "tag": "div",
       "classes": [],
       "source": {
-        "file": "/Users/mario.hamann/Documents/GitHub/design-bridge/docs/src/components/HowItWorks.astro",
+        "file": "/Users/mario.hamann/Documents/GitHub/ui-bridge/docs/src/components/HowItWorks.astro",
         "line": 46,
         "column": 14
       }
@@ -53,7 +53,7 @@
       "actions": [
         {
           "type": "content-edit",
-          "file": "/Users/mario.hamann/Documents/GitHub/design-bridge/docs/src/components/HowItWorks.astro",
+          "file": "/Users/mario.hamann/Documents/GitHub/ui-bridge/docs/src/components/HowItWorks.astro",
           "scriptId": "how-it-works-li-gap"
         }
       ],

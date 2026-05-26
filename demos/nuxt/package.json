@@ -1,5 +1,5 @@
 {
-  "name": "design-bridge-demo-nuxt",
+  "name": "ui-bridge-demo-nuxt",
   "version": "0.0.1",
   "private": true,
   "scripts": {
@@ -32,6 +32,6 @@
     "vue": "^3.5.0"
   },
   "devDependencies": {
-    "@design-bridge/nuxt": "workspace:*"
+    "@ui-bridge/nuxt": "workspace:*"
   }
 }

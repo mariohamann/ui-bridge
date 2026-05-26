@@ -1,5 +1,5 @@
 import { css } from 'lit';
-import { designBridgeHostTokenStyles } from '../styles/tokens.js';
+import { uiBridgeHostTokenStyles } from '../styles/tokens.js';
 
 const ANNOTATION_ITEM_LOCAL_STYLES = css`
   :host {
@@ -18,7 +18,7 @@ const ANNOTATION_ITEM_LOCAL_STYLES = css`
     z-index: 2147483647;
   }
 
-  /* When hosted inside db-orphaned-bar the element flows in the bar layout */
+  /* When hosted inside uib-orphaned-bar the element flows in the bar layout */
   :host([docked]) {
     position: relative;
     top: auto;
@@ -110,7 +110,7 @@ const ANNOTATION_ITEM_LOCAL_STYLES = css`
     display: none !important;
   }
 
-  @keyframes db-wobble {
+  @keyframes uib-wobble {
     0% {
       transform: translateX(0);
     }
@@ -134,7 +134,7 @@ const ANNOTATION_ITEM_LOCAL_STYLES = css`
     }
   }
   .panel.wobble {
-    animation: db-wobble 0.4s ease;
+    animation: uib-wobble 0.4s ease;
   }
 
   /* ── Header ─────────────────────────────── */
@@ -346,4 +346,4 @@ const ANNOTATION_ITEM_LOCAL_STYLES = css`
   }
 `;
 
-export const commentItemStyles = [designBridgeHostTokenStyles, ANNOTATION_ITEM_LOCAL_STYLES];
+export const commentItemStyles = [uiBridgeHostTokenStyles, ANNOTATION_ITEM_LOCAL_STYLES];

@@ -1,16 +1,16 @@
 {
-  "name": "@design-bridge/mcp",
+  "name": "@ui-bridge/mcp",
   "version": "0.0.1",
   "type": "module",
-  "description": "Design Bridge MCP server — exposes comment and tweak actions to AI agents",
+  "description": "UI Bridge MCP server — exposes comment and tweak actions to AI agents",
   "bin": {
-    "design-bridge-mcp": "./index.mjs"
+    "ui-bridge-mcp": "./index.mjs"
   },
   "scripts": {
     "test": "node --test tests/mcp.test.mjs"
   },
   "dependencies": {
-    "@design-bridge/server": "workspace:*",
+    "@ui-bridge/server": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "zod": "^3.24.0"
   }

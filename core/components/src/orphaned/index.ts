@@ -1,1 +1,1 @@
-export { DbCommentBar } from './db-comment-bar.js';
+export { UibCommentBar } from './uib-comment-bar.js';

@@ -1,7 +1,7 @@
 /**
- * Inspector — comment state + badge rendering via db-comment.
+ * Inspector — comment state + badge rendering via uib-comment.
  *
- * Each saved comment gets one persistent <db-comment> element.
+ * Each saved comment gets one persistent <uib-comment> element.
  * Items are reconciled by ID — never destroyed and recreated wholesale.
  * A draft item is created immediately on Alt+Shift+click; it becomes a saved
  * item when the user submits a comment, or is removed on cancel.
@@ -9,16 +9,16 @@
 
 import { sendMessage, onMessage } from './ws-client.js';
 import { finder, idName } from '@medv/finder';
-import type { CommentThread } from '@design-bridge/protocol';
-import { DB_COMMENT_TAG, DB_SOURCE_INSPECTOR_TAG } from '@design-bridge/protocol';
-import type { DbComment } from '@design-bridge/components';
+import type { CommentThread } from '@ui-bridge/protocol';
+import { UIB_COMMENT_TAG, UIB_SOURCE_INSPECTOR_TAG } from '@ui-bridge/protocol';
+import type { UibComment } from '@ui-bridge/components';
 import {
   onIntent,
   updateComments,
   getSourceInfo,
-  DB_HIGHLIGHT_COLOR,
+  UIB_HIGHLIGHT_COLOR,
   orphanedIdsSignal,
-} from '@design-bridge/components';
+} from '@ui-bridge/components';
 
 // ─── Selector helper ──────────────────────────────────────────────────────────
 
@@ -38,7 +38,7 @@ function buildSelector(el: Element): string {
 
 const comments = new Map<string, CommentThread>();
 const changeListeners = new Set<() => void>();
-const channel = new BroadcastChannel('design-bridge:comments');
+const channel = new BroadcastChannel('ui-bridge:comments');
 
 function notifyChange(): void {
   for (const cb of changeListeners) cb();
@@ -92,13 +92,13 @@ export function clearComments(): void {
 
 let itemContainer: HTMLElement | null = null;
 let orphanedBar: HTMLElement | null = null;
-const itemEls = new Map<string, DbComment>();
-let draftItem: DbComment | null = null;
+const itemEls = new Map<string, UibComment>();
+let draftItem: UibComment | null = null;
 
 /** ID of the comment we want to focus on the next click, when the current panel has a dirty draft. */
 let pendingFocusId: string | null = null;
 
-export function getItemById(id: string): DbComment | undefined {
+export function getItemById(id: string): UibComment | undefined {
   return itemEls.get(id);
 }
 
@@ -110,13 +110,13 @@ function closeAllPanels(): void {
 }
 
 /** Open a saved panel, closing any other open panel first. */
-function openItemPanel(item: DbComment): void {
+function openItemPanel(item: UibComment): void {
   closeAllPanels();
   pendingFocusId = null;
   item.openPanel();
 }
 
-export function getOpenItem(): DbComment | null {
+export function getOpenItem(): UibComment | null {
   if (draftItem) return draftItem;
   for (const item of itemEls.values()) {
     if (item.isOpen) return item;
@@ -193,7 +193,7 @@ export function focusComment(id: string): boolean {
 function reconcileOrphans(): void {
   if (!itemContainer) return;
   // Lazy lookup — bar is appended after initInspector() in index.ts
-  if (!orphanedBar) orphanedBar = document.querySelector('db-comment-bar');
+  if (!orphanedBar) orphanedBar = document.querySelector('uib-comment-bar');
   if (!orphanedBar) return;
   const orphanedIds = orphanedIdsSignal.get();
   for (const [id, el] of itemEls) {
@@ -225,7 +225,7 @@ function reconcileItems(): void {
   annList.forEach((ann, i) => {
     let item = itemEls.get(ann.meta.id);
     if (!item) {
-      item = document.createElement('db-comment') as DbComment;
+      item = document.createElement('uib-comment') as UibComment;
       itemContainer!.appendChild(item);
       itemEls.set(ann.meta.id, item);
     }
@@ -244,11 +244,11 @@ function reconcileItems(): void {
 let lastInspectedEl: Element | null = null;
 
 function isOwnUI(el: Element): boolean {
-  return !!el.closest(DB_COMMENT_TAG);
+  return !!el.closest(UIB_COMMENT_TAG);
 }
 
 function isInspectorUI(el: Element): boolean {
-  return el.tagName === DB_SOURCE_INSPECTOR_TAG.toUpperCase() || isOwnUI(el);
+  return el.tagName === UIB_SOURCE_INSPECTOR_TAG.toUpperCase() || isOwnUI(el);
 }
 
 // ─── Hover highlight overlay ──────────────────────────────────────────────
@@ -258,12 +258,12 @@ let highlightEl: HTMLElement | null = null;
 function getOrCreateHighlight(): HTMLElement {
   if (!highlightEl) {
     highlightEl = document.createElement('div');
-    highlightEl.id = '__db-hover-highlight';
+    highlightEl.id = '__uib-hover-highlight';
     Object.assign(highlightEl.style, {
       position: 'fixed',
       pointerEvents: 'none',
       zIndex: '2147483646',
-      outline: `2px solid ${DB_HIGHLIGHT_COLOR}`,
+      outline: `2px solid ${UIB_HIGHLIGHT_COLOR}`,
       outlineOffset: '1px',
       borderRadius: '2px',
       display: 'none',
@@ -332,7 +332,7 @@ function onPointerDownForInspect(e: PointerEvent): void {
 }
 
 function onTrackCode(e: Event): void {
-  const detail = (e as CustomEvent<{ path?: string; line?: number; column?: number }>).detail;
+  const detail = (e as CustomEvent<{ path?: string; line?: number; column?: number; }>).detail;
   hideHighlight();
   if (!itemContainer) return;
 
@@ -355,7 +355,7 @@ function onTrackCode(e: Event): void {
     draftItem.addDraftSelector(el, buildSelector(el));
     if (source) draftItem.setDraftSource(source);
   } else {
-    const item = document.createElement(DB_COMMENT_TAG) as DbComment;
+    const item = document.createElement(UIB_COMMENT_TAG) as UibComment;
     itemContainer.appendChild(item);
     draftItem = item;
     const activeCount = [...comments.values()].filter((c) => !c.meta.resolvedAt).length;
@@ -370,7 +370,7 @@ function onTrackCode(e: Event): void {
 // ─── Cross-tab BroadcastChannel ──────────────────────────────────────────────
 
 channel.addEventListener('message', (e) => {
-  const { type, payload } = e.data as { type: string; payload: CommentThread[] };
+  const { type, payload } = e.data as { type: string; payload: CommentThread[]; };
   if (type === 'comments:sync') syncComments(payload);
 });
 
@@ -388,12 +388,12 @@ onMessage((msg) => {
 
 export function initInspector(): void {
   itemContainer = document.createElement('div');
-  itemContainer.id = 'db-items';
+  itemContainer.id = 'uib-items';
   itemContainer.style.cssText =
     'position:fixed;top:0;left:0;pointer-events:none;z-index:2147483645;width:0;height:0;';
   document.body.appendChild(itemContainer);
 
-  orphanedBar = document.querySelector('db-comment-bar');
+  orphanedBar = document.querySelector('uib-comment-bar');
 
   // Re-reconcile orphans after scroll/resize (same events that trigger _repositionBadge).
   // One rAF delay ensures _repositionBadge has already updated orphanedIdsSignal.
@@ -453,15 +453,15 @@ export function initInspector(): void {
         }
       }
       if (found) {
-        // Open the real anchored panel in #db-items
+        // Open the real anchored panel in #uib-items
         focusComment(intent.id);
       } else {
         // Orphaned: open the bar badge's own panel
-        const barEl = document.querySelector('db-comment-bar');
+        const barEl = document.querySelector('uib-comment-bar');
         if (barEl) {
-          const barBadges = barEl.shadowRoot?.querySelectorAll('db-comment') ?? [];
+          const barBadges = barEl.shadowRoot?.querySelectorAll('uib-comment') ?? [];
           for (const badge of barBadges) {
-            const b = badge as unknown as DbComment;
+            const b = badge as unknown as UibComment;
             if (b.comment?.meta.id === intent.id) {
               b.openPanel();
               break;
@@ -491,8 +491,8 @@ export function initInspector(): void {
     { capture: true },
   );
 
-  // Deep-link: ?db-comment=<id> opens the comment panel on load
-  const targetId = new URLSearchParams(location.search).get('db-comment');
+  // Deep-link: ?uib-comment=<id> opens the comment panel on load
+  const targetId = new URLSearchParams(location.search).get('uib-comment');
   if (targetId) {
     const tryOpen = (): boolean => {
       const item = itemEls.get(targetId);

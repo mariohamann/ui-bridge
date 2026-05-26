@@ -45,5 +45,5 @@ export {
 
 // ─── Custom element tag names ─────────────────────────────────────────────────
 // Single source of truth — import these instead of using string literals.
-export const DB_COMMENT_TAG = 'db-comment' as const;
-export const DB_SOURCE_INSPECTOR_TAG = 'db-source-inspector' as const;
+export const UIB_COMMENT_TAG = 'uib-comment' as const;
+export const UIB_SOURCE_INSPECTOR_TAG = 'uib-source-inspector' as const;

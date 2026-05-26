@@ -1,4 +1,4 @@
-import { withDesignBridge } from '@design-bridge/next';
+import { withUiBridge } from '@ui-bridge/next';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -11,4 +11,4 @@ const nextConfig = {
   },
 };
 
-export default withDesignBridge(nextConfig);
+export default withUiBridge(nextConfig);

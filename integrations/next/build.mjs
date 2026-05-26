@@ -18,11 +18,11 @@ const options = {
 if (watch) {
   const ctx = await context(options);
   await ctx.watch();
-  console.log('[design-bridge/next] watching for changes…');
+  console.log('[ui-bridge/next] watching for changes…');
 } else {
   await build(options);
   execSync('npx tsc -p tsconfig.build.json --emitDeclarationOnly --declaration --outDir dist', {
     stdio: 'inherit',
   });
-  console.log('[design-bridge/next] build complete');
+  console.log('[ui-bridge/next] build complete');
 }

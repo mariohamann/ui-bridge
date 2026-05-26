@@ -1,5 +1,5 @@
 {
-  "name": "@design-bridge/unplugin",
+  "name": "@ui-bridge/unplugin",
   "version": "0.0.1",
   "type": "module",
   "main": "./dist/index.js",
@@ -49,9 +49,9 @@
     }
   },
   "dependencies": {
-    "@design-bridge/client": "workspace:*",
-    "@design-bridge/mcp": "workspace:*",
-    "@design-bridge/server": "workspace:*",
+    "@ui-bridge/client": "workspace:*",
+    "@ui-bridge/mcp": "workspace:*",
+    "@ui-bridge/server": "workspace:*",
     "code-inspector-plugin": "^1.5.1",
     "unplugin": "^2.3.4"
   },

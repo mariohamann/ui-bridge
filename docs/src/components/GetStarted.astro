@@ -2,61 +2,61 @@
 import { Code } from 'astro:components';
 
 const installUnplugin = `# pnpm
-pnpm add -D @design-bridge/unplugin
+pnpm add -D @ui-bridge/unplugin
 # npm
-npm install --save-dev @design-bridge/unplugin
+npm install --save-dev @ui-bridge/unplugin
 # yarn
-yarn add -D @design-bridge/unplugin`;
+yarn add -D @ui-bridge/unplugin`;
 
 const installNext = `# pnpm
-pnpm add -D @design-bridge/next
+pnpm add -D @ui-bridge/next
 # npm
-npm install --save-dev @design-bridge/next
+npm install --save-dev @ui-bridge/next
 # yarn
-yarn add -D @design-bridge/next`;
+yarn add -D @ui-bridge/next`;
 
 const installNuxt = `# pnpm
-pnpm add -D @design-bridge/nuxt
+pnpm add -D @ui-bridge/nuxt
 # npm
-npm install --save-dev @design-bridge/nuxt
+npm install --save-dev @ui-bridge/nuxt
 # yarn
-yarn add -D @design-bridge/nuxt`;
+yarn add -D @ui-bridge/nuxt`;
 
 const installAstro = `# pnpm
-pnpm add -D @design-bridge/astro
+pnpm add -D @ui-bridge/astro
 # npm
-npm install --save-dev @design-bridge/astro
+npm install --save-dev @ui-bridge/astro
 # yarn
-yarn add -D @design-bridge/astro`;
+yarn add -D @ui-bridge/astro`;
 
 const configVite = `import { defineConfig } from 'vite'
-import { designBridge } from '@design-bridge/unplugin'
+import { uiBridge } from '@ui-bridge/unplugin'
 
 export default defineConfig({
-  plugins: [designBridge.vite()]
+  plugins: [uiBridge.vite()]
 })`;
 
-const configNext = `import { withDesignBridge } from '@design-bridge/next'
+const configNext = `import { withUiBridge } from '@ui-bridge/next'
 
-export default withDesignBridge({
+export default withUiBridge({
   // your Next.js config
 })`;
 
 const configNuxt = `export default defineNuxtConfig({
-  modules: ['@design-bridge/nuxt']
+  modules: ['@ui-bridge/nuxt']
 })`;
 
 const configAstro = `import { defineConfig } from 'astro/config'
-import designBridge from '@design-bridge/astro'
+import uiBridge from '@ui-bridge/astro'
 
 export default defineConfig({
-  integrations: [designBridge()]
+  integrations: [uiBridge()]
 })`;
 
-const configWebpack = `import { designBridge } from '@design-bridge/unplugin'
+const configWebpack = `import { uiBridge } from '@ui-bridge/unplugin'
 
 export default {
-  plugins: [designBridge.webpack()]
+  plugins: [uiBridge.webpack()]
 }`;
 ---
 

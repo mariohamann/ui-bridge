@@ -12,24 +12,24 @@ import type {
   TweakCommentEntry,
   CommentSource,
   TweakKnob,
-} from '@design-bridge/protocol';
+} from '@ui-bridge/protocol';
 import { knobsSignal } from '../state/knobs-store.js';
-import './db-knob.js';
+import './uib-knob.js';
 import { LitElement, html, type TemplateResult } from 'lit';
-import { commentItemStyles } from './db-comment.styles.js';
+import { commentItemStyles } from './uib-comment.styles.js';
 import { computePosition, autoUpdate, flip, shift, offset } from '@floating-ui/dom';
 import { customElement, property, state } from 'lit/decorators.js';
 import { dispatchIntent } from '../state/intents.js';
 import { markOrphaned, markUnorphaned } from '../state/comments-store.js';
-import { uid, parseElement, shortLabel, formatTweakReply } from './db-comment.utils.js';
-import { DB_HIGHLIGHT_COLOR } from '../styles/tokens.js';
+import { uid, parseElement, shortLabel, formatTweakReply } from './uib-comment.utils.js';
+import { UIB_HIGHLIGHT_COLOR } from '../styles/tokens.js';
 
-const HIGHLIGHT_ATTR = 'data-db-related';
+const HIGHLIGHT_ATTR = 'data-uib-related';
 
 type ItemMode = 'create' | 'view';
 
 /**
- * db-comment — one web component per comment.
+ * uib-comment — one web component per comment.
  *
  * Contains both the badge dot and the comment thread panel in a single shadow
  * DOM. The host element is `position:fixed; width:0; height:0` so it takes no
@@ -39,8 +39,8 @@ type ItemMode = 'create' | 'view';
  *  - create: comment === null, opened immediately on Alt+Shift+click
  *  - view:   comment is set, panel opens/closes on badge click
  */
-@customElement('db-comment')
-export class DbComment extends LitElement {
+@customElement('uib-comment')
+export class UibComment extends LitElement {
   static styles = commentItemStyles;
 
   /** The saved comment. null = draft (unsaved, panel auto-opens). */
@@ -49,13 +49,13 @@ export class DbComment extends LitElement {
   @property({ type: Number }) index = 0;
   /**
    * When true the badge flows in the parent layout (position:relative) instead
-   * of being absolutely placed via _repositionBadge. Used by db-comment-bar.
+   * of being absolutely placed via _repositionBadge. Used by uib-comment-bar.
    */
   @property({ type: Boolean }) docked = false;
   /**
    * When true, badge clicks dispatch `comment:bar-click` instead of toggling
    * the panel. Used for bar badge instances where the real panel lives on the
-   * anchored db-comment in #db-items.
+   * anchored uib-comment in #uib-items.
    */
   @property({ type: Boolean }) orphaned = false;
 
@@ -351,7 +351,7 @@ export class DbComment extends LitElement {
           : 'wa-textarea[data-role="composer"]';
       const ta = this.shadowRoot?.querySelector<HTMLElement>(sel);
       if (!ta) return;
-      (ta as HTMLElement & { focus: (opts?: FocusOptions) => void }).focus({ preventScroll: true });
+      (ta as HTMLElement & { focus: (opts?: FocusOptions) => void; }).focus({ preventScroll: true });
     });
   }
 
@@ -370,10 +370,10 @@ export class DbComment extends LitElement {
         /* skip */
       }
     }
-    if (!document.getElementById('db-badge-highlight-style')) {
+    if (!document.getElementById('uib-badge-highlight-style')) {
       const s = document.createElement('style');
-      s.id = 'db-badge-highlight-style';
-      s.textContent = `[${HIGHLIGHT_ATTR}]{outline:2px solid ${DB_HIGHLIGHT_COLOR}!important;outline-offset:2px!important;}`;
+      s.id = 'uib-badge-highlight-style';
+      s.textContent = `[${HIGHLIGHT_ATTR}]{outline:2px solid ${UIB_HIGHLIGHT_COLOR}!important;outline-offset:2px!important;}`;
       document.head.appendChild(s);
     }
   }
@@ -443,7 +443,7 @@ export class DbComment extends LitElement {
     if (!this._open) return;
     if (e.composedPath().includes(this)) {
       // The click landed inside this component's shadow DOM (panel, badge, dropdown, etc.).
-      // Exception: our elevated z-index panel can physically cover another db-comment's badge.
+      // Exception: our elevated z-index panel can physically cover another uib-comment's badge.
       // If the click coordinates land on a sibling badge, treat it as an outside click and
       // forward the intent so the other panel opens in the same interaction.
       const otherId = this._otherBadgeIdAt(e.clientX, e.clientY);
@@ -475,14 +475,14 @@ export class DbComment extends LitElement {
   };
 
   private _otherBadgeIdAt(x: number, y: number): string | null {
-    const siblings = document.querySelectorAll<Element>('db-comment');
+    const siblings = document.querySelectorAll<Element>('uib-comment');
     for (const el of siblings) {
       if (el === this) continue;
       const badge = el.shadowRoot?.querySelector<HTMLElement>('wa-button.badge');
       if (!badge) continue;
       const r = badge.getBoundingClientRect();
       if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) {
-        return (el as DbComment).comment?.meta.id ?? null;
+        return (el as UibComment).comment?.meta.id ?? null;
       }
     }
     return null;
@@ -538,7 +538,7 @@ export class DbComment extends LitElement {
     return [...thread.comments].reverse().find((c): c is TweakCommentEntry => c.type === 'tweak');
   }
 
-  private _buildThread(overrides?: { comments?: CommentEntry[] }): CommentThread {
+  private _buildThread(overrides?: { comments?: CommentEntry[]; }): CommentThread {
     const base = this.comment;
     const comments = overrides?.comments ?? (base ? this._getComments(base) : []);
     const elements = base?.elements?.length
@@ -549,17 +549,17 @@ export class DbComment extends LitElement {
     // Attach source from pending to the first element if not already set
     const elementsWithSource: typeof elements = this._pendingSource
       ? elements.map((el, i) =>
-          i === 0 && !el.source
-            ? {
-                ...el,
-                source: {
-                  file: this._pendingSource!.file,
-                  line: this._pendingSource!.line,
-                  column: this._pendingSource!.column,
-                },
-              }
-            : el,
-        )
+        i === 0 && !el.source
+          ? {
+            ...el,
+            source: {
+              file: this._pendingSource!.file,
+              line: this._pendingSource!.line,
+              column: this._pendingSource!.column,
+            },
+          }
+          : el,
+      )
       : elements;
     return {
       meta: {
@@ -630,7 +630,7 @@ export class DbComment extends LitElement {
         `wa-textarea[data-edit-id="${replyId}"]`,
       );
       if (ta) {
-        (ta as HTMLElement & { focus: () => void }).focus();
+        (ta as HTMLElement & { focus: () => void; }).focus();
       }
     });
   }
@@ -676,13 +676,13 @@ export class DbComment extends LitElement {
   }
 
   private _copyReviewLink(): void {
-    const wsUrl = (window as unknown as Record<string, unknown>).__DB_WS_URL__ as
+    const wsUrl = (window as unknown as Record<string, unknown>).__UIB_WS_URL__ as
       | string
       | undefined;
     const url = wsUrl
-      ? wsUrl.replace(/^ws:\/\//, 'http://').replace(/\/design-bridge$/, '/')
+      ? wsUrl.replace(/^ws:\/\//, 'http://').replace(/\/ui-bridge$/, '/')
       : `http://${location.host}/`;
-    navigator.clipboard.writeText(url).catch(() => {});
+    navigator.clipboard.writeText(url).catch(() => { });
   }
 
   private _resolve(): void {
@@ -702,7 +702,7 @@ export class DbComment extends LitElement {
     dispatchIntent({ type: 'tweak:discard-comment', commentId: this.comment.meta.id });
   }
 
-  private _onKnobChange(e: CustomEvent<{ value: string | number | boolean }>): void {
+  private _onKnobChange(e: CustomEvent<{ value: string | number | boolean; }>): void {
     if (!this.comment) return;
     dispatchIntent({
       type: 'tweak:change',
@@ -728,15 +728,15 @@ export class DbComment extends LitElement {
         <wa-dropdown
           size="s"
           @wa-select=${(e: CustomEvent) => {
-            const val = e.detail.item.value;
-            if (val === 'paths') {
-              this._showPaths = !this._showPaths;
-            } else if (val === 'copy-link') {
-              this._copyReviewLink();
-            } else if (val === 'delete') {
-              this._delete();
-            }
-          }}
+        const val = e.detail.item.value;
+        if (val === 'paths') {
+          this._showPaths = !this._showPaths;
+        } else if (val === 'copy-link') {
+          this._copyReviewLink();
+        } else if (val === 'delete') {
+          this._delete();
+        }
+      }}
         >
           <wa-button slot="trigger" appearance="plain" size="xs" title="More options"
             >···</wa-button
@@ -756,8 +756,8 @@ export class DbComment extends LitElement {
           size="xs"
           title="Close"
           @click=${() => {
-            this._open = false;
-          }}
+        this._open = false;
+      }}
           >✕</wa-button
         >
       </div>
@@ -827,11 +827,11 @@ export class DbComment extends LitElement {
           <div class=${replyClass} data-entry-id=${r.id}>
             ${!prevIsAgent ? html`<span class="reply-author-tag">✦ Agent</span>` : ''}
             <div class="tweak-row">
-              <db-knob
+              <uib-knob
                 label=${tweak.knob.label}
                 .knob=${knob}
-                @db-knob-change=${this._onKnobChange}
-              ></db-knob>
+                @uib-knob-change=${this._onKnobChange}
+              ></uib-knob>
               <div class="tweak-actions">
                 <wa-button
                   appearance="plain"
@@ -843,8 +843,8 @@ export class DbComment extends LitElement {
                 <wa-dropdown
                   size="s"
                   @wa-select=${(e: CustomEvent) => {
-                    if (e.detail.item.value === 'discard') this._discardTweak();
-                  }}
+            if (e.detail.item.value === 'discard') this._discardTweak();
+          }}
                 >
                   <wa-button slot="trigger" appearance="plain" size="xs" title="More options"
                     >···</wa-button
@@ -872,7 +872,7 @@ export class DbComment extends LitElement {
         <div class=${replyClass} data-entry-id=${r.id}>
           ${!isUser && !prevIsAgent ? html`<span class="reply-author-tag">✦ Agent</span>` : ''}
           ${isEditing
-            ? html`
+          ? html`
                 <wa-textarea
                   rows="1"
                   data-edit-id=${r.id}
@@ -881,17 +881,17 @@ export class DbComment extends LitElement {
                   size="xs"
                   .value=${this._editDraft}
                   @input=${(e: Event) => {
-                    this._editDraft = (e.target as HTMLElement & { value: string }).value;
-                  }}
+              this._editDraft = (e.target as HTMLElement & { value: string; }).value;
+            }}
                   @keydown=${(e: KeyboardEvent) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault();
-                      this._saveEditReply();
-                    } else if (e.key === 'Escape') {
-                      e.stopPropagation();
-                      this._cancelEditReply();
-                    }
-                  }}
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                this._saveEditReply();
+              } else if (e.key === 'Escape') {
+                e.stopPropagation();
+                this._cancelEditReply();
+              }
+            }}
                 ></wa-textarea>
                 <div class="edit-actions">
                   <wa-button
@@ -907,7 +907,7 @@ export class DbComment extends LitElement {
                   >
                 </div>
               `
-            : html`
+          : html`
                 <div class="reply-main">
                   <div class="reply-content">
                     <div class="comment-text">${r.text}</div>
@@ -918,29 +918,29 @@ export class DbComment extends LitElement {
                     ></wa-relative-time>
                   </div>
                   ${showMenu
-                    ? html`
+              ? html`
                         <wa-dropdown
                           size="xs"
                           class="reply-menu"
                           @click=${(e: Event) => e.stopPropagation()}
                           @wa-select=${(e: CustomEvent) => {
-                            const val = e.detail.item.value;
-                            if (val === 'edit') this._startEditReply(r.id, r.text);
-                            else if (val === 'delete') this._deleteReply(r.id);
-                          }}
+                  const val = e.detail.item.value;
+                  if (val === 'edit') this._startEditReply(r.id, r.text);
+                  else if (val === 'delete') this._deleteReply(r.id);
+                }}
                         >
                           <wa-button slot="trigger" appearance="plain" size="xs" title="More"
                             >···</wa-button
                           >
                           <wa-dropdown-item value="edit">Edit</wa-dropdown-item>
                           ${!isFirst
-                            ? html`<wa-dropdown-item value="delete" variant="danger"
+                  ? html`<wa-dropdown-item value="delete" variant="danger"
                                 >Delete</wa-dropdown-item
                               >`
-                            : ''}
+                  : ''}
                         </wa-dropdown>
                       `
-                    : ''}
+              : ''}
                 </div>
               `}
         </div>
@@ -958,7 +958,7 @@ export class DbComment extends LitElement {
     return html`
       <div class="chips-bar">
         ${elements.map(
-          (el, i) => html`
+      (el, i) => html`
             <wa-tag
               variant="brand"
               appearance="outlined"
@@ -967,18 +967,18 @@ export class DbComment extends LitElement {
               style="font-family:var(--wa-font-family-code);max-width:160px;overflow:hidden;text-overflow:ellipsis;"
               ?with-remove=${editable}
               @wa-remove=${editable
-                ? (e: Event) => {
-                    e.stopPropagation();
-                    this._removeChip(i);
-                  }
-                : undefined}
+          ? (e: Event) => {
+            e.stopPropagation();
+            this._removeChip(i);
+          }
+          : undefined}
             >
               ${el.minimalSelector}
             </wa-tag>
           `,
-        )}
+    )}
         ${source
-          ? html`
+        ? html`
               <wa-tag
                 variant="brand"
                 appearance="outlined"
@@ -988,7 +988,7 @@ export class DbComment extends LitElement {
                 >📍 ${source.file}:${source.line}:${source.column}</wa-tag
               >
             `
-          : ''}
+        : ''}
       </div>
     `;
   }
@@ -1031,8 +1031,8 @@ export class DbComment extends LitElement {
         .pill=${true}
         class="badge${isResolved ? ' resolved' : isDraft ? ' draft' : ''}"
         style=${this.docked
-          ? 'position:relative;top:auto;left:auto'
-          : `position:fixed;top:${this._badgeTop}px;left:${this._badgeLeft}px`}
+        ? 'position:relative;top:auto;left:auto'
+        : `position:fixed;top:${this._badgeTop}px;left:${this._badgeLeft}px`}
         @mouseenter=${this._onBadgeMouseEnter}
         @mouseleave=${this._onBadgeMouseLeave}
         @click=${this._onBadgeClick}
@@ -1065,16 +1065,16 @@ export class DbComment extends LitElement {
                 placeholder=${isDraft ? 'Add a comment\u2026' : 'Reply\u2026'}
                 .value=${isDraft ? this._draft : this._replyDraft}
                 @input=${(e: Event) => {
-                  const v = (e.target as HTMLElement & { value: string }).value;
-                  if (isDraft) this._draft = v;
-                  else this._replyDraft = v;
-                }}
+        const v = (e.target as HTMLElement & { value: string; }).value;
+        if (isDraft) this._draft = v;
+        else this._replyDraft = v;
+      }}
                 @keydown=${isDraft ? this._onComposerKeyDown : this._onReplyKeyDown}
               ></wa-textarea>
               <div class="composer-send">
                 ${isDraft
-                  ? this._renderSendBtn(canSendNew, () => this._saveNew())
-                  : this._renderSendBtn(canSendReply, () => this._saveReply())}
+        ? this._renderSendBtn(canSendNew, () => this._saveNew())
+        : this._renderSendBtn(canSendReply, () => this._saveReply())}
               </div>
             </div>
           </div>
@@ -1086,6 +1086,6 @@ export class DbComment extends LitElement {
 
 declare global {
   interface HTMLElementTagNameMap {
-    'db-comment': DbComment;
+    'uib-comment': UibComment;
   }
 }

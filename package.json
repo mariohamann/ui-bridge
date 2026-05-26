@@ -1,5 +1,5 @@
 {
-  "name": "design-bridge",
+  "name": "ui-bridge",
   "private": true,
   "version": "0.0.1",
   "engines": {
@@ -7,14 +7,14 @@
     "node": ">=20.0.0"
   },
   "scripts": {
-    "dev": "pnpm --filter @design-bridge/docs dev",
-    "dev:vite": "pnpm --filter design-bridge-demo-vite dev",
-    "dev:webpack": "pnpm --filter design-bridge-demo-webpack dev",
-    "dev:rspack": "pnpm --filter design-bridge-demo-rspack dev",
-    "dev:astro": "pnpm --filter design-bridge-demo-astro dev",
-    "dev:next": "pnpm --filter design-bridge-demo-next dev",
-    "dev:nuxt": "pnpm --filter design-bridge-demo-nuxt dev",
-    "docs:build": "pnpm --filter @design-bridge/docs build",
+    "dev": "pnpm --filter @ui-bridge/docs dev",
+    "dev:vite": "pnpm --filter ui-bridge-demo-vite dev",
+    "dev:webpack": "pnpm --filter ui-bridge-demo-webpack dev",
+    "dev:rspack": "pnpm --filter ui-bridge-demo-rspack dev",
+    "dev:astro": "pnpm --filter ui-bridge-demo-astro dev",
+    "dev:next": "pnpm --filter ui-bridge-demo-next dev",
+    "dev:nuxt": "pnpm --filter ui-bridge-demo-nuxt dev",
+    "docs:build": "pnpm --filter @ui-bridge/docs build",
     "build": "pnpm -r build",
     "build:core": "pnpm --filter \"./core/**\" build",
     "build:integrations": "pnpm --filter \"./integrations/**\" build",
@@ -26,10 +26,10 @@
     "test": "pnpm build:core && pnpm build:integrations && SKIP_BUILD=true pnpm -r --workspace-concurrency=4 run test",
     "test:core": "pnpm build:core && SKIP_BUILD=true pnpm --filter \"./core/**\" test",
     "test:integrations": "pnpm build:core && pnpm build:integrations && SKIP_BUILD=true pnpm --filter \"./integrations/**\" test",
-    "test:client": "pnpm --filter @design-bridge/client test",
-    "test:components": "pnpm --filter @design-bridge/components test",
-    "test:protocol": "pnpm --filter @design-bridge/protocol test",
-    "test:server": "pnpm --filter @design-bridge/server test"
+    "test:client": "pnpm --filter @ui-bridge/client test",
+    "test:components": "pnpm --filter @ui-bridge/components test",
+    "test:protocol": "pnpm --filter @ui-bridge/protocol test",
+    "test:server": "pnpm --filter @ui-bridge/server test"
   },
   "devDependencies": {
     "prettier": "^3.8.3",

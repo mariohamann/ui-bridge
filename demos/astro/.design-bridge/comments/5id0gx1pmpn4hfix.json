@@ -1,0 +1,29 @@
+{
+  "meta": {
+    "id": "5id0gx1pmpn4hfix",
+    "pageUrl": "http://localhost:4321/",
+    "timestamp": 1779829422339,
+    "createdAt": 1779829422297
+  },
+  "elements": [
+    {
+      "minimalSelector": "h1 > span",
+      "tag": "span",
+      "classes": [],
+      "source": {
+        "file": "/Users/mario.hamann/Documents/GitHub/ui-bridge/demos/astro/src/components/HeroSection.astro",
+        "line": 8,
+        "column": 36
+      }
+    }
+  ],
+  "comments": [
+    {
+      "id": "5xn2d25fmpn4hfk3",
+      "type": "comment",
+      "text": "Round-trip check from Astro",
+      "createdAt": 1779829422339,
+      "author": "user"
+    }
+  ]
+}

@@ -22,23 +22,23 @@ export async function getServerPort(port: number): Promise<number | null> {
 
 /**
  * Spawn the server subprocess and resolve with the port it actually bound to.
- * The server emits "DESIGN_BRIDGE_READY:<port>" on stdout once it is listening.
+ * The server emits "UI_BRIDGE_READY:<port>" on stdout once it is listening.
  */
 export function spawnServer(
   rootDir: string,
   preferredPort: number,
 ): { child: ChildProcess; ready: Promise<number> } {
-  const serverEntry = _require.resolve('@design-bridge/server');
+  const serverEntry = _require.resolve('@ui-bridge/server');
   const child = spawn(process.execPath, [serverEntry, '--root', rootDir], {
     stdio: ['ignore', 'pipe', 'pipe'],
-    env: { ...process.env, DESIGN_BRIDGE_PORT: String(preferredPort) },
+    env: { ...process.env, UI_BRIDGE_PORT: String(preferredPort) },
   });
 
   const ready = new Promise<number>((resolve, reject) => {
     const rl = createInterface({ input: child.stdout! });
     rl.on('line', (line) => {
       process.stdout.write(line + '\n');
-      const match = line.match(/^DESIGN_BRIDGE_READY:(\d+)$/);
+      const match = line.match(/^UI_BRIDGE_READY:(\d+)$/);
       if (match) {
         rl.close();
         resolve(parseInt(match[1], 10));
@@ -46,11 +46,11 @@ export function spawnServer(
     });
     child.stderr?.on('data', (chunk: Buffer) => process.stderr.write(chunk));
     child.on('error', (e) => {
-      console.error('[design-bridge] server error:', e);
+      console.error('[ui-bridge] server error:', e);
       reject(e);
     });
     child.on('exit', (code) => {
-      if (code !== 0) reject(new Error(`[design-bridge] server exited with code ${code}`));
+      if (code !== 0) reject(new Error(`[ui-bridge] server exited with code ${code}`));
     });
   });
 
@@ -58,7 +58,7 @@ export function spawnServer(
 }
 
 /**
- * Ensure the Design Bridge server is running. Reuses an existing server if
+ * Ensure the UI Bridge server is running. Reuses an existing server if
  * one is already listening on the preferred port, otherwise spawns a new one.
  * Returns the resolved port.
  */
@@ -68,7 +68,7 @@ export async function ensureServer(
 ): Promise<{ port: number; child: ChildProcess | null }> {
   const existingPort = await getServerPort(preferredPort);
   if (existingPort !== null) {
-    console.log(`[design-bridge] using existing server at http://localhost:${existingPort}`);
+    console.log(`[ui-bridge] using existing server at http://localhost:${existingPort}`);
     return { port: existingPort, child: null };
   }
   const { child, ready } = spawnServer(rootDir, preferredPort);

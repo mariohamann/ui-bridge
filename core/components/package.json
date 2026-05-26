@@ -1,5 +1,5 @@
 {
-  "name": "@design-bridge/components",
+  "name": "@ui-bridge/components",
   "version": "0.0.1",
   "type": "module",
   "main": "./dist/index.js",
@@ -36,9 +36,9 @@
       "types": "./dist/comment/index.d.ts"
     },
     "./comment/utils": {
-      "source": "./src/comment/db-comment-utils.ts",
-      "import": "./dist/comment/db-comment-utils.js",
-      "types": "./dist/comment/db-comment-utils.d.ts"
+      "source": "./src/comment/uib-comment-utils.ts",
+      "import": "./dist/comment/uib-comment-utils.js",
+      "types": "./dist/comment/uib-comment-utils.d.ts"
     },
     "./orphaned": {
       "source": "./src/orphaned/index.ts",
@@ -85,7 +85,7 @@
   },
   "dependencies": {
     "@awesome.me/webawesome": "^3.7.0",
-    "@design-bridge/protocol": "workspace:*",
+    "@ui-bridge/protocol": "workspace:*",
     "@floating-ui/dom": "^1.7.6",
     "@lit-labs/signals": "^0.2.0",
     "autosize": "^6.0.1",

@@ -1,7 +1,7 @@
 /**
  * demo-comments.ts
  *
- * Seeds client-side-only demo CommentThreads into the Design Bridge signal
+ * Seeds client-side-only demo CommentThreads into the UI Bridge signal
  * store so the docs page shows realistic comment badges and panels without any
  * server round-trips.
  *
@@ -490,7 +490,7 @@ function revertKnob(marker: string): void {
 function waitForDb(): Promise<DbComponents> {
   return new Promise((resolve) => {
     const check = (): void => {
-      const db = (window as unknown as Record<string, unknown>).__DB_COMPONENTS__ as
+      const db = (window as unknown as Record<string, unknown>).__UIB_COMPONENTS__ as
         | DbComponents
         | undefined;
       if (db) {

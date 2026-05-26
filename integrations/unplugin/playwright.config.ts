@@ -16,7 +16,7 @@ const buildPrefix = skipBuild
 export default defineConfig({
   testDir: './tests',
   fullyParallel: false,
-  // All three projects (vite/webpack/rspack) share one Design Bridge server,
+  // All three projects (vite/webpack/rspack) share one UI Bridge server,
   // so comment cleanup calls would race if projects ran in parallel.
   workers: 1,
   forbidOnly: !!process.env.CI,

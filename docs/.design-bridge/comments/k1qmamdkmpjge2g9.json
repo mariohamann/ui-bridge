@@ -1,0 +1,30 @@
+{
+  "meta": {
+    "id": "k1qmamdkmpjge2g9",
+    "pageUrl": "http://localhost:4321/",
+    "timestamp": 1779607557734,
+    "createdAt": 1779607556073,
+    "lastReadAt": 1779608194041
+  },
+  "elements": [
+    {
+      "minimalSelector": "li:nth-of-type(4) > div > p:nth-of-type(2)",
+      "tag": "p",
+      "classes": ["mt-1", "text-wa-text-quiet"],
+      "source": {
+        "file": "/Users/mario.hamann/Documents/GitHub/ui-bridge/docs/src/components/HowItWorks.astro",
+        "line": 46,
+        "column": 50
+      }
+    }
+  ],
+  "comments": [
+    {
+      "id": "gmts6fwmmpjge3qe",
+      "type": "comment",
+      "text": "dasdasd",
+      "createdAt": 1779607557734,
+      "author": "user"
+    }
+  ]
+}

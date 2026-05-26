@@ -1,10 +1,10 @@
 {
-  "name": "@design-bridge/client",
+  "name": "@ui-bridge/client",
   "version": "0.0.1",
   "type": "module",
-  "main": "./dist/design-bridge.js",
+  "main": "./dist/ui-bridge.js",
   "exports": {
-    ".": "./dist/design-bridge.js"
+    ".": "./dist/ui-bridge.js"
   },
   "scripts": {
     "build": "wireit",
@@ -43,8 +43,8 @@
   },
   "devDependencies": {
     "@awesome.me/webawesome": "^3.7.0",
-    "@design-bridge/components": "workspace:*",
-    "@design-bridge/protocol": "workspace:*",
+    "@ui-bridge/components": "workspace:*",
+    "@ui-bridge/protocol": "workspace:*",
     "@floating-ui/dom": "^1.7.6",
     "@lit-labs/signals": "^0.2.0",
     "@medv/finder": "^4.0.2",

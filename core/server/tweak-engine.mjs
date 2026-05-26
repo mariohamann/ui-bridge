@@ -4,14 +4,14 @@
  * Architecture:
  *
  *   Comment (owns the knob + ordered actions[])
- *     └─ ContentEditAction  → loads .design-bridge/scripts/{scriptId}.mjs
+ *     └─ ContentEditAction  → loads .ui-bridge/scripts/{scriptId}.mjs
  *                             script: (content: string, value: unknown) => string
- *     └─ FileCreateAction   → writes .design-bridge/files/{fileId} to path
+ *     └─ FileCreateAction   → writes .ui-bridge/files/{fileId} to path
  *     └─ FileDeleteAction   → deletes path (snapshot taken first)
  *
  * Snapshot / replay model:
  *   Before any action touches a file, its original content is snapshotted to
- *   .design-bridge/.cache/. On replay every touched file is restored from its
+ *   .ui-bridge/.cache/. On replay every touched file is restored from its
  *   snapshot before actions run, so each run starts from the original state.
  *   Discard restores all snapshots and deletes scripts/files/cache artifacts.
  *   Finalize makes changes permanent and clears the snapshot.
@@ -28,7 +28,7 @@ import { pathToFileURL } from 'node:url';
 // ─── Path constants ───────────────────────────────────────────────────────────
 
 function dirs(rootDir) {
-  const db = resolve(rootDir, '.design-bridge');
+  const db = resolve(rootDir, '.ui-bridge');
   return {
     scripts: resolve(db, 'scripts'),
     files: resolve(db, 'files'),
@@ -41,7 +41,7 @@ function dirs(rootDir) {
 function guardPath(rootDir, filePath) {
   const abs = isAbsolute(filePath) ? filePath : resolve(rootDir, filePath);
   if (relative(rootDir, abs).startsWith('..')) {
-    throw new Error(`[design-bridge] path "${filePath}" is outside project root — blocked`);
+    throw new Error(`[ui-bridge] path "${filePath}" is outside project root — blocked`);
   }
   return abs;
 }
@@ -97,7 +97,7 @@ async function loadTransformer(scriptsDir, scriptId) {
   const fn = mod.default;
   if (typeof fn !== 'function') {
     throw new Error(
-      `[design-bridge] script "${scriptId}" must export a default function (content, value) => string`,
+      `[ui-bridge] script "${scriptId}" must export a default function (content, value) => string`,
     );
   }
   return fn;
@@ -120,15 +120,13 @@ async function executeAction(rootDir, { scripts, files, cache }, action, value) 
     try {
       transformer = await loadTransformer(scripts, action.scriptId);
     } catch (e) {
-      console.error(`[design-bridge] failed to load script "${action.scriptId}":`, e);
+      console.error(`[ui-bridge] failed to load script "${action.scriptId}":`, e);
       return;
     }
     const current = await readFile(abs, 'utf-8');
     const transformed = transformer(current, value);
     if (typeof transformed !== 'string') {
-      console.error(
-        `[design-bridge] script "${action.scriptId}" did not return a string — skipped`,
-      );
+      console.error(`[ui-bridge] script "${action.scriptId}" did not return a string — skipped`);
       return;
     }
     await writeFile(abs, transformed, 'utf-8');
@@ -259,7 +257,7 @@ export function createTweakEngine(rootDir, getComments) {
             value,
           );
         } catch (e) {
-          console.error(`[design-bridge] error executing action for comment "${ann.id}":`, e);
+          console.error(`[ui-bridge] error executing action for comment "${ann.id}":`, e);
         }
       }
     }
@@ -312,7 +310,7 @@ export function createTweakEngine(rootDir, getComments) {
             value,
           );
         } catch (e) {
-          console.error(`[design-bridge] finalize error for comment "${ann.id}":`, e);
+          console.error(`[ui-bridge] finalize error for comment "${ann.id}":`, e);
         }
       }
     }

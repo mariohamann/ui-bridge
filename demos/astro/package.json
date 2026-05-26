@@ -1,5 +1,5 @@
 {
-  "name": "design-bridge-demo-astro",
+  "name": "ui-bridge-demo-astro",
   "type": "module",
   "version": "0.0.1",
   "private": true,
@@ -30,10 +30,10 @@
     }
   },
   "dependencies": {
-    "@design-bridge/demo-styles": "workspace:*",
+    "@ui-bridge/demo-styles": "workspace:*",
     "astro": "^6.3.1"
   },
   "devDependencies": {
-    "@design-bridge/astro": "workspace:*"
+    "@ui-bridge/astro": "workspace:*"
   }
 }

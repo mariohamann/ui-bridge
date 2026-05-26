@@ -9,23 +9,23 @@ import '@awesome.me/webawesome/dist/components/switch/switch.js';
 import '@awesome.me/webawesome/dist/components/textarea/textarea.js';
 import { LitElement, html, type TemplateResult } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
-import type { TweakKnob } from '@design-bridge/protocol';
+import type { TweakKnob } from '@ui-bridge/protocol';
 
 /**
- * db-knob — renders a single knob input based on its type using Web Awesome components.
+ * uib-knob — renders a single knob input based on its type using Web Awesome components.
  *
  * Responsibilities:
  *   - Render the correct WA input control for the knob type
  *   - Track the current value locally (optimistic UI)
- *   - Fire `db-knob-change` with `{ value }` when the user changes the input
+ *   - Fire `uib-knob-change` with `{ value }` when the user changes the input
  *
- * The parent (db-comment) listens to `db-knob-change` and dispatches the
+ * The parent (uib-comment) listens to `uib-knob-change` and dispatches the
  * appropriate intent. This component has no knowledge of intents or transport.
  *
  * Renders into light DOM (no shadow root) so the parent's styles apply.
  */
-@customElement('db-knob')
-export class DbKnob extends LitElement {
+@customElement('uib-knob')
+export class UibKnob extends LitElement {
   /** The knob descriptor coming from the server schema. */
   @property({ attribute: false }) knob: TweakKnob | null = null;
 
@@ -35,7 +35,7 @@ export class DbKnob extends LitElement {
   /** Locally-tracked current value — initialised from knob.value. */
   @state() private _value: string | number | boolean = '';
 
-  // Use light DOM so db-comment's existing CSS applies directly.
+  // Use light DOM so uib-comment's existing CSS applies directly.
   protected createRenderRoot(): HTMLElement {
     return this;
   }
@@ -55,7 +55,7 @@ export class DbKnob extends LitElement {
   private _emit(value: string | number | boolean): void {
     this._value = value;
     this.dispatchEvent(
-      new CustomEvent('db-knob-change', { detail: { value }, bubbles: true, composed: true }),
+      new CustomEvent('uib-knob-change', { detail: { value }, bubbles: true, composed: true }),
     );
   }
 
@@ -153,6 +153,6 @@ export class DbKnob extends LitElement {
 
 declare global {
   interface HTMLElementTagNameMap {
-    'db-knob': DbKnob;
+    'uib-knob': UibKnob;
   }
 }

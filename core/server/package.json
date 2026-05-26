@@ -1,22 +1,22 @@
 {
-  "name": "@design-bridge/server",
+  "name": "@ui-bridge/server",
   "version": "0.0.1",
   "type": "module",
-  "description": "Standalone Design Bridge server — works with any stack, no Vite required",
+  "description": "Standalone UI Bridge server — works with any stack, no Vite required",
   "main": "./index.mjs",
   "exports": {
     ".": "./index.mjs",
     "./comment-store": "./comment-store.mjs"
   },
   "bin": {
-    "design-bridge-server": "./index.mjs"
+    "ui-bridge-server": "./index.mjs"
   },
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "playwright test"
   },
   "dependencies": {
-    "@design-bridge/client": "workspace:*",
+    "@ui-bridge/client": "workspace:*",
     "fast-glob": "^3.3.2",
     "ws": "^8.18.0"
   },

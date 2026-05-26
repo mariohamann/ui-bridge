@@ -12,7 +12,7 @@ import { resolve } from 'node:path';
  * @returns store API
  */
 export function createCommentStore(rootDir) {
-  const ANNOTATIONS_DIR = resolve(rootDir, '.design-bridge', 'comments');
+  const ANNOTATIONS_DIR = resolve(rootDir, '.ui-bridge', 'comments');
 
   /** @type {Map<string, object>} */
   const comments = new Map();
@@ -28,7 +28,7 @@ export function createCommentStore(rootDir) {
         'utf-8',
       );
     } catch (e) {
-      console.warn('[design-bridge] could not write comment file:', e);
+      console.warn('[ui-bridge] could not write comment file:', e);
     }
   }
 
@@ -51,10 +51,10 @@ export function createCommentStore(rootDir) {
           const id = ann?.meta?.id;
           if (id) comments.set(id, ann);
         } catch (e) {
-          console.warn(`[design-bridge] could not parse comment ${file}:`, e);
+          console.warn(`[ui-bridge] could not parse comment ${file}:`, e);
         }
       }
-      if (comments.size > 0) console.log(`[design-bridge] loaded ${comments.size} comment(s)`);
+      if (comments.size > 0) console.log(`[ui-bridge] loaded ${comments.size} comment(s)`);
     } catch {
       /* dir doesn't exist yet — that's fine */
     }

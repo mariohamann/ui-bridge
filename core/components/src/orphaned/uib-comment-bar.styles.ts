@@ -1,8 +1,8 @@
 import { css } from 'lit';
-import { designBridgeHostTokenStyles } from '../styles/tokens.js';
+import { uiBridgeHostTokenStyles } from '../styles/tokens.js';
 
 export const dbCommentBarStyles = [
-  designBridgeHostTokenStyles,
+  uiBridgeHostTokenStyles,
   css`
     :host {
       position: fixed;
@@ -33,7 +33,7 @@ export const dbCommentBarStyles = [
     }
 
     /* ── Collapsed: all badges stack ──────────────────── */
-    db-comment {
+    uib-comment {
       margin-top: -18px;
       transition:
         margin-top 0.2s ease,
@@ -42,12 +42,12 @@ export const dbCommentBarStyles = [
       position: relative;
     }
     /* First badge (newest) has no top margin — nothing above it */
-    db-comment:first-child {
+    uib-comment:first-child {
       margin-top: 0;
     }
 
     /* Overflow badges peek slightly behind */
-    db-comment.overflow-hidden {
+    uib-comment.overflow-hidden {
       opacity: 0;
       display: none;
       pointer-events: none;
@@ -71,14 +71,14 @@ export const dbCommentBarStyles = [
     }
 
     /* ── Hovered: fan out, show all ──────────────────── */
-    .bar:hover db-comment {
+    .bar:hover uib-comment {
       margin-top: 8px;
       opacity: 1;
       transform: scale(1);
       pointer-events: auto;
       display: block;
     }
-    .bar:hover db-comment:first-child {
+    .bar:hover uib-comment:first-child {
       margin-top: 0;
     }
     .bar:hover .overflow-pill {

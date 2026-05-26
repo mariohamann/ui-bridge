@@ -4,7 +4,7 @@ import waCss from '@awesome.me/webawesome/dist/styles/webawesome.css?shadow';
 // Injects the full Web Awesome stylesheet (tokens, dark palette, font-face) into
 // the component's own shadow DOM. This keeps all WA styles scoped to our UI and
 // prevents any bleed onto the host page.
-export const designBridgeHostTokenStyles = [
+export const uiBridgeHostTokenStyles = [
   unsafeCSS(waCss),
   css`
     :host {
@@ -18,4 +18,4 @@ export const designBridgeHostTokenStyles = [
  * Matches Web Awesome's --wa-color-brand in dark mode. Export as a plain string
  * so it can be used in vanilla DOM code (inspector.ts) and Lit CSS alike.
  */
-export const DB_HIGHLIGHT_COLOR = '#3b82f6';
+export const UIB_HIGHLIGHT_COLOR = '#3b82f6';

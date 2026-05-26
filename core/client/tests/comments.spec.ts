@@ -1,29 +1,29 @@
 /**
- * Comment end-to-end tests for Design Bridge.
+ * Comment end-to-end tests for UI Bridge.
  *
- * NOTE — `db-*` vs `wa-*` element names in selectors:
- * The source code in @design-bridge/components uses Web Awesome's native `wa-`
+ * NOTE — `uib-*` vs `wa-*` element names in selectors:
+ * The source code in @ui-bridge/components uses Web Awesome's native `wa-`
  * tag names (e.g. `wa-button`, `wa-textarea`). However, the client build step
- * (`core/client/build.mjs`) renames every `wa-` prefix to `db-` in the output
+ * (`core/client/build.mjs`) renames every `wa-` prefix to `uib-` in the output
  * bundle to avoid a CustomElementRegistry collision when the client is injected
  * into a host page that already loads Web Awesome (e.g. the docs site).
- * Playwright queries the live DOM, so all selectors here use `db-*` even though
+ * Playwright queries the live DOM, so all selectors here use `uib-*` even though
  * the source code uses `wa-*`. If you add a new Web Awesome component in source,
- * use `wa-*` in source and `db-*` in tests.
+ * use `wa-*` in source and `uib-*` in tests.
  */
 
 import { test, expect, type Page, type Locator } from '@playwright/test';
 
-const DB_PORT = parseInt(process.env.DESIGN_BRIDGE_PORT ?? process.env.DB_PORT ?? '7378', 10);
-const API_BASE = `http://localhost:${DB_PORT}/api`;
+const UIB_PORT = parseInt(process.env.UI_BRIDGE_PORT ?? process.env.UIB_PORT ?? '7378', 10);
+const API_BASE = `http://localhost:${UIB_PORT}/api`;
 
 /** The draft or open comment item's panel (shadow DOM piercing). */
 function commentPanel(page: Page): Locator {
-  return page.locator('#db-items db-comment .panel:not([hidden])');
+  return page.locator('#uib-items uib-comment .panel:not([hidden])');
 }
 
 /**
- * Pierce a db-textarea's shadow DOM to get the inner native <textarea>.
+ * Pierce a uib-textarea's shadow DOM to get the inner native <textarea>.
  * Required for .fill(), .press(), .toHaveValue(), .toBeFocused() etc.
  */
 function innerTA(waLoc: Locator): Locator {
@@ -36,7 +36,7 @@ async function createComment(page: Page, selector: string, comment: string): Pro
     .first()
     .click({ modifiers: ['Alt', 'Shift'] });
   const panel = commentPanel(page);
-  const waInput = panel.locator('db-textarea[data-role="composer"]');
+  const waInput = panel.locator('uib-textarea[data-role="composer"]');
   await expect(waInput).toBeVisible();
   await innerTA(waInput).fill(comment);
   await innerTA(waInput).press('Enter');
@@ -47,8 +47,8 @@ async function createComment(page: Page, selector: string, comment: string): Pro
 test.beforeEach(async ({ page }) => {
   await page.request.delete(`${API_BASE}/comments`);
   await page.goto('/');
-  // Wait for the Design Bridge client to initialise (inspector is ready)
-  await page.waitForFunction(() => typeof (window as any).__DB_WS_URL__ === 'string');
+  // Wait for the UI Bridge client to initialise (inspector is ready)
+  await page.waitForFunction(() => typeof (window as any).__UIB_WS_URL__ === 'string');
 });
 
 test.afterEach(async ({ page }) => {
@@ -60,7 +60,7 @@ test.describe('Comments', () => {
     await createComment(page, 'h1', 'This headline needs a stronger CTA.');
 
     const res = await page.request.get(`${API_BASE}/comments`);
-    const body = (await res.json()) as { comments: { comments?: { text: string }[] }[] };
+    const body = (await res.json()) as { comments: { comments?: { text: string; }[]; }[]; };
     expect(
       body.comments.some((a) => a.comments?.[0]?.text === 'This headline needs a stronger CTA.'),
     ).toBe(true);
@@ -68,7 +68,7 @@ test.describe('Comments', () => {
 
   test('comment badge appears on the annotated element', async ({ page }) => {
     await createComment(page, 'h1', 'Badge test');
-    await expect(page.locator('#db-items db-comment db-button.badge')).toBeVisible();
+    await expect(page.locator('#uib-items uib-comment uib-button.badge')).toBeVisible();
   });
 
   test('comment is persisted to the server API', async ({ page }) => {
@@ -76,7 +76,7 @@ test.describe('Comments', () => {
 
     const res = await page.request.get(`${API_BASE}/comments`);
     expect(res.status()).toBe(200);
-    const body = (await res.json()) as { comments: { comments?: { text: string }[] }[] };
+    const body = (await res.json()) as { comments: { comments?: { text: string; }[]; }[]; };
     expect(body.comments.some((a) => a.comments?.[0]?.text === 'Persisted comment')).toBe(true);
   });
 
@@ -84,8 +84,8 @@ test.describe('Comments', () => {
     await createComment(page, 'h1', 'Survives reload');
 
     await page.reload();
-    await expect(page.locator('#db-items db-comment')).toBeAttached();
-    await expect(page.locator('#db-items db-comment db-button.badge')).toBeVisible();
+    await expect(page.locator('#uib-items uib-comment')).toBeAttached();
+    await expect(page.locator('#uib-items uib-comment uib-button.badge')).toBeVisible();
   });
 
   test('badge reappears on the correct element after reload', async ({ page }) => {
@@ -95,9 +95,9 @@ test.describe('Comments', () => {
     expect(h1Box).not.toBeNull();
 
     await page.reload();
-    await expect(page.locator('#db-items db-comment')).toBeAttached();
+    await expect(page.locator('#uib-items uib-comment')).toBeAttached();
 
-    const badge = page.locator('#db-items db-comment db-button.badge').first();
+    const badge = page.locator('#uib-items uib-comment uib-button.badge').first();
     await expect(badge).toBeVisible();
 
     const badgeBox = await badge.boundingBox();
@@ -110,11 +110,11 @@ test.describe('Comments', () => {
   test('can reply to an comment from the badge', async ({ page }) => {
     await createComment(page, 'h1', 'Original comment');
 
-    const badge = page.locator('#db-items db-comment db-button.badge').first();
+    const badge = page.locator('#uib-items uib-comment uib-button.badge').first();
     await badge.click();
 
     const panel = commentPanel(page);
-    const replyInput = innerTA(panel.locator('db-textarea[data-role="reply"]'));
+    const replyInput = innerTA(panel.locator('uib-textarea[data-role="reply"]'));
     await expect(replyInput).toBeVisible();
     await replyInput.fill('Reply from badge');
     await replyInput.press('Enter');
@@ -124,7 +124,7 @@ test.describe('Comments', () => {
       .poll(async () => {
         const res = await page.request.get(`${API_BASE}/comments`);
         const body = (await res.json()) as {
-          comments: { comments?: { type: string; text: string }[] }[];
+          comments: { comments?: { type: string; text: string; }[]; }[];
         };
         return body.comments.some((a) =>
           a.comments?.some((c) => c.type === 'comment' && c.text === 'Reply from badge'),
@@ -140,7 +140,7 @@ test.describe('Comments', () => {
       .click({ modifiers: ['Alt', 'Shift'] });
 
     const panel = commentPanel(page);
-    const composer = innerTA(panel.locator('db-textarea[data-role="composer"]'));
+    const composer = innerTA(panel.locator('uib-textarea[data-role="composer"]'));
     await expect(composer).toBeVisible();
     await expect(composer).toBeFocused();
 
@@ -148,11 +148,11 @@ test.describe('Comments', () => {
     await composer.press('Enter');
     await expect(commentPanel(page)).toHaveCount(0);
 
-    const badge = page.locator('#db-items db-comment db-button.badge').first();
+    const badge = page.locator('#uib-items uib-comment uib-button.badge').first();
     await badge.click();
 
     const openPanel = commentPanel(page);
-    const reply = innerTA(openPanel.locator('db-textarea[data-role="reply"]'));
+    const reply = innerTA(openPanel.locator('uib-textarea[data-role="reply"]'));
     await expect(reply).toBeVisible();
     await expect(reply).toBeFocused();
   });
@@ -164,7 +164,7 @@ test.describe('Comments', () => {
       .click({ modifiers: ['Alt', 'Shift'] });
 
     const panel = commentPanel(page);
-    await expect(panel.locator('db-textarea[data-role="composer"]')).toBeVisible();
+    await expect(panel.locator('uib-textarea[data-role="composer"]')).toBeVisible();
 
     await page.locator('main').click({ position: { x: 8, y: 8 } });
     await expect(commentPanel(page)).toHaveCount(0);
@@ -173,26 +173,26 @@ test.describe('Comments', () => {
   test('resolving from the comment panel removes the comment', async ({ page }) => {
     await createComment(page, 'h1', 'Resolve me');
 
-    const badge = page.locator('#db-items db-comment db-button.badge').first();
+    const badge = page.locator('#uib-items uib-comment uib-button.badge').first();
     await badge.click();
 
     const panel = commentPanel(page);
-    await panel.locator('db-button[title="Resolve"]').click();
+    await panel.locator('uib-button[title="Resolve"]').click();
 
-    await expect(page.locator('#db-items db-comment db-button.badge')).toHaveCount(0);
+    await expect(page.locator('#uib-items uib-comment uib-button.badge')).toHaveCount(0);
   });
 
   test('deletes a single comment via the delete button in the panel', async ({ page }) => {
     await createComment(page, 'h1', 'Panel delete test');
 
-    const badge = page.locator('#db-items db-comment db-button.badge').first();
+    const badge = page.locator('#uib-items uib-comment uib-button.badge').first();
     await badge.click();
 
     const panel = commentPanel(page);
-    await panel.locator('db-button[title="More options"]').click();
-    await page.locator('db-dropdown-item[variant="danger"]').first().click();
+    await panel.locator('uib-button[title="More options"]').click();
+    await page.locator('uib-dropdown-item[variant="danger"]').first().click();
     await expect(commentPanel(page)).toHaveCount(0);
-    await expect(page.locator('#db-items db-comment db-button.badge')).toHaveCount(0);
+    await expect(page.locator('#uib-items uib-comment uib-button.badge')).toHaveCount(0);
   });
 
   test('alt+shift+click opens panel with source chip visible after save via "Show paths"', async ({
@@ -200,13 +200,13 @@ test.describe('Comments', () => {
   }) => {
     await createComment(page, 'h1', 'Source chip test');
 
-    const badge = page.locator('#db-items db-comment db-button.badge').first();
+    const badge = page.locator('#uib-items uib-comment uib-button.badge').first();
     await badge.click();
     const p = commentPanel(page);
-    await p.locator('db-button[title="More options"]').click();
-    await page.locator('db-dropdown-item:has-text("Show paths")').first().click();
+    await p.locator('uib-button[title="More options"]').click();
+    await page.locator('uib-dropdown-item:has-text("Show paths")').first().click();
     await expect(p.locator('.chips-bar')).toBeVisible();
-    await expect(p.locator('.chips-bar db-tag')).not.toHaveCount(0);
+    await expect(p.locator('.chips-bar uib-tag')).not.toHaveCount(0);
   });
 
   test('alt+shift+click while panel is open adds another selector chip (visible after save)', async ({
@@ -216,8 +216,8 @@ test.describe('Comments', () => {
       .locator('h1')
       .first()
       .click({ modifiers: ['Alt', 'Shift'] });
-    const draft = page.locator('#db-items db-comment .panel:not([hidden])');
-    await expect(draft.locator('db-textarea[data-role="composer"]')).toBeVisible();
+    const draft = page.locator('#uib-items uib-comment .panel:not([hidden])');
+    await expect(draft.locator('uib-textarea[data-role="composer"]')).toBeVisible();
 
     await page
       .locator('p')
@@ -225,13 +225,13 @@ test.describe('Comments', () => {
       .click({ modifiers: ['Alt', 'Shift'] });
 
     // Save and verify via API that 2 selectors are stored
-    const textarea = innerTA(draft.locator('db-textarea[data-role="composer"]'));
+    const textarea = innerTA(draft.locator('uib-textarea[data-role="composer"]'));
     await textarea.fill('Two selectors');
     await textarea.press('Enter');
     await expect(commentPanel(page)).toHaveCount(0);
 
     const res = await page.request.get(`${API_BASE}/comments`);
-    const body = (await res.json()) as { comments: { elements?: { minimalSelector: string }[] }[] };
+    const body = (await res.json()) as { comments: { elements?: { minimalSelector: string; }[]; }[]; };
     const ann = body.comments.find((a) => (a.elements?.length ?? 0) === 2);
     expect(ann).toBeDefined();
   });
@@ -245,12 +245,12 @@ test.describe('Comments', () => {
     // Wait for code-inspector to fire and populate draftSource via the public getter
     await expect
       .poll(async () =>
-        page.evaluate(() => (document.querySelector('db-comment') as any)?.draftSource),
+        page.evaluate(() => (document.querySelector('uib-comment') as any)?.draftSource),
       )
       .not.toBeNull();
 
     const panel = commentPanel(page);
-    const input = innerTA(panel.locator('db-textarea').first());
+    const input = innerTA(panel.locator('uib-textarea').first());
     await input.fill('Has source info');
     await input.press('Enter');
     await expect(commentPanel(page)).toHaveCount(0);
@@ -258,8 +258,8 @@ test.describe('Comments', () => {
     const apiRes = await page.request.get(`${API_BASE}/comments`);
     const body = (await apiRes.json()) as {
       comments: {
-        comments?: { text: string }[];
-        elements?: { source?: { file: string; line: number; column: number } }[];
+        comments?: { text: string; }[];
+        elements?: { source?: { file: string; line: number; column: number; }; }[];
       }[];
     };
     const ann = body.comments.find((a) => a.comments?.[0]?.text === 'Has source info');
@@ -275,7 +275,7 @@ test.describe('Comments', () => {
       .first()
       .click({ modifiers: ['Alt', 'Shift'] });
     const panel = commentPanel(page);
-    await expect(panel.locator('db-textarea').first()).toBeVisible();
+    await expect(panel.locator('uib-textarea').first()).toBeVisible();
 
     await page
       .locator('p')
@@ -285,18 +285,18 @@ test.describe('Comments', () => {
     // Wait until the draft item reports 2 connected selectors via its public property
     await expect
       .poll(async () =>
-        page.evaluate(() => (document.querySelector('db-comment') as any)?.connectedSelectorCount),
+        page.evaluate(() => (document.querySelector('uib-comment') as any)?.connectedSelectorCount),
       )
       .toBe(2);
 
-    const input = innerTA(panel.locator('db-textarea').first());
+    const input = innerTA(panel.locator('uib-textarea').first());
     await input.fill('Multi-element comment');
     await input.press('Enter');
     await expect(commentPanel(page)).toHaveCount(0);
 
     // Verify 2 selectors stored via API
     const res = await page.request.get(`${API_BASE}/comments`);
-    const body = (await res.json()) as { comments: { elements?: { minimalSelector: string }[] }[] };
+    const body = (await res.json()) as { comments: { elements?: { minimalSelector: string; }[]; }[]; };
     const ann = body.comments.find((a) => (a.elements?.length ?? 0) === 2);
     expect(ann).toBeDefined();
   });
@@ -307,7 +307,7 @@ test.describe('Single panel + dirty-draft guard', () => {
     await createComment(page, 'h1', 'First');
     await createComment(page, 'strong', 'Second');
 
-    const badges = page.locator('#db-items db-comment db-button.badge');
+    const badges = page.locator('#uib-items uib-comment uib-button.badge');
     await expect(badges).toHaveCount(2);
     await badges.nth(0).click();
     await expect(commentPanel(page)).toHaveCount(1);
@@ -326,12 +326,12 @@ test.describe('Single panel + dirty-draft guard', () => {
     await createComment(page, 'h1', 'First');
     await createComment(page, 'strong', 'Second');
 
-    const badges = page.locator('#db-items db-comment db-button.badge');
+    const badges = page.locator('#uib-items uib-comment uib-button.badge');
     await expect(badges).toHaveCount(2);
 
     // Open first panel and type an unsaved reply
     await badges.nth(0).click();
-    await innerTA(commentPanel(page).locator('db-textarea[data-role="reply"]')).fill(
+    await innerTA(commentPanel(page).locator('uib-textarea[data-role="reply"]')).fill(
       'unsaved reply text',
     );
 
@@ -347,12 +347,12 @@ test.describe('Single panel + dirty-draft guard', () => {
     await createComment(page, 'h1', 'First');
     await createComment(page, 'strong', 'Second');
 
-    const badges = page.locator('#db-items db-comment db-button.badge');
+    const badges = page.locator('#uib-items uib-comment uib-button.badge');
     await expect(badges).toHaveCount(2);
 
     // Open first panel and type an unsaved reply
     await badges.nth(0).click();
-    await innerTA(commentPanel(page).locator('db-textarea[data-role="reply"]')).fill(
+    await innerTA(commentPanel(page).locator('uib-textarea[data-role="reply"]')).fill(
       'unsaved reply text',
     );
 
@@ -372,10 +372,10 @@ test.describe('Badge hover preview', () => {
   test('preview appears on badge hover and shows the comment', async ({ page }) => {
     await createComment(page, 'h1', 'This headline needs a stronger CTA.');
 
-    const badge = page.locator('#db-items db-comment db-button.badge').first();
+    const badge = page.locator('#uib-items uib-comment uib-button.badge').first();
     await badge.hover();
 
-    const preview = page.locator('#db-items db-comment .badge-preview');
+    const preview = page.locator('#uib-items uib-comment .badge-preview');
     await expect(preview).toBeVisible();
     await expect(preview.locator('.badge-preview-text')).toHaveText(
       'This headline needs a stronger CTA.',
@@ -385,7 +385,7 @@ test.describe('Badge hover preview', () => {
   test('preview is not visible when not hovering', async ({ page }) => {
     await createComment(page, 'h1', 'Preview hidden at rest');
 
-    const preview = page.locator('#db-items db-comment .badge-preview');
+    const preview = page.locator('#uib-items uib-comment .badge-preview');
     await page.mouse.move(0, 0);
     await expect(preview).not.toHaveClass(/visible/);
   });
@@ -393,18 +393,18 @@ test.describe('Badge hover preview', () => {
   test('preview shows reply count when replies exist', async ({ page }) => {
     await createComment(page, 'h1', 'Original comment');
 
-    const badge = page.locator('#db-items db-comment db-button.badge').first();
+    const badge = page.locator('#uib-items uib-comment uib-button.badge').first();
     await badge.click();
-    const replyInput = innerTA(commentPanel(page).locator('db-textarea[data-role="reply"]'));
+    const replyInput = innerTA(commentPanel(page).locator('uib-textarea[data-role="reply"]'));
     await expect(replyInput).toBeVisible();
     await replyInput.fill('A reply');
     await replyInput.press('Enter');
 
-    await page.locator('#db-items db-comment db-button[title="Close"]').click();
+    await page.locator('#uib-items uib-comment uib-button[title="Close"]').click();
     await expect(commentPanel(page)).toHaveCount(0);
 
     await badge.hover();
-    const preview = page.locator('#db-items db-comment .badge-preview');
+    const preview = page.locator('#uib-items uib-comment .badge-preview');
     await expect(preview).toBeVisible();
     await expect(preview.locator('.badge-preview-meta')).toHaveText('1 reply');
   });
@@ -412,20 +412,20 @@ test.describe('Badge hover preview', () => {
   test('preview is hidden while panel is open', async ({ page }) => {
     await createComment(page, 'h1', 'Open panel test');
 
-    const badge = page.locator('#db-items db-comment db-button.badge').first();
+    const badge = page.locator('#uib-items uib-comment uib-button.badge').first();
     await badge.click();
     await expect(commentPanel(page)).toBeVisible();
 
-    await expect(page.locator('#db-items db-comment .badge-preview')).toHaveCount(0);
+    await expect(page.locator('#uib-items uib-comment .badge-preview')).toHaveCount(0);
   });
 
   test('preview text wraps to at most 3 lines', async ({ page }) => {
     const long = 'The quick brown fox jumps over the lazy dog. '.repeat(4).trim();
     await createComment(page, 'h1', long);
 
-    const badge = page.locator('#db-items db-comment db-button.badge').first();
+    const badge = page.locator('#uib-items uib-comment uib-button.badge').first();
     await badge.hover();
-    const previewText = page.locator('#db-items db-comment .badge-preview-text').first();
+    const previewText = page.locator('#uib-items uib-comment .badge-preview-text').first();
     await expect(previewText).toBeVisible();
 
     // 12px font × 1.4 line-height × 3 lines ≈ 50px; allow a small margin
@@ -438,13 +438,13 @@ test.describe('Panel scrolling & textarea autogrow', () => {
   test('panel scrolls when replies overflow its max-height', async ({ page }) => {
     await createComment(page, 'h1', 'Overflow test');
 
-    const badge = page.locator('#db-items db-comment db-button.badge').first();
+    const badge = page.locator('#uib-items uib-comment uib-button.badge').first();
     await badge.click();
-    const p = page.locator('#db-items db-comment .panel:not([hidden])');
+    const p = page.locator('#uib-items uib-comment .panel:not([hidden])');
 
     // Add enough replies to overflow the panel (max-height is ~88dvh so we need many)
     for (let i = 1; i <= 20; i++) {
-      const reply = innerTA(p.locator('db-textarea[data-role="reply"]'));
+      const reply = innerTA(p.locator('uib-textarea[data-role="reply"]'));
       await reply.scrollIntoViewIfNeeded();
       await expect(reply).toBeVisible();
       await reply.fill(`Reply number ${i} with some extra text to take up space`);
@@ -462,12 +462,12 @@ test.describe('Panel scrolling & textarea autogrow', () => {
   test('reply textarea remains accessible when panel overflows', async ({ page }) => {
     await createComment(page, 'h1', 'Scroll position test');
 
-    const badge = page.locator('#db-items db-comment db-button.badge').first();
+    const badge = page.locator('#uib-items uib-comment uib-button.badge').first();
     await badge.click();
-    const p = page.locator('#db-items db-comment .panel:not([hidden])');
+    const p = page.locator('#uib-items uib-comment .panel:not([hidden])');
 
     for (let i = 1; i <= 8; i++) {
-      const reply = innerTA(p.locator('db-textarea[data-role="reply"]'));
+      const reply = innerTA(p.locator('uib-textarea[data-role="reply"]'));
       await reply.scrollIntoViewIfNeeded();
       await expect(reply).toBeVisible();
       await reply.fill(`Reply ${i}`);
@@ -476,7 +476,7 @@ test.describe('Panel scrolling & textarea autogrow', () => {
     }
 
     // Even with 8 replies, the textarea should still be visible/reachable
-    const reply = innerTA(p.locator('db-textarea[data-role="reply"]'));
+    const reply = innerTA(p.locator('uib-textarea[data-role="reply"]'));
     await reply.scrollIntoViewIfNeeded();
     await expect(reply).toBeVisible();
     await expect(reply).toBeEditable();
@@ -487,8 +487,8 @@ test.describe('Panel scrolling & textarea autogrow', () => {
       .locator('h1')
       .first()
       .click({ modifiers: ['Alt', 'Shift'] });
-    const p = page.locator('#db-items db-comment .panel:not([hidden])');
-    const waTextarea = p.locator('db-textarea[data-role="composer"]');
+    const p = page.locator('#uib-items uib-comment .panel:not([hidden])');
+    const waTextarea = p.locator('uib-textarea[data-role="composer"]');
     await expect(waTextarea).toBeVisible();
 
     const initialHeight = (await waTextarea.boundingBox())!.height;
@@ -507,8 +507,8 @@ test.describe('Panel scrolling & textarea autogrow', () => {
       .locator('h1')
       .first()
       .click({ modifiers: ['Alt', 'Shift'] });
-    const p = page.locator('#db-items db-comment .panel:not([hidden])');
-    const waTextarea = p.locator('db-textarea[data-role="composer"]');
+    const p = page.locator('#uib-items uib-comment .panel:not([hidden])');
+    const waTextarea = p.locator('uib-textarea[data-role="composer"]');
     await expect(waTextarea).toBeVisible();
 
     await innerTA(waTextarea).fill('Line 1\nLine 2\nLine 3\nLine 4\nLine 5\nLine 6');
@@ -527,7 +527,7 @@ test.describe('Compact UI (redesign)', () => {
       .locator('h1')
       .first()
       .click({ modifiers: ['Alt', 'Shift'] });
-    const p = page.locator('#db-items db-comment .panel:not([hidden])');
+    const p = page.locator('#uib-items uib-comment .panel:not([hidden])');
     const fontFamily = await p.evaluate((el) => getComputedStyle(el).fontFamily);
     // WA uses system font stack; verify it's a sans-serif stack
     expect(fontFamily.toLowerCase()).toMatch(/sans-serif|system-ui|ui-sans-serif/);
@@ -538,7 +538,7 @@ test.describe('Compact UI (redesign)', () => {
       .locator('h1')
       .first()
       .click({ modifiers: ['Alt', 'Shift'] });
-    const p = page.locator('#db-items db-comment .panel:not([hidden])');
+    const p = page.locator('#uib-items uib-comment .panel:not([hidden])');
     await expect(p.locator('.btn-cancel, button:has-text("Cancel")')).toHaveCount(0);
   });
 
@@ -547,8 +547,8 @@ test.describe('Compact UI (redesign)', () => {
       .locator('h1')
       .first()
       .click({ modifiers: ['Alt', 'Shift'] });
-    const p = page.locator('#db-items db-comment .panel:not([hidden])');
-    await expect(p.locator('db-button[title="Send"]')).toBeVisible();
+    const p = page.locator('#uib-items uib-comment .panel:not([hidden])');
+    await expect(p.locator('uib-button[title="Send"]')).toBeVisible();
   });
 
   test('create mode: send button is disabled when textarea is empty', async ({ page }) => {
@@ -556,8 +556,8 @@ test.describe('Compact UI (redesign)', () => {
       .locator('h1')
       .first()
       .click({ modifiers: ['Alt', 'Shift'] });
-    const p = page.locator('#db-items db-comment .panel:not([hidden])');
-    await expect(p.locator('db-button[title="Send"]')).toHaveAttribute('disabled', '');
+    const p = page.locator('#uib-items uib-comment .panel:not([hidden])');
+    await expect(p.locator('uib-button[title="Send"]')).toHaveAttribute('disabled', '');
   });
 
   test('create mode: send button becomes enabled when text is typed', async ({ page }) => {
@@ -565,9 +565,9 @@ test.describe('Compact UI (redesign)', () => {
       .locator('h1')
       .first()
       .click({ modifiers: ['Alt', 'Shift'] });
-    const p = page.locator('#db-items db-comment .panel:not([hidden])');
-    await innerTA(p.locator('db-textarea[data-role="composer"]')).fill('hello');
-    await expect(p.locator('db-button[title="Send"]')).toBeEnabled();
+    const p = page.locator('#uib-items uib-comment .panel:not([hidden])');
+    await innerTA(p.locator('uib-textarea[data-role="composer"]')).fill('hello');
+    await expect(p.locator('uib-button[title="Send"]')).toBeEnabled();
   });
 
   test('create mode: no body padding (no .body element rendered)', async ({ page }) => {
@@ -575,7 +575,7 @@ test.describe('Compact UI (redesign)', () => {
       .locator('h1')
       .first()
       .click({ modifiers: ['Alt', 'Shift'] });
-    const p = page.locator('#db-items db-comment .panel:not([hidden])');
+    const p = page.locator('#uib-items uib-comment .panel:not([hidden])');
     await expect(p.locator('.body')).toHaveCount(0);
   });
 
@@ -584,7 +584,7 @@ test.describe('Compact UI (redesign)', () => {
       .locator('h1')
       .first()
       .click({ modifiers: ['Alt', 'Shift'] });
-    const p = page.locator('#db-items db-comment .panel:not([hidden])');
+    const p = page.locator('#uib-items uib-comment .panel:not([hidden])');
     await expect(p.locator('.chips-bar')).toHaveCount(0);
   });
 
@@ -593,25 +593,25 @@ test.describe('Compact UI (redesign)', () => {
       .locator('h1')
       .first()
       .click({ modifiers: ['Alt', 'Shift'] });
-    const p = page.locator('#db-items db-comment .panel:not([hidden])');
-    const inner = p.locator('db-textarea[data-role="composer"]');
+    const p = page.locator('#uib-items uib-comment .panel:not([hidden])');
+    const inner = p.locator('uib-textarea[data-role="composer"]');
     await expect(inner).toBeVisible();
-    // db-textarea with appearance="filled" is used for rounded input style
+    // uib-textarea with appearance="filled" is used for rounded input style
     await expect(inner).toHaveAttribute('appearance', 'filled');
   });
 
   test('view mode: header has Close button, no Cancel button', async ({ page }) => {
     await createComment(page, 'h1', 'Header test');
-    const badge = page.locator('#db-items db-comment db-button.badge').first();
+    const badge = page.locator('#uib-items uib-comment uib-button.badge').first();
     await badge.click();
     const p = commentPanel(page);
-    await expect(p.locator('db-button[title="Close"]')).toBeVisible();
+    await expect(p.locator('uib-button[title="Close"]')).toBeVisible();
     await expect(p.locator('.btn-cancel, button:has-text("Cancel")')).toHaveCount(0);
   });
 
   test('view mode: paths hidden by default', async ({ page }) => {
     await createComment(page, 'h1', 'Paths hidden test');
-    const badge = page.locator('#db-items db-comment db-button.badge').first();
+    const badge = page.locator('#uib-items uib-comment uib-button.badge').first();
     await badge.click();
     const p = commentPanel(page);
     await expect(p.locator('.chips-bar')).toHaveCount(0);
@@ -619,29 +619,29 @@ test.describe('Compact UI (redesign)', () => {
 
   test('view mode: "Show paths" in menu reveals chips bar', async ({ page }) => {
     await createComment(page, 'h1', 'Show paths test');
-    const badge = page.locator('#db-items db-comment db-button.badge').first();
+    const badge = page.locator('#uib-items uib-comment uib-button.badge').first();
     await badge.click();
     const p = commentPanel(page);
 
-    await p.locator('db-button[title="More options"]').click();
-    await page.locator('db-dropdown-item:has-text("Show paths")').first().click();
+    await p.locator('uib-button[title="More options"]').click();
+    await page.locator('uib-dropdown-item:has-text("Show paths")').first().click();
 
     await expect(p.locator('.chips-bar')).toBeVisible();
-    await expect(p.locator('.chips-bar db-tag')).not.toHaveCount(0);
+    await expect(p.locator('.chips-bar uib-tag')).not.toHaveCount(0);
   });
 
   test('view mode: "Hide paths" in menu hides chips bar again', async ({ page }) => {
     await createComment(page, 'h1', 'Toggle paths test');
-    const badge = page.locator('#db-items db-comment db-button.badge').first();
+    const badge = page.locator('#uib-items uib-comment uib-button.badge').first();
     await badge.click();
     const p = commentPanel(page);
 
-    await p.locator('db-button[title="More options"]').click();
-    await page.locator('db-dropdown-item:has-text("Show paths")').first().click();
+    await p.locator('uib-button[title="More options"]').click();
+    await page.locator('uib-dropdown-item:has-text("Show paths")').first().click();
     await expect(p.locator('.chips-bar')).toBeVisible();
 
-    await p.locator('db-button[title="More options"]').click();
-    await page.locator('db-dropdown-item:has-text("Hide paths")').first().click();
+    await p.locator('uib-button[title="More options"]').click();
+    await page.locator('uib-dropdown-item:has-text("Hide paths")').first().click();
     await expect(p.locator('.chips-bar')).toHaveCount(0);
   });
 
@@ -651,7 +651,7 @@ test.describe('Compact UI (redesign)', () => {
       .locator('h1')
       .first()
       .click({ modifiers: ['Alt', 'Shift'] });
-    const draft = page.locator('#db-items db-comment .panel:not([hidden])');
+    const draft = page.locator('#uib-items uib-comment .panel:not([hidden])');
     await page
       .locator('p')
       .first()
@@ -660,18 +660,18 @@ test.describe('Compact UI (redesign)', () => {
       .locator('nav')
       .first()
       .click({ modifiers: ['Alt', 'Shift'] })
-      .catch(() => {});
+      .catch(() => { });
 
-    const textarea = innerTA(draft.locator('db-textarea[data-role="composer"]'));
+    const textarea = innerTA(draft.locator('uib-textarea[data-role="composer"]'));
     await textarea.fill('Multi selector');
     await textarea.press('Enter');
     await expect(commentPanel(page)).toHaveCount(0);
 
-    const badge = page.locator('#db-items db-comment db-button.badge').first();
+    const badge = page.locator('#uib-items uib-comment uib-button.badge').first();
     await badge.click();
     const p = commentPanel(page);
-    await p.locator('db-button[title="More options"]').click();
-    await page.locator('db-dropdown-item:has-text("Show paths")').first().click();
+    await p.locator('uib-button[title="More options"]').click();
+    await page.locator('uib-dropdown-item:has-text("Show paths")').first().click();
 
     const bar = p.locator('.chips-bar');
     await expect(bar).toBeVisible();
@@ -684,23 +684,23 @@ test.describe('Compact UI (redesign)', () => {
       .locator('h1')
       .first()
       .click({ modifiers: ['Alt', 'Shift'] });
-    const draft = page.locator('#db-items db-comment .panel:not([hidden])');
-    const textarea = innerTA(draft.locator('db-textarea[data-role="composer"]'));
+    const draft = page.locator('#uib-items uib-comment .panel:not([hidden])');
+    const textarea = innerTA(draft.locator('uib-textarea[data-role="composer"]'));
     await textarea.fill('Chip font test');
     await textarea.press('Enter');
 
-    const badge = page.locator('#db-items db-comment db-button.badge').first();
+    const badge = page.locator('#uib-items uib-comment uib-button.badge').first();
     await badge.click();
     const p = commentPanel(page);
-    await p.locator('db-button[title="More options"]').click();
-    await page.locator('db-dropdown-item:has-text("Show paths")').first().click();
+    await p.locator('uib-button[title="More options"]').click();
+    await page.locator('uib-dropdown-item:has-text("Show paths")').first().click();
 
-    const chip = p.locator('.chips-bar db-tag').first();
+    const chip = p.locator('.chips-bar uib-tag').first();
     await expect(chip).toBeVisible();
-    // db-tag has inline style with font-family: var(--db-font-family-code)
-    // (--wa-* CSS vars are renamed to --db-* by the client build transform)
+    // uib-tag has inline style with font-family: var(-uib-b-font-family-code)
+    // (--wa-* CSS vars are renamed to --uib-* by the client build transform)
     const font = await chip.getAttribute('style');
-    expect(font).toContain('var(--db-font-family-code)');
+    expect(font).toContain('var(--uib-font-family-code)');
   });
 });
 
@@ -712,13 +712,13 @@ test.describe('Element highlight on comment create', () => {
       .click({ modifiers: ['Alt', 'Shift'] });
     await expect(commentPanel(page)).toBeVisible();
 
-    const highlighted = page.locator('[data-db-related]');
+    const highlighted = page.locator('[data-uib-related]');
     await expect(highlighted).not.toHaveCount(0);
   });
 
   test('outline clears after saving the comment', async ({ page }) => {
     await createComment(page, 'h1', 'Outline clears on save');
-    await expect(page.locator('[data-db-related]')).toHaveCount(0);
+    await expect(page.locator('[data-uib-related]')).toHaveCount(0);
   });
 
   test('outline clears after cancelling (clicking outside)', async ({ page }) => {
@@ -726,11 +726,11 @@ test.describe('Element highlight on comment create', () => {
       .locator('h1')
       .first()
       .click({ modifiers: ['Alt', 'Shift'] });
-    await expect(page.locator('[data-db-related]')).not.toHaveCount(0);
+    await expect(page.locator('[data-uib-related]')).not.toHaveCount(0);
 
     await page.locator('main').click({ position: { x: 8, y: 8 } });
     await expect(commentPanel(page)).toHaveCount(0);
-    await expect(page.locator('[data-db-related]')).toHaveCount(0);
+    await expect(page.locator('[data-uib-related]')).toHaveCount(0);
   });
 
   test('all elements get highlighted when multiple are added to draft', async ({ page }) => {
@@ -738,13 +738,13 @@ test.describe('Element highlight on comment create', () => {
       .locator('h1')
       .first()
       .click({ modifiers: ['Alt', 'Shift'] });
-    await expect(page.locator('[data-db-related]')).toHaveCount(1);
+    await expect(page.locator('[data-uib-related]')).toHaveCount(1);
 
     await page
       .locator('p')
       .first()
       .click({ modifiers: ['Alt', 'Shift'] });
-    await expect(page.locator('[data-db-related]')).toHaveCount(2);
+    await expect(page.locator('[data-uib-related]')).toHaveCount(2);
   });
 });
 
@@ -754,7 +754,7 @@ test.describe('Multi-select while draft is open', () => {
   }) => {
     // Create a saved comment on h1
     await createComment(page, 'h1', 'Existing comment');
-    await expect(page.locator('#db-items db-comment db-button.badge')).toHaveCount(1);
+    await expect(page.locator('#uib-items uib-comment uib-button.badge')).toHaveCount(1);
 
     // Start a new draft on p
     await page
@@ -771,17 +771,17 @@ test.describe('Multi-select while draft is open', () => {
       .click({ modifiers: ['Alt', 'Shift'] });
 
     // Still just one open panel (the draft), not the existing comment's panel
-    await expect(page.locator('#db-items db-comment .panel:not([hidden])')).toHaveCount(1);
+    await expect(page.locator('#uib-items uib-comment .panel:not([hidden])')).toHaveCount(1);
 
     // Save and verify via API that the new comment has 2 selectors (p + h1)
-    const textarea = innerTA(draft.locator('db-textarea[data-role="composer"]'));
+    const textarea = innerTA(draft.locator('uib-textarea[data-role="composer"]'));
     await textarea.fill('Multi-select with existing element');
     await textarea.press('Enter');
     await expect(commentPanel(page)).toHaveCount(0);
 
     const res = await page.request.get(`${API_BASE}/comments`);
     const body = (await res.json()) as {
-      comments: { comments?: { text: string }[]; elements?: { minimalSelector: string }[] }[];
+      comments: { comments?: { text: string; }[]; elements?: { minimalSelector: string; }[]; }[];
     };
     const newAnn = body.comments.find(
       (a) => a.comments?.[0]?.text === 'Multi-select with existing element',
@@ -796,7 +796,7 @@ test.describe('Multi-select while draft is open', () => {
 /** Inject an comment directly via the REST API using the new CommentThread schema. */
 async function injectComment(
   page: Page,
-  overrides: Record<string, unknown> & { id: string },
+  overrides: Record<string, unknown> & { id: string; },
 ): Promise<void> {
   const id = overrides.id as string;
   const now = Date.now();
@@ -855,7 +855,7 @@ async function injectComment(
 
 /** Open an comment's panel by clicking its badge. */
 async function openCommentPanel(page: Page): Promise<void> {
-  const badge = page.locator('#db-items db-comment db-button.badge').first();
+  const badge = page.locator('#uib-items uib-comment uib-button.badge').first();
   await badge.waitFor({ state: 'visible' });
   await badge.dispatchEvent('click');
 }
@@ -889,7 +889,7 @@ test.describe('Tweaks in comments', () => {
     });
     await page.reload();
     await openCommentPanel(page);
-    const tweaksSection = page.locator('#db-items db-comment .tweak-row');
+    const tweaksSection = page.locator('#uib-items uib-comment .tweak-row');
     await expect(tweaksSection).toHaveCount(0);
   });
 
@@ -897,29 +897,29 @@ test.describe('Tweaks in comments', () => {
     await injectComment(page, makeTweakComment('test-with-knob'));
     await page.reload();
     await openCommentPanel(page);
-    await expect(page.locator('#db-items db-comment .tweak-row')).toBeVisible();
+    await expect(page.locator('#uib-items uib-comment .tweak-row')).toBeVisible();
   });
 
   test('tweaks section shows the knob label', async ({ page }) => {
     await injectComment(page, makeTweakComment('test-knob-label'));
     await page.reload();
     await openCommentPanel(page);
-    await expect(page.locator('#db-items db-comment db-knob')).toHaveAttribute(
+    await expect(page.locator('#uib-items uib-comment uib-knob')).toHaveAttribute(
       'label',
       'Feature icon',
     );
   });
 
-  test('db-knob renders a db-select with the correct options', async ({ page }) => {
+  test('uib-knob renders a uib-select with the correct options', async ({ page }) => {
     await injectComment(page, makeTweakComment('test-knob-select'));
     await page.reload();
     await openCommentPanel(page);
-    const select = page.locator('#db-items db-comment db-knob db-select');
+    const select = page.locator('#uib-items uib-comment uib-knob uib-select');
     await expect(select).toBeVisible();
     // Default value should be 🎨
     await expect(select).toHaveJSProperty('value', '🎨');
     // All three options should be present
-    await expect(select.locator('db-option')).toHaveCount(3);
+    await expect(select.locator('uib-option')).toHaveCount(3);
   });
 
   test('changing the select dispatches tweak:change and updates schema value', async ({ page }) => {
@@ -927,10 +927,10 @@ test.describe('Tweaks in comments', () => {
     await page.reload();
     await openCommentPanel(page);
 
-    const select = page.locator('#db-items db-comment db-knob db-select');
+    const select = page.locator('#uib-items uib-comment uib-knob uib-select');
     await expect(select).toBeVisible();
     await select.evaluate((el) => {
-      (el as HTMLElement & { value: string }).value = '🔥';
+      (el as HTMLElement & { value: string; }).value = '🔥';
       el.dispatchEvent(new Event('change', { bubbles: true }));
     });
 
@@ -938,7 +938,7 @@ test.describe('Tweaks in comments', () => {
     await expect
       .poll(async () => {
         const res = await page.request.get(`${API_BASE}/tweaks`);
-        const body = (await res.json()) as { knobs: { marker: string; value: string }[] };
+        const body = (await res.json()) as { knobs: { marker: string; value: string; }[]; };
         return body.knobs.find((k) => k.marker === 'test-knob-change')?.value;
       })
       .toBe('🔥');
@@ -952,7 +952,7 @@ test.describe('Tweaks in comments', () => {
     await openCommentPanel(page);
 
     const acceptBtn = page.locator(
-      '#db-items db-comment db-button[title="Accept tweak and resolve comment"]',
+      '#uib-items uib-comment uib-button[title="Accept tweak and resolve comment"]',
     );
     await expect(acceptBtn).toBeVisible();
     await acceptBtn.click();
@@ -962,7 +962,7 @@ test.describe('Tweaks in comments', () => {
       .poll(async () => {
         const res = await page.request.get(`${API_BASE}/comments/test-knob-accept`);
         if (res.status() !== 200) return null;
-        const body = (await res.json()) as { comments?: { type: string; tweakStatus?: string }[] };
+        const body = (await res.json()) as { comments?: { type: string; tweakStatus?: string; }[]; };
         return body.comments?.find((c) => c.type === 'tweak')?.tweakStatus;
       })
       .toBe('accepted');
@@ -971,7 +971,7 @@ test.describe('Tweaks in comments', () => {
     await expect
       .poll(async () => {
         const res = await page.request.get(`${API_BASE}/tweaks`);
-        const body = (await res.json()) as { knobs: { marker: string }[] };
+        const body = (await res.json()) as { knobs: { marker: string; }[]; };
         return body.knobs.find((k) => k.marker === 'test-knob-accept');
       })
       .toBeUndefined();
@@ -979,8 +979,8 @@ test.describe('Tweaks in comments', () => {
     // Re-open panel and verify the status badge is shown instead of the live knob
     await page.reload();
     await openCommentPanel(page);
-    await expect(page.locator('#db-items db-comment .tweak-status.accepted')).toBeVisible();
-    await expect(page.locator('#db-items db-comment .tweak-row')).toHaveCount(0);
+    await expect(page.locator('#uib-items uib-comment .tweak-status.accepted')).toBeVisible();
+    await expect(page.locator('#uib-items uib-comment .tweak-row')).toHaveCount(0);
   });
 
   test('Discard button removes knob from schema but keeps comment', async ({ page }) => {
@@ -989,24 +989,26 @@ test.describe('Tweaks in comments', () => {
     await openCommentPanel(page);
 
     // First change the value
-    const select = page.locator('#db-items db-comment db-knob db-select');
+    const select = page.locator('#uib-items uib-comment uib-knob uib-select');
     await select.evaluate((el) => {
-      (el as HTMLElement & { value: string }).value = '🚀';
+      (el as HTMLElement & { value: string; }).value = '🚀';
       el.dispatchEvent(new Event('change', { bubbles: true }));
     });
     await expect
       .poll(async () => {
         const res = await page.request.get(`${API_BASE}/tweaks`);
-        const body = (await res.json()) as { knobs: { marker: string; value: string }[] };
+        const body = (await res.json()) as { knobs: { marker: string; value: string; }[]; };
         return body.knobs.find((k) => k.marker === 'test-knob-discard')?.value;
       })
       .toBe('🚀');
 
     // Now discard
-    const moreBtn = page.locator('#db-items db-comment .tweak-row db-button[title="More options"]');
+    const moreBtn = page.locator(
+      '#uib-items uib-comment .tweak-row uib-button[title="More options"]',
+    );
     await expect(moreBtn).toBeVisible();
     await moreBtn.click();
-    const discardItem = page.locator('#db-items db-comment db-dropdown-item[value="discard"]');
+    const discardItem = page.locator('#uib-items uib-comment uib-dropdown-item[value="discard"]');
     await expect(discardItem).toBeVisible();
     await discardItem.click();
 
@@ -1021,7 +1023,7 @@ test.describe('Tweaks in comments', () => {
     await expect
       .poll(async () => {
         const res = await page.request.get(`${API_BASE}/tweaks`);
-        const body = (await res.json()) as { knobs: { marker: string; value: string }[] };
+        const body = (await res.json()) as { knobs: { marker: string; value: string; }[]; };
         return body.knobs.find((k) => k.marker === 'test-knob-discard');
       })
       .toBeUndefined();
@@ -1032,10 +1034,12 @@ test.describe('Tweaks in comments', () => {
     await page.reload();
     await openCommentPanel(page);
 
-    const moreBtn = page.locator('#db-items db-comment .tweak-row db-button[title="More options"]');
+    const moreBtn = page.locator(
+      '#uib-items uib-comment .tweak-row uib-button[title="More options"]',
+    );
     await expect(moreBtn).toBeVisible();
     await moreBtn.click();
-    const discardItem = page.locator('#db-items db-comment db-dropdown-item[value="discard"]');
+    const discardItem = page.locator('#uib-items uib-comment uib-dropdown-item[value="discard"]');
     await expect(discardItem).toBeVisible();
     await discardItem.click();
 
@@ -1044,7 +1048,7 @@ test.describe('Tweaks in comments', () => {
       .poll(async () => {
         const res = await page.request.get(`${API_BASE}/comments/test-knob-discard-badge`);
         if (res.status() !== 200) return null;
-        const body = (await res.json()) as { comments?: { type: string; tweakStatus?: string }[] };
+        const body = (await res.json()) as { comments?: { type: string; tweakStatus?: string; }[]; };
         return body.comments?.find((c) => c.type === 'tweak')?.tweakStatus;
       })
       .toBe('discarded');
@@ -1052,8 +1056,8 @@ test.describe('Tweaks in comments', () => {
     // Re-open panel to see the badge
     await page.reload();
     await openCommentPanel(page);
-    await expect(page.locator('#db-items db-comment .tweak-status.discarded')).toBeVisible();
-    await expect(page.locator('#db-items db-comment .tweak-row')).toHaveCount(0);
+    await expect(page.locator('#uib-items uib-comment .tweak-status.discarded')).toBeVisible();
+    await expect(page.locator('#uib-items uib-comment .tweak-row')).toHaveCount(0);
   });
 
   test('after tweak is accepted, thread stays open for further replies', async ({ page }) => {
@@ -1062,7 +1066,7 @@ test.describe('Tweaks in comments', () => {
     await openCommentPanel(page);
 
     await page
-      .locator('#db-items db-comment db-button[title="Accept tweak and resolve comment"]')
+      .locator('#uib-items uib-comment uib-button[title="Accept tweak and resolve comment"]')
       .click();
 
     await expect
@@ -1070,7 +1074,7 @@ test.describe('Tweaks in comments', () => {
         const res = await page.request.get(`${API_BASE}/comments/test-thread-open-after-accept`);
         if (res.status() !== 200) return null;
         return (
-          (await res.json()) as { comments?: { type: string; tweakStatus?: string }[] }
+          (await res.json()) as { comments?: { type: string; tweakStatus?: string; }[]; }
         ).comments?.find((c) => c.type === 'tweak')?.tweakStatus;
       })
       .toBe('accepted');
@@ -1078,7 +1082,9 @@ test.describe('Tweaks in comments', () => {
     // Re-open panel — reply textarea must still be accessible
     await page.reload();
     await openCommentPanel(page);
-    const replyArea = innerTA(page.locator('#db-items db-comment db-textarea[data-role="reply"]'));
+    const replyArea = innerTA(
+      page.locator('#uib-items uib-comment uib-textarea[data-role="reply"]'),
+    );
     await expect(replyArea).toBeVisible();
     await replyArea.fill('Still can reply after accept');
     await replyArea.press('Enter');
@@ -1086,7 +1092,7 @@ test.describe('Tweaks in comments', () => {
     await expect
       .poll(async () => {
         const res = await page.request.get(`${API_BASE}/comments/test-thread-open-after-accept`);
-        const body = (await res.json()) as { comments?: { type: string; text: string }[] };
+        const body = (await res.json()) as { comments?: { type: string; text: string; }[]; };
         return body.comments?.some(
           (c) => c.type === 'comment' && c.text === 'Still can reply after accept',
         );
@@ -1115,13 +1121,13 @@ test.describe('Tweaks in comments', () => {
     await openCommentPanel(page);
 
     // Both reply rows should be visible
-    const rows = page.locator('#db-items db-comment .reply');
+    const rows = page.locator('#uib-items uib-comment .reply');
     await expect(rows).toHaveCount(2);
   });
 
   // ─── Knob type rendering ──────────────────────────────────────────────────
 
-  test('db-knob renders a db-number-input with the correct value', async ({ page }) => {
+  test('uib-knob renders a uib-number-input with the correct value', async ({ page }) => {
     await injectComment(page, {
       id: 'test-knob-number',
       selectors: ['h1'],
@@ -1136,7 +1142,7 @@ test.describe('Tweaks in comments', () => {
     });
     await page.reload();
     await openCommentPanel(page);
-    const input = page.locator('#db-items db-comment db-knob db-number-input');
+    const input = page.locator('#uib-items uib-comment uib-knob uib-number-input');
     await expect(input).toBeVisible();
     await expect(input).toHaveJSProperty('value', '16');
   });
@@ -1156,21 +1162,21 @@ test.describe('Tweaks in comments', () => {
     });
     await page.reload();
     await openCommentPanel(page);
-    const input = page.locator('#db-items db-comment db-knob db-number-input');
+    const input = page.locator('#uib-items uib-comment uib-knob uib-number-input');
     await input.evaluate((el) => {
-      (el as HTMLElement & { value: number }).value = 24;
+      (el as HTMLElement & { value: number; }).value = 24;
       el.dispatchEvent(new Event('input', { bubbles: true }));
     });
     await expect
       .poll(async () => {
         const res = await page.request.get(`${API_BASE}/tweaks`);
-        const body = (await res.json()) as { knobs: { marker: string; value: unknown }[] };
+        const body = (await res.json()) as { knobs: { marker: string; value: unknown; }[]; };
         return body.knobs.find((k) => k.marker === 'test-knob-number-change')?.value;
       })
       .toBe('24');
   });
 
-  test('db-knob renders a db-color-picker with the correct value', async ({ page }) => {
+  test('uib-knob renders a uib-color-picker with the correct value', async ({ page }) => {
     await injectComment(page, {
       id: 'test-knob-color',
       selectors: ['h1'],
@@ -1185,7 +1191,7 @@ test.describe('Tweaks in comments', () => {
     });
     await page.reload();
     await openCommentPanel(page);
-    const picker = page.locator('#db-items db-comment db-knob db-color-picker');
+    const picker = page.locator('#uib-items uib-comment uib-knob uib-color-picker');
     await expect(picker).toBeVisible();
     await expect(picker).toHaveJSProperty('value', '#ff0000');
   });
@@ -1205,21 +1211,21 @@ test.describe('Tweaks in comments', () => {
     });
     await page.reload();
     await openCommentPanel(page);
-    const picker = page.locator('#db-items db-comment db-knob db-color-picker');
+    const picker = page.locator('#uib-items uib-comment uib-knob uib-color-picker');
     await picker.evaluate((el) => {
-      (el as HTMLElement & { value: string }).value = '#00ff00';
+      (el as HTMLElement & { value: string; }).value = '#00ff00';
       el.dispatchEvent(new Event('change', { bubbles: true }));
     });
     await expect
       .poll(async () => {
         const res = await page.request.get(`${API_BASE}/tweaks`);
-        const body = (await res.json()) as { knobs: { marker: string; value: unknown }[] };
+        const body = (await res.json()) as { knobs: { marker: string; value: unknown; }[]; };
         return body.knobs.find((k) => k.marker === 'test-knob-color-change')?.value;
       })
       .toBe('#00ff00');
   });
 
-  test('db-knob renders a db-input for string type with the correct value', async ({ page }) => {
+  test('uib-knob renders a uib-input for string type with the correct value', async ({ page }) => {
     await injectComment(page, {
       id: 'test-knob-string',
       selectors: ['h1'],
@@ -1234,7 +1240,7 @@ test.describe('Tweaks in comments', () => {
     });
     await page.reload();
     await openCommentPanel(page);
-    const input = page.locator('#db-items db-comment db-knob db-input');
+    const input = page.locator('#uib-items uib-comment uib-knob uib-input');
     await expect(input).toBeVisible();
     await expect(input).toHaveJSProperty('value', 'Hello world');
   });
@@ -1254,21 +1260,21 @@ test.describe('Tweaks in comments', () => {
     });
     await page.reload();
     await openCommentPanel(page);
-    const input = page.locator('#db-items db-comment db-knob db-input');
+    const input = page.locator('#uib-items uib-comment uib-knob uib-input');
     await input.evaluate((el) => {
-      (el as HTMLElement & { value: string }).value = 'New heading';
+      (el as HTMLElement & { value: string; }).value = 'New heading';
       el.dispatchEvent(new Event('input', { bubbles: true }));
     });
     await expect
       .poll(async () => {
         const res = await page.request.get(`${API_BASE}/tweaks`);
-        const body = (await res.json()) as { knobs: { marker: string; value: unknown }[] };
+        const body = (await res.json()) as { knobs: { marker: string; value: unknown; }[]; };
         return body.knobs.find((k) => k.marker === 'test-knob-string-change')?.value;
       })
       .toBe('New heading');
   });
 
-  test('db-knob renders a db-textarea for textarea type with the correct value', async ({
+  test('uib-knob renders a uib-textarea for textarea type with the correct value', async ({
     page,
   }) => {
     await injectComment(page, {
@@ -1285,7 +1291,7 @@ test.describe('Tweaks in comments', () => {
     });
     await page.reload();
     await openCommentPanel(page);
-    const textarea = page.locator('#db-items db-comment db-knob db-textarea');
+    const textarea = page.locator('#uib-items uib-comment uib-knob uib-textarea');
     await expect(textarea).toBeVisible();
     await expect(textarea).toHaveJSProperty('value', 'Initial text');
   });
@@ -1305,21 +1311,21 @@ test.describe('Tweaks in comments', () => {
     });
     await page.reload();
     await openCommentPanel(page);
-    const textarea = page.locator('#db-items db-comment db-knob db-textarea');
+    const textarea = page.locator('#uib-items uib-comment uib-knob uib-textarea');
     await textarea.evaluate((el) => {
-      (el as HTMLElement & { value: string }).value = 'Updated text';
+      (el as HTMLElement & { value: string; }).value = 'Updated text';
       el.dispatchEvent(new Event('input', { bubbles: true }));
     });
     await expect
       .poll(async () => {
         const res = await page.request.get(`${API_BASE}/tweaks`);
-        const body = (await res.json()) as { knobs: { marker: string; value: unknown }[] };
+        const body = (await res.json()) as { knobs: { marker: string; value: unknown; }[]; };
         return body.knobs.find((k) => k.marker === 'test-knob-textarea-change')?.value;
       })
       .toBe('Updated text');
   });
 
-  test('db-knob renders a db-switch for boolean type with correct checked state', async ({
+  test('uib-knob renders a uib-switch for boolean type with correct checked state', async ({
     page,
   }) => {
     await injectComment(page, {
@@ -1336,7 +1342,7 @@ test.describe('Tweaks in comments', () => {
     });
     await page.reload();
     await openCommentPanel(page);
-    const toggle = page.locator('#db-items db-comment db-knob db-switch');
+    const toggle = page.locator('#uib-items uib-comment uib-knob uib-switch');
     await expect(toggle).toBeVisible();
     await expect(toggle).toHaveJSProperty('checked', true);
   });
@@ -1356,21 +1362,21 @@ test.describe('Tweaks in comments', () => {
     });
     await page.reload();
     await openCommentPanel(page);
-    const toggle = page.locator('#db-items db-comment db-knob db-switch');
+    const toggle = page.locator('#uib-items uib-comment uib-knob uib-switch');
     await toggle.evaluate((el) => {
-      (el as HTMLElement & { checked: boolean }).checked = false;
+      (el as HTMLElement & { checked: boolean; }).checked = false;
       el.dispatchEvent(new Event('change', { bubbles: true }));
     });
     await expect
       .poll(async () => {
         const res = await page.request.get(`${API_BASE}/tweaks`);
-        const body = (await res.json()) as { knobs: { marker: string; value: unknown }[] };
+        const body = (await res.json()) as { knobs: { marker: string; value: unknown; }[]; };
         return body.knobs.find((k) => k.marker === 'test-knob-boolean-change')?.value;
       })
       .toBe('false');
   });
 
-  test('db-knob renders db-radio-group for button-group type with the correct options', async ({
+  test('uib-knob renders uib-radio-group for button-group type with the correct options', async ({
     page,
   }) => {
     await injectComment(page, {
@@ -1392,10 +1398,10 @@ test.describe('Tweaks in comments', () => {
     });
     await page.reload();
     await openCommentPanel(page);
-    const group = page.locator('#db-items db-comment db-knob db-radio-group');
+    const group = page.locator('#uib-items uib-comment uib-knob uib-radio-group');
     await expect(group).toBeVisible();
     await expect(group).toHaveJSProperty('value', 'sm');
-    await expect(group.locator('db-radio')).toHaveCount(3);
+    await expect(group.locator('uib-radio')).toHaveCount(3);
   });
 
   test('changing a button-group radio updates schema value', async ({ page }) => {
@@ -1418,15 +1424,15 @@ test.describe('Tweaks in comments', () => {
     });
     await page.reload();
     await openCommentPanel(page);
-    const group = page.locator('#db-items db-comment db-knob db-radio-group');
+    const group = page.locator('#uib-items uib-comment uib-knob uib-radio-group');
     await group.evaluate((el) => {
-      (el as HTMLElement & { value: string }).value = 'lg';
+      (el as HTMLElement & { value: string; }).value = 'lg';
       el.dispatchEvent(new Event('change', { bubbles: true }));
     });
     await expect
       .poll(async () => {
         const res = await page.request.get(`${API_BASE}/tweaks`);
-        const body = (await res.json()) as { knobs: { marker: string; value: unknown }[] };
+        const body = (await res.json()) as { knobs: { marker: string; value: unknown; }[]; };
         return body.knobs.find((k) => k.marker === 'test-knob-button-group-change')?.value;
       })
       .toBe('lg');
@@ -1439,10 +1445,10 @@ test.describe('Tweaks in comments', () => {
     expect(res.status()).toBe(200);
     // Reload page and confirm comment survives (loaded from disk)
     await page.reload();
-    await expect(page.locator('#db-items db-comment')).toBeAttached();
+    await expect(page.locator('#uib-items uib-comment')).toBeAttached();
     const res2 = await page.request.get(`${API_BASE}/comments/persist-json-test`);
     expect(res2.status()).toBe(200);
-    const ann = (await res2.json()) as { comments?: { text: string }[] };
+    const ann = (await res2.json()) as { comments?: { text: string; }[]; };
     expect(ann.comments?.[0]?.text).toBe('JSON file test');
   });
 });
@@ -1452,38 +1458,38 @@ test.describe('Tweaks in comments', () => {
 test.describe('Edit and delete own comments', () => {
   test('three-dot menu always visible on user reply in badge panel', async ({ page }) => {
     await createComment(page, 'h1', 'Editable comment');
-    await page.locator('#db-items db-comment db-button.badge').first().click();
+    await page.locator('#uib-items uib-comment uib-button.badge').first().click();
     const panel = commentPanel(page);
-    await expect(panel.locator('.reply-menu db-button[title="More"]')).toBeVisible();
+    await expect(panel.locator('.reply-menu uib-button[title="More"]')).toBeVisible();
   });
 
   test('clicking edit in reply menu shows textarea with current text', async ({ page }) => {
     await createComment(page, 'h1', 'Original text');
-    await page.locator('#db-items db-comment db-button.badge').first().click();
+    await page.locator('#uib-items uib-comment uib-button.badge').first().click();
     const panel = commentPanel(page);
-    await panel.locator('.reply-menu db-button[title="More"]').first().click();
-    await page.locator('db-dropdown-item:has-text("Edit")').first().click();
-    const editArea = innerTA(panel.locator('db-textarea[data-edit-id]'));
+    await panel.locator('.reply-menu uib-button[title="More"]').first().click();
+    await page.locator('uib-dropdown-item:has-text("Edit")').first().click();
+    const editArea = innerTA(panel.locator('uib-textarea[data-edit-id]'));
     await expect(editArea).toBeVisible();
     await expect(editArea).toHaveValue('Original text');
   });
 
   test('saves edited reply text via Enter key', async ({ page }) => {
     await createComment(page, 'h1', 'Old text');
-    await page.locator('#db-items db-comment db-button.badge').first().click();
+    await page.locator('#uib-items uib-comment uib-button.badge').first().click();
     const panel = commentPanel(page);
-    await panel.locator('.reply-menu db-button[title="More"]').first().click();
-    await page.locator('db-dropdown-item:has-text("Edit")').first().click();
-    const editArea = innerTA(panel.locator('db-textarea[data-edit-id]'));
+    await panel.locator('.reply-menu uib-button[title="More"]').first().click();
+    await page.locator('uib-dropdown-item:has-text("Edit")').first().click();
+    const editArea = innerTA(panel.locator('uib-textarea[data-edit-id]'));
     await editArea.fill('Updated text');
     await editArea.press('Enter');
-    await expect(panel.locator('db-textarea[data-edit-id]')).toHaveCount(0);
+    await expect(panel.locator('uib-textarea[data-edit-id]')).toHaveCount(0);
     await expect(panel.locator('.comment-text').first()).toHaveText('Updated text');
     // Persisted to API
     await expect
       .poll(async () => {
         const res = await page.request.get(`${API_BASE}/comments`);
-        const body = (await res.json()) as { comments: { comments?: { text: string }[] }[] };
+        const body = (await res.json()) as { comments: { comments?: { text: string; }[]; }[]; };
         return body.comments.some((a) => a.comments?.some((c) => c.text === 'Updated text'));
       })
       .toBe(true);
@@ -1491,68 +1497,68 @@ test.describe('Edit and delete own comments', () => {
 
   test('saves edited reply text via Save button', async ({ page }) => {
     await createComment(page, 'h1', 'Save via button');
-    await page.locator('#db-items db-comment db-button.badge').first().click();
+    await page.locator('#uib-items uib-comment uib-button.badge').first().click();
     const panel = commentPanel(page);
-    await panel.locator('.reply-menu db-button[title="More"]').first().click();
-    await page.locator('db-dropdown-item:has-text("Edit")').first().click();
-    const editArea = innerTA(panel.locator('db-textarea[data-edit-id]'));
+    await panel.locator('.reply-menu uib-button[title="More"]').first().click();
+    await page.locator('uib-dropdown-item:has-text("Edit")').first().click();
+    const editArea = innerTA(panel.locator('uib-textarea[data-edit-id]'));
     await editArea.fill('Button saved');
-    await panel.locator('.edit-actions db-button[appearance="filled"]').click();
-    await expect(panel.locator('db-textarea[data-edit-id]')).toHaveCount(0);
+    await panel.locator('.edit-actions uib-button[appearance="filled"]').click();
+    await expect(panel.locator('uib-textarea[data-edit-id]')).toHaveCount(0);
     await expect(panel.locator('.comment-text').first()).toHaveText('Button saved');
   });
 
   test('cancel edit in badge panel restores original text', async ({ page }) => {
     await createComment(page, 'h1', 'Cancel restores me');
-    await page.locator('#db-items db-comment db-button.badge').first().click();
+    await page.locator('#uib-items uib-comment uib-button.badge').first().click();
     const panel = commentPanel(page);
-    await panel.locator('.reply-menu db-button[title="More"]').first().click();
-    await page.locator('db-dropdown-item:has-text("Edit")').first().click();
-    const editArea = innerTA(panel.locator('db-textarea[data-edit-id]'));
+    await panel.locator('.reply-menu uib-button[title="More"]').first().click();
+    await page.locator('uib-dropdown-item:has-text("Edit")').first().click();
+    const editArea = innerTA(panel.locator('uib-textarea[data-edit-id]'));
     await editArea.fill('Should be discarded');
-    await panel.locator('.edit-actions db-button[appearance="plain"]').click();
-    await expect(panel.locator('db-textarea[data-edit-id]')).toHaveCount(0);
+    await panel.locator('.edit-actions uib-button[appearance="plain"]').click();
+    await expect(panel.locator('uib-textarea[data-edit-id]')).toHaveCount(0);
     await expect(panel.locator('.comment-text').first()).toHaveText('Cancel restores me');
   });
 
   test('cancel edit via Escape in badge panel restores original text', async ({ page }) => {
     await createComment(page, 'h1', 'Escape cancels edit');
-    await page.locator('#db-items db-comment db-button.badge').first().click();
+    await page.locator('#uib-items uib-comment uib-button.badge').first().click();
     const panel = commentPanel(page);
-    await panel.locator('.reply-menu db-button[title="More"]').first().click();
-    await page.locator('db-dropdown-item:has-text("Edit")').first().click();
-    const editArea = innerTA(panel.locator('db-textarea[data-edit-id]'));
+    await panel.locator('.reply-menu uib-button[title="More"]').first().click();
+    await page.locator('uib-dropdown-item:has-text("Edit")').first().click();
+    const editArea = innerTA(panel.locator('uib-textarea[data-edit-id]'));
     await editArea.fill('Will be discarded');
     await editArea.press('Escape');
-    await expect(panel.locator('db-textarea[data-edit-id]')).toHaveCount(0);
+    await expect(panel.locator('uib-textarea[data-edit-id]')).toHaveCount(0);
     await expect(panel.locator('.comment-text').first()).toHaveText('Escape cancels edit');
   });
 
   test('empty text does not save (Save button disabled) in badge panel', async ({ page }) => {
     await createComment(page, 'h1', 'Non-empty');
-    await page.locator('#db-items db-comment db-button.badge').first().click();
+    await page.locator('#uib-items uib-comment uib-button.badge').first().click();
     const panel = commentPanel(page);
-    await panel.locator('.reply-menu db-button[title="More"]').first().click();
-    await page.locator('db-dropdown-item:has-text("Edit")').first().click();
-    const editArea = innerTA(panel.locator('db-textarea[data-edit-id]'));
+    await panel.locator('.reply-menu uib-button[title="More"]').first().click();
+    await page.locator('uib-dropdown-item:has-text("Edit")').first().click();
+    const editArea = innerTA(panel.locator('uib-textarea[data-edit-id]'));
     await editArea.fill('');
-    const saveBtn = panel.locator('.edit-actions db-button[appearance="filled"]');
+    const saveBtn = panel.locator('.edit-actions uib-button[appearance="filled"]');
     await expect(saveBtn).toHaveAttribute('disabled', '');
   });
 
   test('edit is reflected after page reload (persisted)', async ({ page }) => {
     await createComment(page, 'h1', 'Pre-reload text');
-    await page.locator('#db-items db-comment db-button.badge').first().click();
+    await page.locator('#uib-items uib-comment uib-button.badge').first().click();
     const panel = commentPanel(page);
-    await panel.locator('.reply-menu db-button[title="More"]').first().click();
-    await page.locator('db-dropdown-item:has-text("Edit")').first().click();
-    await innerTA(panel.locator('db-textarea[data-edit-id]')).fill('Post-reload text');
-    await panel.locator('.edit-actions db-button[appearance="filled"]').click();
-    await expect(panel.locator('db-textarea[data-edit-id]')).toHaveCount(0);
+    await panel.locator('.reply-menu uib-button[title="More"]').first().click();
+    await page.locator('uib-dropdown-item:has-text("Edit")').first().click();
+    await innerTA(panel.locator('uib-textarea[data-edit-id]')).fill('Post-reload text');
+    await panel.locator('.edit-actions uib-button[appearance="filled"]').click();
+    await expect(panel.locator('uib-textarea[data-edit-id]')).toHaveCount(0);
     // Reload and check API
     await page.reload();
     const res = await page.request.get(`${API_BASE}/comments`);
-    const body = (await res.json()) as { comments: { comments?: { text: string }[] }[] };
+    const body = (await res.json()) as { comments: { comments?: { text: string; }[]; }[]; };
     expect(body.comments.some((a) => a.comments?.some((c) => c.text === 'Post-reload text'))).toBe(
       true,
     );
@@ -1560,33 +1566,33 @@ test.describe('Edit and delete own comments', () => {
 
   test('first reply has only Edit option (no Delete) in badge panel', async ({ page }) => {
     await createComment(page, 'h1', 'Root only edit');
-    await page.locator('#db-items db-comment db-button.badge').first().click();
+    await page.locator('#uib-items uib-comment uib-button.badge').first().click();
     const panel = commentPanel(page);
-    await panel.locator('.reply-menu db-button[title="More"]').first().click();
+    await panel.locator('.reply-menu uib-button[title="More"]').first().click();
     // Edit must be present, Delete must not exist for the root reply
-    await expect(page.locator('db-dropdown-item:has-text("Edit")').first()).toBeVisible();
+    await expect(page.locator('uib-dropdown-item:has-text("Edit")').first()).toBeVisible();
     await expect(
-      panel.locator('.reply:first-child .reply-menu db-dropdown-item[variant="danger"]'),
+      panel.locator('.reply:first-child .reply-menu uib-dropdown-item[variant="danger"]'),
     ).toHaveCount(0);
   });
 
   test('subsequent reply can be deleted from badge panel', async ({ page }) => {
     await createComment(page, 'h1', 'Root comment');
     // Add a reply
-    await page.locator('#db-items db-comment db-button.badge').first().click();
+    await page.locator('#uib-items uib-comment uib-button.badge').first().click();
     const panel = commentPanel(page);
-    const replyInput = panel.locator('db-textarea[data-role="reply"]');
+    const replyInput = panel.locator('uib-textarea[data-role="reply"]');
     await innerTA(replyInput).fill('A follow-up reply');
     await innerTA(replyInput).press('Enter');
     // Wait for the reply to appear in the thread (panel stays open after reply)
     await expect(panel.locator('.comment-text')).toHaveCount(2);
     // Second reply row (index 1) should have a three-dot menu with Delete
-    await panel.locator('.reply-menu db-button[title="More"]').nth(1).click();
+    await panel.locator('.reply-menu uib-button[title="More"]').nth(1).click();
     await expect(
-      panel.locator('.reply:nth-child(2) db-dropdown-item[variant="danger"]:has-text("Delete")'),
+      panel.locator('.reply:nth-child(2) uib-dropdown-item[variant="danger"]:has-text("Delete")'),
     ).toBeVisible();
     await panel
-      .locator('.reply:nth-child(2) db-dropdown-item[variant="danger"]:has-text("Delete")')
+      .locator('.reply:nth-child(2) uib-dropdown-item[variant="danger"]:has-text("Delete")')
       .click();
     // Reply should be gone, root comment remains
     await expect(panel.locator('.comment-text')).toHaveCount(1);
@@ -1608,7 +1614,7 @@ test.describe('Unread agent reply indicator', () => {
     });
     await page.reload();
     await expect(
-      page.locator('#db-items db-comment db-button.badge[variant="brand"]'),
+      page.locator('#uib-items uib-comment uib-button.badge[variant="brand"]'),
     ).toBeVisible();
   });
 
@@ -1622,7 +1628,7 @@ test.describe('Unread agent reply indicator', () => {
       ],
     });
     // Set lastReadAt to after the agent reply
-    await page.request.post(`${API_BASE}/comments/test-read-neutral/read`).catch(() => {});
+    await page.request.post(`${API_BASE}/comments/test-read-neutral/read`).catch(() => { });
     // Directly patch via upsert with lastReadAt already set
     const existing = (await (
       await page.request.get(`${API_BASE}/comments/test-read-neutral`)
@@ -1635,7 +1641,7 @@ test.describe('Unread agent reply indicator', () => {
 
     await page.reload();
     await expect(
-      page.locator('#db-items db-comment db-button.badge[variant="neutral"]'),
+      page.locator('#uib-items uib-comment uib-button.badge[variant="neutral"]'),
     ).toBeVisible();
   });
 
@@ -1649,7 +1655,7 @@ test.describe('Unread agent reply indicator', () => {
     });
     await page.reload();
     await expect(
-      page.locator('#db-items db-comment db-button.badge[variant="neutral"]'),
+      page.locator('#uib-items uib-comment uib-button.badge[variant="neutral"]'),
     ).toBeVisible();
   });
 
@@ -1668,7 +1674,7 @@ test.describe('Unread agent reply indicator', () => {
 
     // Initially brand (unread)
     await expect(
-      page.locator('#db-items db-comment db-button.badge[variant="brand"]'),
+      page.locator('#uib-items uib-comment uib-button.badge[variant="brand"]'),
     ).toBeVisible();
 
     // Open the panel — should trigger comment:read
@@ -1677,12 +1683,12 @@ test.describe('Unread agent reply indicator', () => {
 
     // After WS round-trip, badge should become neutral
     await expect(
-      page.locator('#db-items db-comment db-button.badge[variant="neutral"]'),
+      page.locator('#uib-items uib-comment uib-button.badge[variant="neutral"]'),
     ).toBeVisible();
 
     // Verify lastReadAt was persisted to the server
     const res = await page.request.get(`${API_BASE}/comments/test-mark-read-on-open`);
-    const body = (await res.json()) as { meta: { lastReadAt?: number } };
+    const body = (await res.json()) as { meta: { lastReadAt?: number; }; };
     expect(typeof body.meta.lastReadAt).toBe('number');
   });
 
@@ -1746,7 +1752,7 @@ test.describe('Draft badge number', () => {
       .click({ modifiers: ['Alt', 'Shift'] });
     await expect(commentPanel(page)).toBeVisible();
 
-    const badge = page.locator('#db-items db-comment db-button.badge');
+    const badge = page.locator('#uib-items uib-comment uib-button.badge');
     await expect(badge).toHaveText('1');
   });
 
@@ -1761,12 +1767,12 @@ test.describe('Draft badge number', () => {
       .click({ modifiers: ['Alt', 'Shift'] });
     await expect(commentPanel(page)).toBeVisible();
 
-    // Three db-comment elements: 2 saved + 1 draft
-    const badges = page.locator('#db-items db-comment db-button.badge');
+    // Three uib-comment elements: 2 saved + 1 draft
+    const badges = page.locator('#uib-items uib-comment uib-button.badge');
     await expect(badges).toHaveCount(3);
 
     // The draft badge (last one created) should show #3
-    const draftBadge = page.locator('#db-items db-comment').last().locator('db-button.badge');
+    const draftBadge = page.locator('#uib-items uib-comment').last().locator('uib-button.badge');
     await expect(draftBadge).toHaveText('3');
   });
 });

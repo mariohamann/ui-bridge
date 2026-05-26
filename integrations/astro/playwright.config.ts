@@ -13,7 +13,7 @@ const buildPrefix = skipBuild
   : `cd ${protocolDir} && node_modules/.bin/tsc -p tsconfig.json && cd ${__dirname} && node build.mjs && cd ${clientDir} && node build.mjs && cd ${unpluginDir} && node build.mjs && `;
 
 // Dedicate a port so parallel test-suite runs never clash on the default 7378.
-process.env.DESIGN_BRIDGE_PORT ??= '7381';
+process.env.UI_BRIDGE_PORT ??= '7381';
 
 export default defineConfig({
   testDir: './tests',

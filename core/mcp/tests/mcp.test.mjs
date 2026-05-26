@@ -1,8 +1,8 @@
 /**
  * MCP server tests — uses Node.js built-in test runner.
  *
- * Each test spawns the Design Bridge server on port 7383 (beforeAll), writes
- * its port to a .design-bridge/.port file, then talks to the MCP stdio server
+ * Each test spawns the UI Bridge server on port 7383 (beforeAll), writes
+ * its port to a .ui-bridge/.port file, then talks to the MCP stdio server
  * by spawning it as a child process and sending JSON-RPC 2.0 messages over
  * stdin/stdout.
  *
@@ -45,7 +45,7 @@ async function waitForServer(timeoutMs = 10_000) {
     }
     await new Promise((r) => setTimeout(r, 100));
   }
-  throw new Error('Design Bridge server did not start in time');
+  throw new Error('UI Bridge server did not start in time');
 }
 
 before(async () => {
@@ -53,18 +53,18 @@ before(async () => {
   await mkdir(TEST_ROOT, { recursive: true });
 
   serverProc = spawn(process.execPath, [SERVER_BIN, '--root', TEST_ROOT], {
-    env: { ...process.env, DESIGN_BRIDGE_PORT: String(TEST_PORT) },
+    env: { ...process.env, UI_BRIDGE_PORT: String(TEST_PORT) },
     stdio: 'pipe',
   });
 
-  serverProc.stderr.on('data', () => { });
-  serverProc.stdout.on('data', () => { });
+  serverProc.stderr.on('data', () => {});
+  serverProc.stdout.on('data', () => {});
 
   await waitForServer();
 
   // The server writes the port file itself, but write a fallback to confirm
   // the MCP discovery path works independently too.
-  const portFileDir = resolve(TEST_ROOT, '.design-bridge');
+  const portFileDir = resolve(TEST_ROOT, '.ui-bridge');
   await mkdir(portFileDir, { recursive: true });
   await writeFile(resolve(portFileDir, '.port'), String(TEST_PORT), 'utf-8');
 });
@@ -87,7 +87,7 @@ function mcpCall(method, params = {}) {
     const proc = spawn(process.execPath, [MCP_BIN], {
       env: {
         ...process.env,
-        DESIGN_BRIDGE_ROOT: TEST_ROOT,
+        UI_BRIDGE_ROOT: TEST_ROOT,
         // suppress MCP SDK internal logs that go to stderr
       },
       stdio: ['pipe', 'pipe', 'pipe'],
@@ -160,7 +160,7 @@ describe('MCP initialize', () => {
     const responses = await mcpCall('ping', {});
     const init = findResponse(responses, 1);
     assert.ok(init, 'initialize response missing');
-    assert.equal(init.result?.serverInfo?.name, 'Design Bridge');
+    assert.equal(init.result?.serverInfo?.name, 'UI Bridge');
     assert.ok(init.result?.capabilities?.tools, 'tools capability missing');
     assert.ok(init.result?.capabilities?.resources, 'resources capability missing');
   });
@@ -200,21 +200,21 @@ describe('MCP resources/list', () => {
     const responses = await mcpCall('resources/list', {});
     const res = findResponse(responses, 2);
     const uris = res.result.resources.map((r) => r.uri);
-    assert.ok(uris.includes('design-bridge://guide/workflow'), 'workflow guide missing');
+    assert.ok(uris.includes('ui-bridge://guide/workflow'), 'workflow guide missing');
   });
 
   it('includes the write-scripts guide resource', async () => {
     const responses = await mcpCall('resources/list', {});
     const res = findResponse(responses, 2);
     const uris = res.result.resources.map((r) => r.uri);
-    assert.ok(uris.includes('design-bridge://guide/write-scripts'), 'write-scripts guide missing');
+    assert.ok(uris.includes('ui-bridge://guide/write-scripts'), 'write-scripts guide missing');
   });
 });
 
 describe('MCP resources/read', () => {
   it('returns markdown content for the workflow guide', async () => {
     const responses = await mcpCall('resources/read', {
-      uri: 'design-bridge://guide/workflow',
+      uri: 'ui-bridge://guide/workflow',
     });
     const res = findResponse(responses, 2);
     const text = res?.result?.contents?.[0]?.text;
@@ -224,7 +224,7 @@ describe('MCP resources/read', () => {
 
   it('returns markdown content for the write-scripts guide', async () => {
     const responses = await mcpCall('resources/read', {
-      uri: 'design-bridge://guide/write-scripts',
+      uri: 'ui-bridge://guide/write-scripts',
     });
     const res = findResponse(responses, 2);
     const text = res?.result?.contents?.[0]?.text;
@@ -404,16 +404,16 @@ describe('MCP tools/call — get_comment (backward compat)', () => {
       ],
     };
     // Write directly to file — no server needed
-    await mkdir(resolve(TEST_ROOT, '.design-bridge', 'comments'), { recursive: true });
+    await mkdir(resolve(TEST_ROOT, '.ui-bridge', 'comments'), { recursive: true });
     await writeFile(
-      resolve(TEST_ROOT, '.design-bridge', 'comments', `${ANN_ID}.json`),
+      resolve(TEST_ROOT, '.ui-bridge', 'comments', `${ANN_ID}.json`),
       JSON.stringify(ann, null, 2),
       'utf-8',
     );
   });
 
   after(async () => {
-    await rm(resolve(TEST_ROOT, '.design-bridge', 'comments', `${ANN_ID}.json`), { force: true });
+    await rm(resolve(TEST_ROOT, '.ui-bridge', 'comments', `${ANN_ID}.json`), { force: true });
   });
 
   it('gets the comment via get_comment', async () => {
@@ -442,8 +442,8 @@ describe('MCP tools/call — get_server_info + get_tweaks', () => {
     const body = JSON.parse(res?.result?.content?.[0]?.text);
     assert.ok(typeof body.port === 'number', 'port should be a number');
     assert.ok(typeof body.root === 'string', 'root should be a string');
-    assert.ok(body.scriptsDir.includes('.design-bridge/scripts'), 'scriptsDir incorrect');
-    assert.ok(body.commentsDir.includes('.design-bridge/comments'), 'commentsDir incorrect');
+    assert.ok(body.scriptsDir.includes('.ui-bridge/scripts'), 'scriptsDir incorrect');
+    assert.ok(body.commentsDir.includes('.ui-bridge/comments'), 'commentsDir incorrect');
   });
 
   it('upserts a tweak comment and it appears in get_tweaks', async () => {
@@ -515,31 +515,31 @@ describe('MCP tools/call — get_server_info + get_tweaks', () => {
 // ── Port discovery unit tests ─────────────────────────────────────────────────
 
 describe('resolveBaseUrl — port discovery', () => {
-  it('uses DESIGN_BRIDGE_URL when set', async () => {
-    const url = await resolveBaseUrl({ DESIGN_BRIDGE_URL: 'http://localhost:9999' });
+  it('uses UI_BRIDGE_URL when set', async () => {
+    const url = await resolveBaseUrl({ UI_BRIDGE_URL: 'http://localhost:9999' });
     assert.equal(url, 'http://localhost:9999');
   });
 
-  it('strips trailing slash from DESIGN_BRIDGE_URL', async () => {
-    const url = await resolveBaseUrl({ DESIGN_BRIDGE_URL: 'http://localhost:9999/' });
+  it('strips trailing slash from UI_BRIDGE_URL', async () => {
+    const url = await resolveBaseUrl({ UI_BRIDGE_URL: 'http://localhost:9999/' });
     assert.equal(url, 'http://localhost:9999');
   });
 
-  it('uses DESIGN_BRIDGE_PORT when set', async () => {
-    const url = await resolveBaseUrl({ DESIGN_BRIDGE_PORT: '8888' });
+  it('uses UI_BRIDGE_PORT when set', async () => {
+    const url = await resolveBaseUrl({ UI_BRIDGE_PORT: '8888' });
     assert.equal(url, 'http://localhost:8888');
   });
 
-  it('DESIGN_BRIDGE_URL takes precedence over DESIGN_BRIDGE_PORT', async () => {
+  it('UI_BRIDGE_URL takes precedence over UI_BRIDGE_PORT', async () => {
     const url = await resolveBaseUrl({
-      DESIGN_BRIDGE_URL: 'http://localhost:9999',
-      DESIGN_BRIDGE_PORT: '8888',
+      UI_BRIDGE_URL: 'http://localhost:9999',
+      UI_BRIDGE_PORT: '8888',
     });
     assert.equal(url, 'http://localhost:9999');
   });
 
-  it('reads the .port file from DESIGN_BRIDGE_ROOT', async () => {
-    const url = await resolveBaseUrl({ DESIGN_BRIDGE_ROOT: TEST_ROOT });
+  it('reads the .port file from UI_BRIDGE_ROOT', async () => {
+    const url = await resolveBaseUrl({ UI_BRIDGE_ROOT: TEST_ROOT });
     assert.equal(url, `http://localhost:${TEST_PORT}`);
   });
 
@@ -547,13 +547,13 @@ describe('resolveBaseUrl — port discovery', () => {
     // Create a subdirectory two levels deep inside TEST_ROOT with no .port file
     const subDir = resolve(TEST_ROOT, 'src', 'components');
     await mkdir(subDir, { recursive: true });
-    // Pass the subdirectory as cwd with no DESIGN_BRIDGE_ROOT set
+    // Pass the subdirectory as cwd with no UI_BRIDGE_ROOT set
     const url = await resolveBaseUrl({}, subDir);
     assert.equal(url, `http://localhost:${TEST_PORT}`);
   });
 
   it('falls back to default URL when no discovery method succeeds', async () => {
-    // Use os.tmpdir() as cwd — it is guaranteed to have no .design-bridge/.port
+    // Use os.tmpdir() as cwd — it is guaranteed to have no .ui-bridge/.port
     // file anywhere in its ancestry.
     const url = await resolveBaseUrl({}, tmpdir());
     assert.equal(url, 'http://localhost:7378');
@@ -563,19 +563,19 @@ describe('resolveBaseUrl — port discovery', () => {
 // ── resolveRoot unit tests ────────────────────────────────────────────────────
 
 describe('resolveRoot — root directory discovery', () => {
-  it('uses DESIGN_BRIDGE_ROOT when set', async () => {
-    const root = await resolveRoot({ DESIGN_BRIDGE_ROOT: TEST_ROOT });
+  it('uses UI_BRIDGE_ROOT when set', async () => {
+    const root = await resolveRoot({ UI_BRIDGE_ROOT: TEST_ROOT });
     assert.equal(root, resolve(TEST_ROOT));
   });
 
-  it('finds .design-bridge dir by walking up from cwd', async () => {
+  it('finds .ui-bridge dir by walking up from cwd', async () => {
     const subDir = resolve(TEST_ROOT, 'src', 'deep');
     await mkdir(subDir, { recursive: true });
     const root = await resolveRoot({}, subDir);
     assert.equal(root, TEST_ROOT);
   });
 
-  it('falls back to cwd when no .design-bridge dir found', async () => {
+  it('falls back to cwd when no .ui-bridge dir found', async () => {
     const root = await resolveRoot({}, tmpdir());
     assert.equal(root, tmpdir());
   });
@@ -584,8 +584,8 @@ describe('resolveRoot — root directory discovery', () => {
 // ── Integration: list_comments works file-direct ─────────────────────────────
 
 describe('list_comments — file-direct (no server required)', () => {
-  it('returns comments from disk when DESIGN_BRIDGE_ROOT is set', async () => {
-    // mcpCall passes DESIGN_BRIDGE_ROOT=TEST_ROOT — MCP reads files directly,
+  it('returns comments from disk when UI_BRIDGE_ROOT is set', async () => {
+    // mcpCall passes UI_BRIDGE_ROOT=TEST_ROOT — MCP reads files directly,
     // no HTTP call to the server is made.
     const responses = await mcpCall('tools/call', {
       name: 'list_comments',

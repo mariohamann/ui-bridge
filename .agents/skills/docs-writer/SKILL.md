@@ -1,6 +1,6 @@
 ---
 name: docs-writer
-description: When writing documentation for Design Bridge, use this skill to work properly in the Astro package and follow the style of the existing docs.
+description: When writing documentation for UI Bridge, use this skill to work properly in the Astro package and follow the style of the existing docs.
 ---
 
 ## Writing Code
@@ -11,4 +11,4 @@ description: When writing documentation for Design Bridge, use this skill to wor
 
 ## Writing Copy
 
-The documentation should sound friendly, helpful, and concise. Avoid unnecessary jargon and keep sentences clear and to the point. It shouldn't sound like marketing copy, but rather like a knowledgeable friend explaining how to use Design Bridge. Use the active voice and present tense to make the content more engaging.
+The documentation should sound friendly, helpful, and concise. Avoid unnecessary jargon and keep sentences clear and to the point. It shouldn't sound like marketing copy, but rather like a knowledgeable friend explaining how to use UI Bridge. Use the active voice and present tense to make the content more engaging.

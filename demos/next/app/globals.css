@@ -1,6 +1,6 @@
 @import '@picocss/pico';
 
-.db-nav {
+.uib-nav {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -11,7 +11,7 @@
   backdrop-filter: blur(8px);
   background: color-mix(in srgb, var(--pico-background-color) 85%, transparent);
 }
-.db-nav ul {
+.uib-nav ul {
   display: flex;
   gap: 1.5rem;
   list-style: none;
@@ -19,12 +19,12 @@
   padding: 0;
   align-items: center;
 }
-.db-logo {
+.uib-logo {
   font-weight: 700;
   text-decoration: none;
 }
 
-.db-hero {
+.uib-hero {
   text-align: center;
   padding: 6rem 2rem;
   background: linear-gradient(
@@ -33,18 +33,18 @@
     var(--pico-background-color) 60%
   );
 }
-.db-hero h1 {
+.uib-hero h1 {
   font-size: clamp(2rem, 5vw, 3.5rem);
 }
-.db-hero p {
+.uib-hero p {
   max-width: 36rem;
   margin: 1.5rem auto 2rem;
 }
-.db-hero a {
+.uib-hero a {
   margin: 0 0.5rem;
 }
 
-.db-features {
+.uib-features {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
   gap: 1.5rem;
@@ -52,19 +52,19 @@
   max-width: 72rem;
   margin: 0 auto;
 }
-.db-feature-card {
+.uib-feature-card {
   padding: 1.5rem;
   border: 1px solid var(--pico-muted-border-color);
   border-radius: var(--pico-border-radius);
 }
 
-.db-cta {
+.uib-cta {
   text-align: center;
   padding: 5rem 2rem;
   background: var(--pico-card-background-color);
 }
 
-.db-footer {
+.uib-footer {
   text-align: center;
   padding: 2rem;
   color: var(--pico-muted-color);

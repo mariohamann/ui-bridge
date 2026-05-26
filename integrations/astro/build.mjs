@@ -18,11 +18,11 @@ const options = {
 if (watch) {
   const ctx = await context(options);
   await ctx.watch();
-  console.log('[design-bridge/astro] watching for changes…');
+  console.log('[ui-bridge/astro] watching for changes…');
 } else {
   await build(options);
   execSync('npx tsc -p tsconfig.json --emitDeclarationOnly --noEmit false', {
     stdio: 'inherit',
   });
-  console.log('[design-bridge/astro] build complete.');
+  console.log('[ui-bridge/astro] build complete.');
 }

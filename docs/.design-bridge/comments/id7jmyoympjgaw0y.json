@@ -1,0 +1,37 @@
+{
+  "meta": {
+    "id": "id7jmyoympjgaw0y",
+    "pageUrl": "http://localhost:4321/",
+    "timestamp": 1779607408529,
+    "createdAt": 1779607407778,
+    "lastReadAt": 1779608020503
+  },
+  "elements": [
+    {
+      "minimalSelector": ".leading-relaxed",
+      "tag": "p",
+      "classes": [
+        "mx-auto",
+        "mb-12",
+        "max-w-[540px]",
+        "text-[clamp(16px,2vw,22px)]",
+        "leading-relaxed",
+        "text-wa-text-quiet"
+      ],
+      "source": {
+        "file": "/Users/mario.hamann/Documents/GitHub/ui-bridge/docs/src/components/Hero.astro",
+        "line": 19,
+        "column": 6
+      }
+    }
+  ],
+  "comments": [
+    {
+      "id": "jciw1rktmpjgawlt",
+      "type": "comment",
+      "text": "dasda",
+      "createdAt": 1779607408529,
+      "author": "user"
+    }
+  ]
+}

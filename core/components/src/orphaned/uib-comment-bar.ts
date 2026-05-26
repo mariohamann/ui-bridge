@@ -1,12 +1,12 @@
-import '@design-bridge/components/comment';
+import '@ui-bridge/components/comment';
 import { LitElement, html, type TemplateResult } from 'lit';
 import { customElement } from 'lit/decorators.js';
 import { SignalWatcher } from '@lit-labs/signals';
-import type { CommentThread } from '@design-bridge/protocol';
+import type { CommentThread } from '@ui-bridge/protocol';
 import { commentsSignal, orphanedIdsSignal } from '../state/comments-store.js';
-import { dbCommentBarStyles } from './db-comment-bar.styles.js';
+import { dbCommentBarStyles } from './uib-comment-bar.styles.js';
 
-const _DbCommentBarBase = SignalWatcher(LitElement) as unknown as typeof LitElement;
+const _UibCommentBarBase = SignalWatcher(LitElement) as unknown as typeof LitElement;
 
 /** Beyond this count a "+N" indicator appears */
 const SHOW_OVERFLOW_AFTER = 3;
@@ -19,15 +19,15 @@ function stableRanks(threads: CommentThread[]): Map<string, number> {
 }
 
 /**
- * db-comment-bar — always-visible fixed pill (top-left) showing all open
+ * uib-comment-bar — always-visible fixed pill (top-left) showing all open
  * comment badges.
  *
  * Collapsed: all badges present in DOM, the ones beyond SHOW_OVERFLOW_AFTER
  * are hidden behind the stack (smaller, lower opacity). "+N" pill shows count.
  * Hovered: all badges fan out vertically with full opacity.
  */
-@customElement('db-comment-bar')
-export class DbCommentBar extends _DbCommentBarBase {
+@customElement('uib-comment-bar')
+export class UibCommentBar extends _UibCommentBarBase {
   static styles = dbCommentBarStyles;
 
   connectedCallback(): void {
@@ -56,26 +56,26 @@ export class DbCommentBar extends _DbCommentBarBase {
         ${visible.map((thread, i) => {
           const isOrphaned = orphanedIds.has(thread.meta.id);
           return html`
-            <db-comment
+            <uib-comment
               style="z-index:${SHOW_OVERFLOW_AFTER - i}"
               .comment=${thread}
               .index=${(ranks.get(thread.meta.id) ?? 1) - 1}
               ?docked=${true}
               ?orphaned=${isOrphaned}
-            ></db-comment>
+            ></uib-comment>
           `;
         })}
         ${overflowCount > 0 ? html`<div class="overflow-pill">+${overflowCount}</div>` : ''}
         ${hidden.map((thread) => {
           const isOrphaned = orphanedIds.has(thread.meta.id);
           return html`
-            <db-comment
+            <uib-comment
               class="overflow-hidden"
               .comment=${thread}
               .index=${(ranks.get(thread.meta.id) ?? 1) - 1}
               ?docked=${true}
               ?orphaned=${isOrphaned}
-            ></db-comment>
+            ></uib-comment>
           `;
         })}
       </div>
@@ -85,6 +85,6 @@ export class DbCommentBar extends _DbCommentBarBase {
 
 declare global {
   interface HTMLElementTagNameMap {
-    'db-comment-bar': DbCommentBar;
+    'uib-comment-bar': UibCommentBar;
   }
 }

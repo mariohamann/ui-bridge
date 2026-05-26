@@ -1,9 +1,9 @@
 import type { Metadata } from 'next';
-import { DesignBridgeScript } from '@design-bridge/next';
+import { UiBridgeScript } from '@ui-bridge/next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Design Bridge — Next.js Demo',
+  title: 'UI Bridge — Next.js Demo',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -11,7 +11,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <body>
         {children}
-        {process.env.NODE_ENV === 'development' && <DesignBridgeScript />}
+        {process.env.NODE_ENV === 'development' && <UiBridgeScript />}
       </body>
     </html>
   );

@@ -1,6 +1,6 @@
-import type { BrowserMessage, ServerMessage } from '@design-bridge/protocol';
+import type { BrowserMessage, ServerMessage } from '@ui-bridge/protocol';
 
-const WS_PATH = '/design-bridge';
+const WS_PATH = '/ui-bridge';
 const RECONNECT_BASE_MS = 500;
 const RECONNECT_MAX_MS = 10_000;
 
@@ -14,17 +14,17 @@ const connectionHandlers = new Set<ConnectionHandler>();
 const buffered: ServerMessage[] = [];
 
 function connect(): void {
-  // __DB_WS_URL__ is injected by the Vite plugin (or set manually for non-Vite stacks).
+  // __UIB_WS_URL__ is injected by the Vite plugin (or set manually for non-Vite stacks).
   // Falls back to the same host so the Vite-embedded server still works as a fallback.
   const url =
-    ((window as unknown as Record<string, unknown>).__DB_WS_URL__ as string | undefined) ??
+    ((window as unknown as Record<string, unknown>).__UIB_WS_URL__ as string | undefined) ??
     `ws://${location.host}${WS_PATH}`;
   ws = new WebSocket(url);
 
   ws.addEventListener('open', () => {
     reconnectDelay = RECONNECT_BASE_MS;
     for (const h of connectionHandlers) h(true);
-    console.debug('[design-bridge] WebSocket connected');
+    console.debug('[ui-bridge] WebSocket connected');
   });
 
   ws.addEventListener('message', (event) => {
@@ -43,7 +43,7 @@ function connect(): void {
 
   ws.addEventListener('close', () => {
     for (const h of connectionHandlers) h(false);
-    console.debug(`[design-bridge] WS closed – reconnecting in ${reconnectDelay}ms`);
+    console.debug(`[ui-bridge] WS closed – reconnecting in ${reconnectDelay}ms`);
     setTimeout(() => {
       reconnectDelay = Math.min(reconnectDelay * 2, RECONNECT_MAX_MS);
       connect();

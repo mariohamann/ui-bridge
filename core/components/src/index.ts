@@ -1,5 +1,5 @@
 // ── Styles ────────────────────────────────────────────────────────────────────
-export { designBridgeHostTokenStyles, DB_HIGHLIGHT_COLOR } from './styles/tokens.js';
+export { uiBridgeHostTokenStyles, UIB_HIGHLIGHT_COLOR } from './styles/tokens.js';
 
 // ── Signal stores ─────────────────────────────────────────────────────────────
 export { knobsSignal, updateKnobs, getKnobByMarker } from './state/knobs-store.js';
@@ -23,9 +23,9 @@ export type {
 } from './state/intents.js';
 
 // ── Comment item ───────────────────────────────────────────────────────────
-export { DbComment } from './comment/db-comment.js';
-export { DbKnob } from './comment/db-knob.js';
-export { uid, shortLabel, formatTweakReply, getSourceInfo } from './comment/db-comment.utils.js';
+export { UibComment } from './comment/uib-comment.js';
+export { UibKnob } from './comment/uib-knob.js';
+export { uid, shortLabel, formatTweakReply, getSourceInfo } from './comment/uib-comment.utils.js';
 
 // ── Comment bar ──────────────────────────────────────────────────────────────
-export { DbCommentBar } from './orphaned/db-comment-bar.js';
+export { UibCommentBar } from './orphaned/uib-comment-bar.js';

@@ -1,6 +1,6 @@
 export default function HeroSection() {
   return (
-    <section className="db-hero">
+    <section className="uib-hero">
       <h1>
         Design meets code,
         <br />

@@ -1,5 +1,5 @@
 <template>
-  <section class="db-cta">
+  <section class="uib-cta">
     <h2>Ready to bridge the gap?</h2>
     <p>Start experimenting in minutes. No account required.</p>
     <a href="#" role="button">Get started</a>

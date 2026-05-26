@@ -1,7 +1,7 @@
 **/node_modules
 **/test-results
 **/dist
-**/.design-bridge
+**/.ui-bridge
 **/.wireit
 **/playwright-report
 **/.DS_Store

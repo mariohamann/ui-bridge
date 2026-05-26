@@ -8,7 +8,7 @@
  * No WebSocket or browser-API imports here — this module is transport-agnostic.
  */
 
-import type { CommentThread } from '@design-bridge/protocol';
+import type { CommentThread } from '@ui-bridge/protocol';
 
 // ── Intent types ──────────────────────────────────────────────────────────────
 

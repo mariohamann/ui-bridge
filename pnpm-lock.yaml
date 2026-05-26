@@ -20,12 +20,6 @@ importers:
       '@awesome.me/webawesome':
         specifier: ^3.7.0
         version: 3.7.0(@floating-ui/utils@0.2.11)(@types/react@19.2.14)
-      '@design-bridge/components':
-        specifier: workspace:*
-        version: link:../components
-      '@design-bridge/protocol':
-        specifier: workspace:*
-        version: link:../protocol
       '@floating-ui/dom':
         specifier: ^1.7.6
         version: 1.7.6
@@ -44,6 +38,12 @@ importers:
       '@types/node':
         specifier: ^25.6.0
         version: 25.6.2
+      '@ui-bridge/components':
+        specifier: workspace:*
+        version: link:../components
+      '@ui-bridge/protocol':
+        specifier: workspace:*
+        version: link:../protocol
       autosize:
         specifier: ^6.0.1
         version: 6.0.1
@@ -65,15 +65,15 @@ importers:
       '@awesome.me/webawesome':
         specifier: ^3.7.0
         version: 3.7.0(@floating-ui/utils@0.2.11)(@types/react@19.2.14)
-      '@design-bridge/protocol':
-        specifier: workspace:*
-        version: link:../protocol
       '@floating-ui/dom':
         specifier: ^1.7.6
         version: 1.7.6
       '@lit-labs/signals':
         specifier: ^0.2.0
         version: 0.2.0
+      '@ui-bridge/protocol':
+        specifier: workspace:*
+        version: link:../protocol
       autosize:
         specifier: ^6.0.1
         version: 6.0.1
@@ -93,12 +93,12 @@ importers:
 
   core/mcp:
     dependencies:
-      '@design-bridge/server':
-        specifier: workspace:*
-        version: link:../server
       '@modelcontextprotocol/sdk':
         specifier: ^1.29.0
         version: 1.29.0(zod@3.25.76)
+      '@ui-bridge/server':
+        specifier: workspace:*
+        version: link:../server
       zod:
         specifier: ^3.24.0
         version: 3.25.76
@@ -118,7 +118,7 @@ importers:
 
   core/server:
     dependencies:
-      '@design-bridge/client':
+      '@ui-bridge/client':
         specifier: workspace:*
         version: link:../client
       fast-glob:
@@ -140,14 +140,14 @@ importers:
 
   demos/astro:
     dependencies:
-      '@design-bridge/demo-styles':
+      '@ui-bridge/demo-styles':
         specifier: workspace:*
         version: link:../styles
       astro:
         specifier: ^6.3.1
         version: 6.3.1(@types/node@25.6.2)(db0@0.3.4)(ioredis@5.10.1)(jiti@2.7.0)(lightningcss@1.32.0)(rollup@4.60.3)(terser@5.47.1)(yaml@2.9.0)
     devDependencies:
-      '@design-bridge/astro':
+      '@ui-bridge/astro':
         specifier: workspace:*
         version: link:../../integrations/astro
 
@@ -166,9 +166,6 @@ importers:
         specifier: ^19.0.0
         version: 19.2.6(react@19.2.6)
     devDependencies:
-      '@design-bridge/next':
-        specifier: workspace:*
-        version: link:../../integrations/next
       '@types/node':
         specifier: ^25.6.0
         version: 25.6.2
@@ -178,6 +175,9 @@ importers:
       '@types/react-dom':
         specifier: ^19.0.0
         version: 19.2.3(@types/react@19.2.14)
+      '@ui-bridge/next':
+        specifier: workspace:*
+        version: link:../../integrations/next
       typescript:
         specifier: ~6.0.2
         version: 6.0.3
@@ -194,7 +194,7 @@ importers:
         specifier: ^3.5.0
         version: 3.5.34(typescript@6.0.3)
     devDependencies:
-      '@design-bridge/nuxt':
+      '@ui-bridge/nuxt':
         specifier: workspace:*
         version: link:../../integrations/nuxt
 
@@ -204,15 +204,15 @@ importers:
         specifier: ^2.0.0
         version: 2.1.1
     devDependencies:
-      '@design-bridge/unplugin':
-        specifier: workspace:*
-        version: link:../../integrations/unplugin
       '@rspack/cli':
         specifier: ^1.3.13
         version: 1.7.11(@rspack/core@1.7.11(@swc/helpers@0.5.15))(@types/express@4.17.25)(webpack@5.106.2(postcss@8.5.14))
       '@rspack/core':
         specifier: ^1.3.13
         version: 1.7.11(@swc/helpers@0.5.15)
+      '@ui-bridge/unplugin':
+        specifier: workspace:*
+        version: link:../../integrations/unplugin
       css-loader:
         specifier: ^7.0.0
         version: 7.1.4(@rspack/core@1.7.11(@swc/helpers@0.5.15))(webpack@5.106.2(postcss@8.5.14))
@@ -231,19 +231,19 @@ importers:
 
   demos/vite:
     dependencies:
-      '@design-bridge/demo-styles':
+      '@ui-bridge/demo-styles':
         specifier: workspace:*
         version: link:../styles
       vue:
         specifier: ^3.5.0
         version: 3.5.34(typescript@6.0.3)
     devDependencies:
-      '@design-bridge/unplugin':
-        specifier: workspace:*
-        version: link:../../integrations/unplugin
       '@playwright/test':
         specifier: ^1.50.0
         version: 1.59.1
+      '@ui-bridge/unplugin':
+        specifier: workspace:*
+        version: link:../../integrations/unplugin
       '@vitejs/plugin-vue':
         specifier: ^5.0.0
         version: 5.2.4(vite@6.4.2(@types/node@25.6.2)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.47.1)(yaml@2.9.0))(vue@3.5.34(typescript@6.0.3))
@@ -253,14 +253,14 @@ importers:
 
   demos/webpack:
     dependencies:
-      '@design-bridge/demo-styles':
-        specifier: workspace:*
-        version: link:../styles
       '@picocss/pico':
         specifier: ^2.0.0
         version: 2.1.1
+      '@ui-bridge/demo-styles':
+        specifier: workspace:*
+        version: link:../styles
     devDependencies:
-      '@design-bridge/unplugin':
+      '@ui-bridge/unplugin':
         specifier: workspace:*
         version: link:../../integrations/unplugin
       css-loader:
@@ -287,7 +287,7 @@ importers:
       '@awesome.me/webawesome':
         specifier: ^3.7.0
         version: 3.7.0(@floating-ui/utils@0.2.11)(@types/react@19.2.14)
-      '@design-bridge/astro':
+      '@ui-bridge/astro':
         specifier: workspace:*
         version: link:../integrations/astro
       astro:
@@ -306,10 +306,10 @@ importers:
 
   integrations/astro:
     dependencies:
-      '@design-bridge/mcp':
+      '@ui-bridge/mcp':
         specifier: workspace:*
         version: link:../../core/mcp
-      '@design-bridge/unplugin':
+      '@ui-bridge/unplugin':
         specifier: workspace:*
         version: link:../unplugin
     devDependencies:
@@ -331,10 +331,10 @@ importers:
 
   integrations/next:
     dependencies:
-      '@design-bridge/mcp':
+      '@ui-bridge/mcp':
         specifier: workspace:*
         version: link:../../core/mcp
-      '@design-bridge/server':
+      '@ui-bridge/server':
         specifier: workspace:*
         version: link:../../core/server
       react:
@@ -362,10 +362,10 @@ importers:
 
   integrations/nuxt:
     dependencies:
-      '@design-bridge/mcp':
+      '@ui-bridge/mcp':
         specifier: workspace:*
         version: link:../../core/mcp
-      '@design-bridge/unplugin':
+      '@ui-bridge/unplugin':
         specifier: workspace:*
         version: link:../unplugin
       nuxt:
@@ -393,13 +393,13 @@ importers:
 
   integrations/unplugin:
     dependencies:
-      '@design-bridge/client':
+      '@ui-bridge/client':
         specifier: workspace:*
         version: link:../../core/client
-      '@design-bridge/mcp':
+      '@ui-bridge/mcp':
         specifier: workspace:*
         version: link:../../core/mcp
-      '@design-bridge/server':
+      '@ui-bridge/server':
         specifier: workspace:*
         version: link:../../core/server
       code-inspector-plugin:

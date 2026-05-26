@@ -1,6 +1,6 @@
 <template>
-  <nav class="db-nav">
-    <a href="/" class="db-logo">Luminary</a>
+  <nav class="uib-nav">
+    <a href="/" class="uib-logo">Luminary</a>
     <ul>
       <li><a href="#">Features</a></li>
       <li><a href="#">Pricing</a></li>

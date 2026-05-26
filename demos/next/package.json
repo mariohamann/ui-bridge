@@ -1,5 +1,5 @@
 {
-  "name": "design-bridge-demo-next",
+  "name": "ui-bridge-demo-next",
   "version": "0.0.1",
   "private": true,
   "scripts": {
@@ -32,7 +32,7 @@
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
-    "@design-bridge/next": "workspace:*",
+    "@ui-bridge/next": "workspace:*",
     "@types/node": "^25.6.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",

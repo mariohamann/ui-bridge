@@ -1,7 +1,7 @@
 /**
  * Root isolation tests.
  *
- * Verifies that a running Design Bridge server correctly exposes its `root`
+ * Verifies that a running UI Bridge server correctly exposes its `root`
  * in GET /health, and that a client checking for root-match will NOT reuse
  * a server that belongs to a different project root.
  *
@@ -32,12 +32,12 @@ function spawnServer(
 ): { child: ChildProcess; ready: Promise<number> } {
   const child = spawn(process.execPath, [SERVER_ENTRY, '--root', rootDir], {
     stdio: ['ignore', 'pipe', 'pipe'],
-    env: { ...process.env, DESIGN_BRIDGE_PORT: String(preferredPort) },
+    env: { ...process.env, UI_BRIDGE_PORT: String(preferredPort) },
   });
   const ready = new Promise<number>((resolve, reject) => {
     const rl = createInterface({ input: child.stdout! });
     rl.on('line', (line) => {
-      const match = line.match(/^DESIGN_BRIDGE_READY:(\d+)$/);
+      const match = line.match(/^UI_BRIDGE_READY:(\d+)$/);
       if (match) {
         rl.close();
         resolve(parseInt(match[1], 10));

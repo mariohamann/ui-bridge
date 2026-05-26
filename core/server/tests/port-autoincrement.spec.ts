@@ -2,7 +2,7 @@
  * Port auto-increment tests.
  *
  * Verifies that the server correctly finds a free port when the preferred port
- * is already occupied, emits the DESIGN_BRIDGE_READY:<port> signal on stdout,
+ * is already occupied, emits the UI_BRIDGE_READY:<port> signal on stdout,
  * and reports the actual port via GET /health.
  *
  * These tests manage their own server processes — they do NOT use the shared
@@ -38,23 +38,23 @@ function occupyPort(port: number): Promise<[NetServer, () => Promise<void>]> {
 }
 
 /**
- * Spawn the Design Bridge server with the given preferred port.
+ * Spawn the UI Bridge server with the given preferred port.
  * Returns the child process and a promise that resolves with the port
- * extracted from the DESIGN_BRIDGE_READY:<port> stdout line.
+ * extracted from the UI_BRIDGE_READY:<port> stdout line.
  */
-function spawnDesignBridgeServer(preferredPort: number): {
+function spawnUiBridgeServer(preferredPort: number): {
   child: ChildProcess;
   ready: Promise<number>;
 } {
   const child = spawn(process.execPath, [SERVER_ENTRY, '--root', TEST_ROOT], {
     stdio: ['ignore', 'pipe', 'pipe'],
-    env: { ...process.env, DESIGN_BRIDGE_PORT: String(preferredPort) },
+    env: { ...process.env, UI_BRIDGE_PORT: String(preferredPort) },
   });
 
   const ready = new Promise<number>((resolve, reject) => {
     const rl = createInterface({ input: child.stdout! });
     rl.on('line', (line) => {
-      const match = line.match(/^DESIGN_BRIDGE_READY:(\d+)$/);
+      const match = line.match(/^UI_BRIDGE_READY:(\d+)$/);
       if (match) {
         rl.close();
         resolve(parseInt(match[1], 10));
@@ -85,7 +85,7 @@ function kill(child: ChildProcess): Promise<void> {
 
 test('starts on preferred port when it is free', async () => {
   const PREFERRED = 7480;
-  const { child, ready } = spawnDesignBridgeServer(PREFERRED);
+  const { child, ready } = spawnUiBridgeServer(PREFERRED);
   try {
     const actualPort = await ready;
     expect(actualPort).toBe(PREFERRED);
@@ -102,7 +102,7 @@ test('starts on preferred port when it is free', async () => {
 test('auto-increments to the next free port when preferred is occupied', async () => {
   const PREFERRED = 7481;
   const [, release] = await occupyPort(PREFERRED);
-  const { child, ready } = spawnDesignBridgeServer(PREFERRED);
+  const { child, ready } = spawnUiBridgeServer(PREFERRED);
   try {
     const actualPort = await ready;
     expect(actualPort).toBe(PREFERRED + 1);
@@ -121,7 +121,7 @@ test('skips multiple occupied ports until a free one is found', async () => {
   const PREFERRED = 7482;
   const [, release1] = await occupyPort(PREFERRED);
   const [, release2] = await occupyPort(PREFERRED + 1);
-  const { child, ready } = spawnDesignBridgeServer(PREFERRED);
+  const { child, ready } = spawnUiBridgeServer(PREFERRED);
   try {
     const actualPort = await ready;
     expect(actualPort).toBe(PREFERRED + 2);
@@ -139,7 +139,7 @@ test('skips multiple occupied ports until a free one is found', async () => {
 test('/health always returns the actual bound port, not the preferred port', async () => {
   const PREFERRED = 7483;
   const [, release] = await occupyPort(PREFERRED);
-  const { child, ready } = spawnDesignBridgeServer(PREFERRED);
+  const { child, ready } = spawnUiBridgeServer(PREFERRED);
   try {
     const actualPort = await ready;
     expect(actualPort).not.toBe(PREFERRED);

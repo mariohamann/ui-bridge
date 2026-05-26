@@ -1,5 +1,5 @@
 import { Signal } from 'signal-polyfill';
-import type { CommentThread } from '@design-bridge/protocol';
+import type { CommentThread } from '@ui-bridge/protocol';
 
 /**
  * Signal store for comment threads.
@@ -16,7 +16,7 @@ export function updateComments(comments: CommentThread[]): void {
 
 /**
  * Signal store for orphaned comment IDs — comments whose CSS selector no
- * longer matches any DOM element. Updated by db-comment on each reposition.
+ * longer matches any DOM element. Updated by uib-comment on each reposition.
  */
 export const orphanedIdsSignal = new Signal.State<Set<string>>(new Set());
 

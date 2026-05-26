@@ -1,5 +1,5 @@
 import { Signal } from 'signal-polyfill';
-import type { TweakKnob } from '@design-bridge/protocol';
+import type { TweakKnob } from '@ui-bridge/protocol';
 
 /**
  * Signal store for tweak knobs.

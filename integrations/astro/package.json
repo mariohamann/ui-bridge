@@ -1,5 +1,5 @@
 {
-  "name": "@design-bridge/astro",
+  "name": "@ui-bridge/astro",
   "version": "0.0.1",
   "type": "module",
   "main": "./dist/index.js",
@@ -49,8 +49,8 @@
     }
   },
   "dependencies": {
-    "@design-bridge/mcp": "workspace:*",
-    "@design-bridge/unplugin": "workspace:*"
+    "@ui-bridge/mcp": "workspace:*",
+    "@ui-bridge/unplugin": "workspace:*"
   },
   "devDependencies": {
     "@playwright/test": "^1.50.0",

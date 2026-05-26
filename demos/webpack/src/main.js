@@ -1,2 +1,2 @@
-import '@design-bridge/demo-styles/base.css';
+import '@ui-bridge/demo-styles/base.css';
 import './style.css';

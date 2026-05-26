@@ -1,6 +1,6 @@
 /**
  * WS adapter — the sole glue layer that connects the transport (WebSocket) to
- * the shared signal stores and intent bus from @design-bridge/components.
+ * the shared signal stores and intent bus from @ui-bridge/components.
  *
  * Direction A: Server → Browser
  *   onMessage() → update signal stores (knobs, comments)
@@ -8,12 +8,12 @@
  * Direction B: Browser → Server
  *   onIntent() → translate ComponentIntent → BrowserMessage → sendMessage()
  *
- * Nothing in the UI layer (db-comment) should import
+ * Nothing in the UI layer (uib-comment) should import
  * sendMessage or onMessage directly — they express what they want via intents.
  */
 
 import { onMessage, sendMessage } from './ws-client.js';
-import { updateKnobs, updateComments, onIntent } from '@design-bridge/components';
+import { updateKnobs, updateComments, onIntent } from '@ui-bridge/components';
 
 // ── A: Server → stores ───────────────────────────────────────────────────────
 

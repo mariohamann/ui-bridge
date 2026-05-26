@@ -1,7 +1,7 @@
 export default function AppNav() {
   return (
-    <nav className="db-nav">
-      <a href="/" className="db-logo">
+    <nav className="uib-nav">
+      <a href="/" className="uib-logo">
         Luminary
       </a>
       <ul>

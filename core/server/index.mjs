@@ -1,16 +1,16 @@
 #!/usr/bin/env node
 /**
- * Design Bridge — Standalone Server
+ * UI Bridge — Standalone Server
  *
  * Orchestrates the tweak engine, comment store, HTTP server, and WebSocket
  * server. Business logic lives in tweak-engine.mjs and comment-store.mjs.
  *
  * Usage:
  *   node packages/server/index.mjs --root /path/to/project
- *   npx design-bridge-server --root .
+ *   npx ui-bridge-server --root .
  *
  * Environment:
- *   DESIGN_BRIDGE_PORT  — port to listen on (default: 7378)
+ *   UI_BRIDGE_PORT  — port to listen on (default: 7378)
  */
 
 import { createServer } from 'node:http';
@@ -25,17 +25,14 @@ import { createTweakEngine } from './tweak-engine.mjs';
 import { createCommentStore } from './comment-store.mjs';
 
 const _require = createRequire(import.meta.url);
-const CLIENT_BUNDLE_PATH = _require.resolve('@design-bridge/client');
+const CLIENT_BUNDLE_PATH = _require.resolve('@ui-bridge/client');
 
 // ── CLI args ──────────────────────────────────────────────────────────────────
 
 const args = process.argv.slice(2);
 const rootIdx = args.indexOf('--root');
 const ROOT = rootIdx >= 0 ? resolve(args[rootIdx + 1]) : process.cwd();
-const PREFERRED_PORT = parseInt(
-  process.env.DESIGN_BRIDGE_PORT ?? process.env.DB_PORT ?? '7378',
-  10,
-);
+const PREFERRED_PORT = parseInt(process.env.UI_BRIDGE_PORT ?? process.env.UIB_PORT ?? '7378', 10);
 let actualPort = PREFERRED_PORT;
 
 // ── Free-port finder ──────────────────────────────────────────────────────────
@@ -52,7 +49,7 @@ function findFreePort(start, maxAttempts = 10) {
           if (attempt >= maxAttempts) {
             reject(
               new Error(
-                `[design-bridge] no free port found in range ${start}–${start + maxAttempts - 1}`,
+                `[ui-bridge] no free port found in range ${start}–${start + maxAttempts - 1}`,
               ),
             );
           } else {
@@ -258,7 +255,7 @@ const httpServer = createServer(async (req, res) => {
     return;
   }
 
-  if (url === '/design-bridge/client.js' && req.method === 'GET') {
+  if (url === '/ui-bridge/client.js' && req.method === 'GET') {
     try {
       res.writeHead(200, {
         'Content-Type': 'application/javascript; charset=utf-8',
@@ -464,7 +461,7 @@ const httpServer = createServer(async (req, res) => {
 });
 
 httpServer.on('upgrade', (req, socket, head) => {
-  if (req.url === '/design-bridge') {
+  if (req.url === '/ui-bridge') {
     wss.handleUpgrade(req, socket, head, (ws) => wss.emit('connection', ws, req));
   } else {
     socket.destroy();
@@ -476,7 +473,7 @@ httpServer.on('upgrade', (req, socket, head) => {
 await store.load();
 
 // Watch for external comment file changes (e.g. from MCP writing files directly)
-const COMMENTS_WATCH_DIR = resolve(ROOT, '.design-bridge', 'comments');
+const COMMENTS_WATCH_DIR = resolve(ROOT, '.ui-bridge', 'comments');
 let commentsWatcher;
 mkdir(COMMENTS_WATCH_DIR, { recursive: true }).then(() => {
   commentsWatcher = watch(COMMENTS_WATCH_DIR, { persistent: false }, async (_, filename) => {
@@ -488,10 +485,10 @@ mkdir(COMMENTS_WATCH_DIR, { recursive: true }).then(() => {
 
 // ── Graceful shutdown ─────────────────────────────────────────────────────────
 
-const PORT_FILE = resolve(ROOT, '.design-bridge', '.port');
+const PORT_FILE = resolve(ROOT, '.ui-bridge', '.port');
 
 async function writePortFile(port) {
-  await mkdir(resolve(ROOT, '.design-bridge'), { recursive: true });
+  await mkdir(resolve(ROOT, '.ui-bridge'), { recursive: true });
   await writeFile(PORT_FILE, String(port), 'utf-8');
 }
 
@@ -512,12 +509,12 @@ process.on('SIGINT', shutdown);
 actualPort = await findFreePort(PREFERRED_PORT);
 if (actualPort !== PREFERRED_PORT) {
   console.log(
-    `[design-bridge] port ${PREFERRED_PORT} in use, using http://localhost:${actualPort} instead`,
+    `[ui-bridge] port ${PREFERRED_PORT} in use, using http://localhost:${actualPort} instead`,
   );
 }
 
 httpServer.listen(actualPort, async () => {
   await writePortFile(actualPort);
-  console.log(`[design-bridge] server listening on http://localhost:${actualPort} (root: ${ROOT})`);
-  console.log(`DESIGN_BRIDGE_READY:${actualPort}`);
+  console.log(`[ui-bridge] server listening on http://localhost:${actualPort} (root: ${ROOT})`);
+  console.log(`UI_BRIDGE_READY:${actualPort}`);
 });

@@ -30,11 +30,11 @@ if (watch) {
   const ctx = await context(options);
   const loaderCtx = await context(loaderOptions);
   await Promise.all([ctx.watch(), loaderCtx.watch()]);
-  console.log('[design-bridge/unplugin] watching for changes…');
+  console.log('[ui-bridge/unplugin] watching for changes…');
 } else {
   await Promise.all([build(options), build(loaderOptions)]);
   execSync('npx tsc -p tsconfig.build.json --emitDeclarationOnly --declaration --outDir dist', {
     stdio: 'inherit',
   });
-  console.log('[design-bridge/unplugin] build complete');
+  console.log('[ui-bridge/unplugin] build complete');
 }

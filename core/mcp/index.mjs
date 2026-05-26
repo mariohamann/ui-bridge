@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /**
- * Design Bridge MCP Server (stdio transport)
+ * UI Bridge MCP Server (stdio transport)
  *
- * Exposes Design Bridge comment and tweak actions as MCP tools, and
+ * Exposes UI Bridge comment and tweak actions as MCP tools, and
  * provides workflow guidance as MCP resources.
  *
  * Comment operations work entirely via the file system — no running server
@@ -13,9 +13,9 @@
  * It degrades gracefully when the server is not running.
  *
  * Environment:
- *   DESIGN_BRIDGE_ROOT  — project root (directory containing .design-bridge/)
- *   DESIGN_BRIDGE_URL   — full server URL (overrides port discovery)
- *   DESIGN_BRIDGE_PORT  — server port (overrides .port file)
+ *   UI_BRIDGE_ROOT  — project root (directory containing .ui-bridge/)
+ *   UI_BRIDGE_URL   — full server URL (overrides port discovery)
+ *   UI_BRIDGE_PORT  — server port (overrides .port file)
  *
  * Usage in .mcp.json:
  *   { "type": "stdio", "command": "node", "args": ["path/to/core/mcp/index.mjs"] }
@@ -26,7 +26,7 @@ import { resolve } from 'node:path';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
-import { createCommentStore } from '@design-bridge/server/comment-store';
+import { createCommentStore } from '@ui-bridge/server/comment-store';
 import { resolveBaseUrl, resolveRoot } from './resolve-url.mjs';
 
 // ── Lazy store ────────────────────────────────────────────────────────────────
@@ -69,7 +69,7 @@ async function apiFetch(baseUrl, path, { method = 'GET', body } = {}) {
 
 const GUIDE_WORKFLOW = `# When to Tweak vs. Direct Edit
 
-Design Bridge enables a **conversational design loop** between the user and the LLM,
+UI Bridge enables a **conversational design loop** between the user and the LLM,
 anchored to specific DOM elements. Comments are threads; the LLM is a first-class
 participant that can reply with text, code changes, or live tweaks.
 
@@ -115,7 +115,7 @@ different files or different lines, the replay engine composes them correctly.
 5. The browser shows the knob inline in the reply thread. The user accepts or discards.
 `;
 
-const GUIDE_WRITE_SCRIPTS = `# How to Write Design Bridge Transform Scripts
+const GUIDE_WRITE_SCRIPTS = `# How to Write UI Bridge Transform Scripts
 
 ## Script format
 
@@ -240,7 +240,7 @@ Step 2 — reply to the comment with a tweak:
 // ── MCP server setup ──────────────────────────────────────────────────────────
 
 const INSTRUCTIONS = `
-Design Bridge bridges design exploration and code. It runs a local server alongside your dev
+UI Bridge bridges design exploration and code. It runs a local server alongside your dev
 server and injects a floating comment panel into the browser.
 
 ## Core concepts
@@ -294,7 +294,7 @@ Call \`get_write_scripts_guide\` before writing any script. Required signature:
 `;
 
 const server = new McpServer(
-  { name: 'Design Bridge', version: '0.0.1' },
+  { name: 'UI Bridge', version: '0.0.1' },
   { instructions: INSTRUCTIONS },
 );
 
@@ -302,30 +302,30 @@ const server = new McpServer(
 
 server.resource(
   'workflow-guide',
-  'design-bridge://guide/workflow',
+  'ui-bridge://guide/workflow',
   {
     mimeType: 'text/markdown',
     description: 'Conversational design loop — when to tweak vs. direct edit',
   },
   async () => ({
     contents: [
-      { uri: 'design-bridge://guide/workflow', mimeType: 'text/markdown', text: GUIDE_WORKFLOW },
+      { uri: 'ui-bridge://guide/workflow', mimeType: 'text/markdown', text: GUIDE_WORKFLOW },
     ],
   }),
 );
 
 server.resource(
   'write-scripts-guide',
-  'design-bridge://guide/write-scripts',
+  'ui-bridge://guide/write-scripts',
   {
     mimeType: 'text/markdown',
     description:
-      'How to write Design Bridge transform scripts for reply_to_comment / create_comment tweaks',
+      'How to write UI Bridge transform scripts for reply_to_comment / create_comment tweaks',
   },
   async () => ({
     contents: [
       {
-        uri: 'design-bridge://guide/write-scripts',
+        uri: 'ui-bridge://guide/write-scripts',
         mimeType: 'text/markdown',
         text: GUIDE_WRITE_SCRIPTS,
       },
@@ -337,7 +337,7 @@ server.resource(
 
 server.tool(
   'get_write_scripts_guide',
-  `Return the full Design Bridge transform script authoring reference.
+  `Return the full UI Bridge transform script authoring reference.
   Call this BEFORE writing any transform script (.mjs file) for a tweak.
   Covers: required function signature, parameter order, knob types, regex rules, HMR behaviour, and complete examples.`,
   {},
@@ -348,7 +348,7 @@ server.tool(
 
 server.tool(
   'list_comments',
-  `List all comments stored in Design Bridge.
+  `List all comments stored in UI Bridge.
   Call this proactively at the start of a session to discover pending design feedback and active
   tweaks. Each comment may carry a \`knob\` (live tweak), an \`actions\` array, and a \`replies\`
   thread. Comments without a \`resolvedAt\` field are still open.
@@ -457,18 +457,18 @@ server.tool(
     };
     const comments = knob
       ? [
-        rootEntry,
-        {
-          id: `${id}-tweak`,
-          type: 'tweak',
-          text: comment,
-          createdAt: now,
-          author: 'agent',
-          knob,
-          actions: actions ?? [],
-          tweakStatus: 'pending',
-        },
-      ]
+          rootEntry,
+          {
+            id: `${id}-tweak`,
+            type: 'tweak',
+            text: comment,
+            createdAt: now,
+            author: 'agent',
+            knob,
+            actions: actions ?? [],
+            tweakStatus: 'pending',
+          },
+        ]
       : [rootEntry];
     const payload = {
       meta: { id, pageUrl, timestamp: now, createdAt: now },
@@ -544,19 +544,19 @@ server.tool(
     const textEntry = { id: replyId, type: 'comment', text, createdAt: now, author: 'agent' };
     const newComments = knob
       ? [
-        ...(existing.comments ?? []),
-        textEntry,
-        {
-          id: `${replyId}-tweak`,
-          type: 'tweak',
-          text,
-          createdAt: now,
-          author: 'agent',
-          knob,
-          actions: actions ?? [],
-          tweakStatus: 'pending',
-        },
-      ]
+          ...(existing.comments ?? []),
+          textEntry,
+          {
+            id: `${replyId}-tweak`,
+            type: 'tweak',
+            text,
+            createdAt: now,
+            author: 'agent',
+            knob,
+            actions: actions ?? [],
+            tweakStatus: 'pending',
+          },
+        ]
       : [...(existing.comments ?? []), textEntry];
     const updated = {
       ...existing,
@@ -587,7 +587,7 @@ server.tool(
             text: JSON.stringify(
               {
                 tweaks: [],
-                note: 'Design Bridge server not running — live tweak state unavailable',
+                note: 'UI Bridge server not running — live tweak state unavailable',
               },
               null,
               2,
@@ -601,7 +601,7 @@ server.tool(
 
 server.tool(
   'get_server_info',
-  `Get the running Design Bridge server's root directory and key paths.
+  `Get the running UI Bridge server's root directory and key paths.
   Call this first when creating a tweak — it tells you where to write script files.
 
   Returns: { port, root, scriptsDir, commentsDir }
@@ -613,7 +613,7 @@ server.tool(
     const { root } = await getStore();
     let port = null;
     try {
-      const portStr = await readFile(resolve(root, '.design-bridge', '.port'), 'utf-8');
+      const portStr = await readFile(resolve(root, '.ui-bridge', '.port'), 'utf-8');
       port = parseInt(portStr.trim(), 10);
     } catch {
       // server not running — port stays null
@@ -626,8 +626,8 @@ server.tool(
             {
               port,
               root,
-              scriptsDir: `${root}/.design-bridge/scripts`,
-              commentsDir: `${root}/.design-bridge/comments`,
+              scriptsDir: `${root}/.ui-bridge/scripts`,
+              commentsDir: `${root}/.ui-bridge/comments`,
             },
             null,
             2,
