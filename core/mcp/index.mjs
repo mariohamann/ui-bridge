@@ -69,57 +69,30 @@ async function apiFetch(baseUrl, path, { method = 'GET', body } = {}) {
 
 const GUIDE_WORKFLOW = `# When to Tweak vs. Direct Edit
 
-UI Bridge enables a **conversational design loop** between the user and the LLM,
-anchored to specific DOM elements. Comments are threads; the LLM is a first-class
-participant that can reply with text, code changes, or live tweaks.
-
 ## Conversation flow
 
-1. **User** marks an element in the browser (Alt+click) and writes a comment.
-2. **LLM** reads the thread via \`list_comments\` / \`get_comment\` and responds with one of:
-   - **(a) Text reply** — \`reply_to_comment\` with just \`text\`
-   - **(b) Text + tweak** — \`reply_to_comment\` with \`text\` + \`knob\` + \`actions\` (live UI knob)
-   - **(c) New comment** — \`create_comment\` to annotate a different element
-3. **User** sees the live knob, tries values, then accepts or discards from the panel.
-   - Accept → file change is permanent, knob collapses with "✓ Tweak accepted" badge.
-   - Discard → files restored, knob collapses with "✕ Tweak discarded" badge.
-   - Thread stays open for further replies either way.
-4. If the user is unhappy, they reply again and the LLM can \`reply_to_comment\` with a new tweak.
-   The previous tweak is already resolved, so there is no conflict.
+1. User marks an element (Alt+click) and writes a comment.
+2. LLM reads the thread via \`list_comments\` / \`get_comment\` and responds with a text reply, a text + tweak reply, or a new comment on a different element.
+3. User tries the live knob and accepts (permanent) or discards (restored) from the panel.
 
 ## Use a tweak when
 
-- The user's comment signals exploration: "try", "compare", "I'm not sure", "options", "let me see".
-- The decision isn't final — the user needs to see variants to decide.
+The comment signals exploration: "try", "compare", "I'm not sure", "let me see options".
 
 ## Use a direct edit when
 
-- The user's intent is clear and decided: "fix", "change X to Y", "it's wrong", "make it smaller".
-- Bug fixes, structural refactors, single correct outcome.
-- When in doubt — default to a direct edit.
+The intent is clear and decided: "fix", "change X to Y", "it's wrong", "make it smaller".
+Bug fixes, structural refactors, single correct outcome.
+**When in doubt — default to a direct edit.**
 
-## Multiple tweaks at once
+## Multiple tweaks
 
-Each comment can carry **one knob**. For independent tweaks on the same thread, call
-\`reply_to_comment\` for each one — they become sibling replies. As long as they touch
-different files or different lines, the replay engine composes them correctly.
-
-## Workflow for creating a tweak reply
-
-1. \`get_server_info\` — note \`scriptsDir\`.
-2. Read the target source file to find the exact string to transform.
-3. Write \`{scriptsDir}/{scriptId}.mjs\` — signature: \`export default (content, value) => string\`
-   where \`content\` is the full file text (first) and \`value\` is the knob value (second).
-   ⚠ Reversing the parameters corrupts or empties the file.
-4. \`reply_to_comment\` with \`text\`, \`knob\`, and \`actions\` referencing the scriptId.
-5. The browser shows the knob inline in the reply thread. The user accepts or discards.
+Each comment holds one knob. For independent tweaks on the same thread, add sibling \`reply_to_comment\` calls — the replay engine composes them in creation order as long as they touch different code.
 `;
 
 const GUIDE_WRITE_SCRIPTS = `# How to Write UI Bridge Transform Scripts
 
 ## Script format
-
-A transform script is a plain \`.mjs\` file with a **single default export**:
 
 \`\`\`js
 // {scriptsDir}/my-script-id.mjs
@@ -127,25 +100,15 @@ export default (content, value) =>
   content.replace(/variant="[^"]*"/, \`variant="\${value}"\`);
 \`\`\`
 
-The function receives:
-- \`content\` — the **original** source file text (always restored before replay) — **FIRST parameter**
-- \`value\` — the current knob value as a **string** (all types are coerced) — **SECOND parameter**
-
-It must return the modified file content as a string.
-The function must be **pure** — no imports, no async, no side effects.
-
-> ⚠️ **Common mistake — reversed parameters**: the first parameter is \`content\` (the file text),
-> the second is \`value\` (the knob). Writing \`(value, content)\` or \`(value, original)\` means
-> your regex runs on the knob string, returns \`undefined\`, and the file is emptied or corrupted.
+- **\`content\`** — full original file text (FIRST param, always restored before replay)
+- **\`value\`** — knob value as a string (SECOND param, all types coerced)
+- Must return a string. Must be pure — no imports, no async, no side effects.
+- ⚠ \`(value, content)\` reverses the params and corrupts the file.
 
 ## Where to write the script
 
-Call \`get_server_info\` to get \`scriptsDir\`. Write the file directly:
-
-  \`{scriptsDir}/{scriptId}.mjs\`
-
-The \`scriptId\` must be lowercase kebab-case (e.g. \`hero-variant\`).
-The server reads scripts from disk on demand — no registration step needed.
+Call \`get_server_info\` → use \`scriptsDir\`. Filename: \`{scriptsDir}/{scriptId}.mjs\` (lowercase kebab-case).
+No registration needed — the server reads scripts from disk on demand.
 
 ## Knob types
 
@@ -160,13 +123,9 @@ The server reads scripts from disk on demand — no registration step needed.
 
 Prefer \`select\` or \`button-group\` over \`string\` for fixed option sets.
 
-## Replay model — write your regex against the original
+## Replay model
 
-Every time any knob changes, the engine:
-1. Restores all touched files to their **original content** from snapshot.
-2. Replays **all active tweaks in creation order**.
-
-**Your regex must match the original source, not a previously-tweaked version.**
+On every knob change the engine restores all touched files from snapshot and replays all active tweaks in creation order. **Regexes must match the original source.**
 
 ## Regex rules
 
@@ -204,17 +163,13 @@ export default (content, value) =>
 
 Prefer \`.vue\` or \`.css\` targets over \`.html\` entry files.
 
-## Complete example
-
-Step 1 — write the script to disk:
+## Example
 
 \`\`\`js
 // {scriptsDir}/feature-icon.mjs
 export default (content, value) =>
   content.replace(/icon: '[^']*'/, \`icon: '\${value}'\`);
 \`\`\`
-
-Step 2 — reply to the comment with a tweak:
 
 \`\`\`json
 {
@@ -240,57 +195,31 @@ Step 2 — reply to the comment with a tweak:
 // ── MCP server setup ──────────────────────────────────────────────────────────
 
 const INSTRUCTIONS = `
-UI Bridge bridges design exploration and code. It runs a local server alongside your dev
-server and injects a floating comment panel into the browser.
-
-## Core concepts
-
-**Comments** are threads attached to DOM elements via CSS selectors. Each thread can hold
-text replies and live tweaks. The LLM is a first-class participant — it can create comments
-and reply with text, code changes, or live knob tweaks.
-
-**Tweaks** are live knobs embedded in a reply. When the knob value changes, the engine
-restores the original file from snapshot and replays all active tweaks — the result is
-hot-module-replaced in the browser instantly.
+UI Bridge injects a floating comment panel into the browser and bridges design feedback to code.
+**Comments** are threads on DOM elements. **Tweaks** are live knobs in replies — on change, the engine restores all touched files from snapshot and replays tweaks, hot-replacing the result.
 
 ## Agent scope
 
-The agent can **read all comments** but can only **create or edit agent-authored content**
-(author='agent'). Resolving, accepting, discarding, and deleting is the **user's job** —
-done from the browser panel. Never attempt those actions on the user's behalf.
+Read all comments; create/edit only agent-authored content (author='agent').
+Resolving, accepting, discarding, and deleting is the **user's job** — never do it on their behalf.
 
-## Conversational flow
+## Response modes
 
-1. User annotates an element in the browser; a thread is created.
-2. LLM calls \`list_comments\` at session start, then reads each open thread and responds.
-3. For each thread, choose **one** of two response modes based on the user's intent:
+Call \`list_comments\` at session start, then for each open thread pick one mode:
 
-**Mode A — Direct edit** (default): The user's intent is clear and decided.
-Examples: "fix this", "change X to Y", "the spacing is wrong".
-→ Make the code change directly, then \`reply_to_comment\` with text explaining what was done.
-→ No knob, no script.
+- **Mode A — Direct edit** (default): intent is decided ("fix", "change X to Y", "it's wrong") → edit code, then \`reply_to_comment\` with text. No knob.
+- **Mode B — Live tweak**: intent is exploratory ("try", "I'm not sure", "let me see options") → call \`get_write_scripts_guide\`, write script, then \`reply_to_comment\` with knob.
 
-**Mode B — Live tweak**: The user wants to explore options interactively in the browser.
-Examples: "try different sizes", "I'm not sure which color", "let me see options", "explore this".
-→ Call \`get_write_scripts_guide\` first, create the script, then \`reply_to_comment\` with a knob.
-→ The user tries values live and accepts or discards from the panel.
+When in doubt, use Mode A.
 
-When in doubt, prefer Mode A. Only use Mode B when the comment clearly signals exploration.
+## Tools
 
-## Key tools
-
-- \`create_comment\`      — start a new thread on one or more elements (agent-authored)
-- \`reply_to_comment\`    — add an agent reply (text only, or text + live tweak)
-- \`list_comments\`       — read open (unresolved) threads by default; pass \`includeResolved: true\` to see all
-- \`get_comment\`         — read a single thread with full knob + actions + replies
-- \`get_tweaks\`          — list all live knobs with current values
-- \`get_server_info\`     — get root, scriptsDir, commentsDir paths
-
-## When writing a tweak script (Mode B only)
-
-Call \`get_write_scripts_guide\` before writing any script. Required signature:
-  export default (content, value) => string  — content FIRST, value SECOND.
-⚠ Reversing the parameters corrupts the file.
+- \`list_comments\` / \`get_comment\` — read threads
+- \`create_comment\` — start a new agent thread
+- \`reply_to_comment\` — add text or text + tweak reply
+- \`get_tweaks\` — live knob state
+- \`get_server_info\` — root, scriptsDir, commentsDir
+- \`get_write_scripts_guide\` — full script reference (call before writing any .mjs tweak)
 `;
 
 const server = new McpServer(
@@ -383,22 +312,8 @@ server.tool(
 server.tool(
   'create_comment',
   `Start a new comment thread on one or more DOM elements (agent-authored).
-  Use this when the LLM proactively wants to annotate an element or respond to user
-  feedback by opening a thread on a specific element.
-
-  Can optionally attach a live tweak knob (knob + actions). If creating a tweak:
-  1. Call get_server_info — note scriptsDir.
-  2. Read the target source file to find the exact string to replace.
-  3. Write {scriptsDir}/{scriptId}.mjs — REQUIRED signature:
-        export default (content, value) => string
-     • content = the full file text (FIRST param)
-     • value   = the knob value as a string (SECOND param)
-     ⚠ Reversing the params (e.g. (value, content)) corrupts or empties the file.
-  4. Include knob + actions in this call.
-
   The comment is stamped author='agent'.
-
-  Call get_write_scripts_guide for the full script reference (knob types, regex rules, HMR notes).`,
+  For tweaks: call get_write_scripts_guide first — signature is (content, value) => string, content FIRST.`,
   {
     elements: z
       .array(
@@ -457,18 +372,18 @@ server.tool(
     };
     const comments = knob
       ? [
-          rootEntry,
-          {
-            id: `${id}-tweak`,
-            type: 'tweak',
-            text: comment,
-            createdAt: now,
-            author: 'agent',
-            knob,
-            actions: actions ?? [],
-            tweakStatus: 'pending',
-          },
-        ]
+        rootEntry,
+        {
+          id: `${id}-tweak`,
+          type: 'tweak',
+          text: comment,
+          createdAt: now,
+          author: 'agent',
+          knob,
+          actions: actions ?? [],
+          tweakStatus: 'pending',
+        },
+      ]
       : [rootEntry];
     const payload = {
       meta: { id, pageUrl, timestamp: now, createdAt: now },
@@ -482,28 +397,10 @@ server.tool(
 
 server.tool(
   'reply_to_comment',
-  `Add an agent reply to an existing comment thread. This is the primary tool for the LLM
-  to respond to user feedback.
-
-  The reply can be:
-  - Text only (omit knob + actions) — for explanations, questions, or direct edits
-  - Text + tweak (include knob + actions) — for live explorations the user can try in the browser
-
-  If adding a tweak reply:
-  1. Call get_server_info — note scriptsDir.
-  2. Read the target source file to find the exact string to replace.
-  3. Write {scriptsDir}/{scriptId}.mjs — REQUIRED signature:
-        export default (content, value) => string
-     • content = the full file text (FIRST param)
-     • value   = the knob value as a string (SECOND param)
-     ⚠ Reversing the params (e.g. (value, content)) corrupts or empties the file.
-  4. Include knob + actions in this call.
-
-  The knob appears inline in the thread at the position of this reply.
-  The user accepts or discards from the panel — the knob collapses with a status badge either way.
+  `Add an agent reply to an existing comment thread.
+  Text only (no knob) for direct edits; text + knob + actions for live tweaks.
   Multiple tweak replies on the same thread are allowed as long as they touch different code.
-
-  Call get_write_scripts_guide for the full script reference (knob types, regex rules, HMR notes).`,
+  For tweaks: call get_write_scripts_guide first — signature is (content, value) => string, content FIRST.`,
   {
     commentId: z.string().describe('ID of the existing comment thread to reply to'),
     text: z
@@ -544,19 +441,19 @@ server.tool(
     const textEntry = { id: replyId, type: 'comment', text, createdAt: now, author: 'agent' };
     const newComments = knob
       ? [
-          ...(existing.comments ?? []),
-          textEntry,
-          {
-            id: `${replyId}-tweak`,
-            type: 'tweak',
-            text,
-            createdAt: now,
-            author: 'agent',
-            knob,
-            actions: actions ?? [],
-            tweakStatus: 'pending',
-          },
-        ]
+        ...(existing.comments ?? []),
+        textEntry,
+        {
+          id: `${replyId}-tweak`,
+          type: 'tweak',
+          text,
+          createdAt: now,
+          author: 'agent',
+          knob,
+          actions: actions ?? [],
+          tweakStatus: 'pending',
+        },
+      ]
       : [...(existing.comments ?? []), textEntry];
     const updated = {
       ...existing,

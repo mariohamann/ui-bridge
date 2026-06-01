@@ -47,7 +47,7 @@ test('uib-comment custom element is registered after client boots', async ({ pag
 test('UI Bridge server health endpoint is reachable', async ({ request }) => {
   const res = await request.get(`http://localhost:${UIB_PORT}/health`);
   expect(res.status()).toBe(200);
-  const body = (await res.json()) as { port: number; };
+  const body = (await res.json()) as { port: number };
   expect(typeof body.port).toBe('number');
 });
 
@@ -92,7 +92,7 @@ test.describe('comment round-trip', () => {
 
     const res = await page.request.get(`${API_BASE}/comments`);
     const body = (await res.json()) as {
-      comments: { meta: { id: string; }; comments?: { text: string; }[]; }[];
+      comments: { meta: { id: string }; comments?: { text: string }[] }[];
     };
     expect(body.comments.some((a) => a.comments?.[0]?.text === 'nuxt integration check')).toBe(
       true,

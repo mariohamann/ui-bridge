@@ -32,7 +32,7 @@ export interface UiBridgeNextOptions {
  * }
  * ```
  */
-export function UiBridgeScript({ port }: { port?: number; } = {}): React.JSX.Element {
+export function UiBridgeScript({ port }: { port?: number } = {}): React.JSX.Element {
   // Use createElement to avoid requiring JSX transform in this package's build.
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { createElement, Fragment } = _require('react') as typeof import('react');
@@ -55,7 +55,7 @@ async function getServerPort(port: number, expectedRoot: string): Promise<number
       signal: AbortSignal.timeout(600),
     });
     if (!resp.ok) return null;
-    const body = (await resp.json()) as { port?: number; root?: string; };
+    const body = (await resp.json()) as { port?: number; root?: string };
     if (body.root && body.root !== expectedRoot) return null;
     return body.port ?? port;
   } catch {
@@ -66,7 +66,7 @@ async function getServerPort(port: number, expectedRoot: string): Promise<number
 function spawnServer(
   rootDir: string,
   preferredPort: number,
-): { child: ChildProcess; ready: Promise<number>; } {
+): { child: ChildProcess; ready: Promise<number> } {
   const serverEntry = _require.resolve('@ui-bridge/server');
   const child = spawn(process.execPath, [serverEntry, '--root', rootDir], {
     stdio: ['ignore', 'pipe', 'pipe'],
