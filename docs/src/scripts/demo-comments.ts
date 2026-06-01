@@ -12,7 +12,7 @@
  *   dc-textarea   — textarea — setup section description
  *   dc-boolean    — boolean  — show/hide the subtitle
  *   dc-select     — select   — "How it works" heading size
- *   dc-button-group — button-group — hero text alignment
+ *   dc-radio — radio — hero text alignment
  *
  * Extra narrative variety:
  *   dc-plain      — plain text only (no tweak), resolved thread
@@ -26,9 +26,9 @@
 type DbComponents = {
   updateComments: (threads: unknown[]) => void;
   upsertComment: (thread: unknown) => void;
-  commentsSignal: { get: () => unknown[] };
+  commentsSignal: { get: () => unknown[]; };
   updateKnobs: (knobs: unknown[]) => void;
-  knobsSignal: { get: () => unknown[] };
+  knobsSignal: { get: () => unknown[]; };
   onIntent: (handler: (intent: Record<string, unknown>) => void) => () => void;
 };
 
@@ -40,7 +40,7 @@ const M_STRING = 'dc-string';
 const M_TEXTAREA = 'dc-textarea';
 const M_BOOLEAN = 'dc-boolean';
 const M_SELECT = 'dc-select';
-const M_BUTTON_GROUP = 'dc-button-group';
+const M_RADIO = 'dc-radio';
 const M_FOLLOWUP = 'dc-followup';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -290,8 +290,8 @@ const THREAD_SELECT = makeThread('dc-select', '#how-it-works h2', 'h2', [
   }),
 ]);
 
-// 8. Button-group knob — pending
-const THREAD_BUTTON_GROUP = makeThread('dc-button-group', '#hero-content', 'div', [
+// 8. Radio knob — pending
+const THREAD_RADIO = makeThread('dc-radio', '#hero-content', 'div', [
   makeText(
     'dc-bg-1',
     'Hero text is always centered — but on wide screens a left-aligned layout might feel more editorial.',
@@ -300,13 +300,13 @@ const THREAD_BUTTON_GROUP = makeThread('dc-button-group', '#hero-content', 'div'
   ),
   makeText(
     'dc-bg-2',
-    "Here's a button-group knob to switch alignment. Try left or right and see which feels better.",
+    "Here's a radio knob to switch alignment. Try left or right and see which feels better.",
     'agent',
     360_000,
   ),
   makeTweak('dc-bg-tweak', 'Tweak hero alignment', {
     label: 'Hero alignment',
-    type: 'button-group',
+    type: 'radio',
     value: 'center',
     options: { left: 'Left', center: 'Center', right: 'Right' },
   }),
@@ -334,15 +334,10 @@ const THREAD_FOLLOWUP = makeThread(M_FOLLOWUP, '#get-started h2', 'h2', [
     'user',
     2_400_000,
   ),
-  makeText(
-    'dc-fu-4',
-    "Fair enough. Here's a button-group knob for the font weight.",
-    'agent',
-    2_300_000,
-  ),
+  makeText('dc-fu-4', "Fair enough. Here's a radio knob for the font weight.", 'agent', 2_300_000),
   makeTweak('dc-fu-tweak-2', 'Tweak heading font weight', {
     label: 'Font weight',
-    type: 'button-group',
+    type: 'radio',
     value: 'semibold',
     options: { normal: 'Normal', medium: 'Medium', semibold: 'Semibold', bold: 'Bold' },
   }),
@@ -351,8 +346,8 @@ const THREAD_FOLLOWUP = makeThread(M_FOLLOWUP, '#get-started h2', 'h2', [
 // ── Initial knob state — derived from pending tweaks in threads ───────────────
 
 type ThreadLike = {
-  meta: { id: string };
-  comments: { type: string; tweakStatus?: string; knob?: Record<string, unknown> }[];
+  meta: { id: string; };
+  comments: { type: string; tweakStatus?: string; knob?: Record<string, unknown>; }[];
 };
 
 function extractPendingKnobs(threads: unknown[]): unknown[] {
@@ -409,7 +404,7 @@ function applyKnobChange(marker: string, value: unknown): void {
     return;
   }
 
-  if (marker === M_BUTTON_GROUP) {
+  if (marker === M_RADIO) {
     const el = document.querySelector<HTMLElement>('#hero-content');
     if (el) {
       const map: Record<string, string> = {
@@ -473,7 +468,7 @@ function revertKnob(marker: string): void {
       const el = document.querySelector<HTMLElement>(selector);
       if (el) el.style.fontSize = '';
     }
-  } else if (marker === M_BUTTON_GROUP) {
+  } else if (marker === M_RADIO) {
     const el = document.querySelector<HTMLElement>('#hero-content');
     if (el) {
       el.classList.remove('items-start', 'text-left', 'items-end', 'text-right');
@@ -511,7 +506,7 @@ waitForDb().then((db) => {
     THREAD_TEXTAREA,
     THREAD_BOOLEAN,
     THREAD_SELECT,
-    THREAD_BUTTON_GROUP,
+    THREAD_RADIO,
     THREAD_FOLLOWUP,
   ];
 
@@ -523,7 +518,7 @@ waitForDb().then((db) => {
   // Seed pending knobs — derived from threads, no separate list to maintain
   db.updateKnobs([...(db.knobsSignal.get() as unknown[]), ...extractPendingKnobs(ALL_THREADS)]);
 
-  type KnobLike = { marker: string; value: unknown };
+  type KnobLike = { marker: string; value: unknown; };
 
   function updateKnobValue(marker: string, value: unknown): void {
     const knobs = db.knobsSignal.get() as KnobLike[];
@@ -532,20 +527,20 @@ waitForDb().then((db) => {
 
   function resolveKnob(commentId: string, status: 'accepted' | 'discarded'): void {
     const threads = db.commentsSignal.get() as {
-      meta: { id: string };
-      comments: { type: string; tweakStatus?: string }[];
+      meta: { id: string; };
+      comments: { type: string; tweakStatus?: string; }[];
     }[];
     db.updateComments(
       threads.map((t) =>
         t.meta.id === commentId
           ? {
-              ...t,
-              comments: t.comments.map((c) =>
-                c.type === 'tweak' && (c as { tweakStatus?: string }).tweakStatus === 'pending'
-                  ? { ...c, tweakStatus: status }
-                  : c,
-              ),
-            }
+            ...t,
+            comments: t.comments.map((c) =>
+              c.type === 'tweak' && (c as { tweakStatus?: string; }).tweakStatus === 'pending'
+                ? { ...c, tweakStatus: status }
+                : c,
+            ),
+          }
           : t,
       ),
     );
@@ -554,7 +549,7 @@ waitForDb().then((db) => {
   }
 
   // Handle intents for all demo threads locally
-  const DEMO_IDS = new Set(ALL_THREADS.map((t) => (t as { meta: { id: string } }).meta.id));
+  const DEMO_IDS = new Set(ALL_THREADS.map((t) => (t as { meta: { id: string; }; }).meta.id));
 
   db.onIntent((intent) => {
     const type = intent['type'] as string;

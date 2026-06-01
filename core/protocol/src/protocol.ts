@@ -9,7 +9,7 @@ export const TweakKnobTypeSchema = z.enum([
   'textarea',
   'boolean',
   'select',
-  'button-group',
+  'radio',
 ]);
 export type TweakKnobType = z.infer<typeof TweakKnobTypeSchema>;
 
@@ -23,7 +23,7 @@ export interface TweakKnob {
   max?: number;
   step?: number;
   /**
-   * For `select` and `button-group` knobs.
+   * For `select` and `radio` knobs.
    * Keys are the values submitted to the transform script; values are the display labels shown in the UI.
    * Example: `{ "gap-2": "Tight", "gap-4": "Normal", "gap-6": "Roomy" }`
    */
@@ -151,17 +151,17 @@ export type CommentThread = z.infer<typeof CommentThreadSchema>;
 
 export interface TweakChangeMsg {
   type: 'tweak:change';
-  payload: { marker: string; value: string };
+  payload: { marker: string; value: string; };
 }
 
 export interface TweakFinalizeMsg {
   type: 'tweak:finalize';
-  payload: { markers: string[] };
+  payload: { markers: string[]; };
 }
 
 export interface TweakResetMsg {
   type: 'tweak:reset';
-  payload: { marker: string };
+  payload: { marker: string; };
 }
 
 export interface TweakResetAllMsg {
@@ -174,22 +174,22 @@ export interface TweakDiscardAllMsg {
 
 export interface TweakDiscardMsg {
   type: 'tweak:discard';
-  payload: { commentId: string };
+  payload: { commentId: string; };
 }
 
 export interface TweakAcceptCommentMsg {
   type: 'tweak:accept-comment';
-  payload: { commentId: string };
+  payload: { commentId: string; };
 }
 
 export interface TweakAcceptTweakMsg {
   type: 'tweak:accept-tweak';
-  payload: { commentId: string; marker: string };
+  payload: { commentId: string; marker: string; };
 }
 
 export interface TweakDismissMsg {
   type: 'tweak:dismiss';
-  payload: { commentId: string; marker: string };
+  payload: { commentId: string; marker: string; };
 }
 
 export interface CommentUpsertMsg {
@@ -199,7 +199,7 @@ export interface CommentUpsertMsg {
 
 export interface CommentDeleteMsg {
   type: 'comment:delete';
-  payload: { id: string };
+  payload: { id: string; };
 }
 
 export interface CommentClearMsg {
@@ -208,7 +208,7 @@ export interface CommentClearMsg {
 
 export interface CommentReadMsg {
   type: 'comment:read';
-  payload: { id: string };
+  payload: { id: string; };
 }
 
 export type BrowserMessage =

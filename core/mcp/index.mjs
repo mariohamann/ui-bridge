@@ -115,13 +115,13 @@ No registration needed — the server reads scripts from disk on demand.
 | \`type\`         | \`value\` in script      | Extra \`knob\` fields              |
 | -------------- | ----------------------- | ---------------------------------- |
 | \`select\`       | \`string\`               | \`options: Record<string,string>\` — key = submitted value, value = display label |
-| \`button-group\` | \`string\`               | \`options: Record<string,string>\` — key = submitted value, value = display label |
+| \`radio\`         | \`string\`               | \`options: Record<string,string>\` — key = submitted value, value = display label |
 | \`string\`       | \`string\`               | —                                  |
 | \`number\`       | \`string\` (coerced)     | \`min\`, \`max\`, \`step\`         |
 | \`boolean\`      | \`"true"\`/\`"false"\`   | —                                  |
 | \`color\`        | \`string\` (hex/rgb)     | —                                  |
 
-Prefer \`select\` or \`button-group\` over \`string\` for fixed option sets.
+Prefer \`select\` or \`radio\` over \`string\` for fixed option sets.
 
 ## Replay model
 
@@ -339,7 +339,7 @@ server.tool(
     knob: z
       .object({
         label: z.string(),
-        type: z.enum(['select', 'button-group', 'string', 'number', 'boolean', 'color']),
+        type: z.enum(['select', 'radio', 'string', 'number', 'boolean', 'color']),
         value: z.union([z.string(), z.number(), z.boolean()]),
         options: z.record(z.string()).optional(),
         min: z.number().optional(),
@@ -412,7 +412,7 @@ server.tool(
     knob: z
       .object({
         label: z.string(),
-        type: z.enum(['select', 'button-group', 'string', 'number', 'boolean', 'color']),
+        type: z.enum(['select', 'radio', 'string', 'number', 'boolean', 'color']),
         value: z.union([z.string(), z.number(), z.boolean()]),
         options: z.record(z.string()).optional(),
         min: z.number().optional(),
