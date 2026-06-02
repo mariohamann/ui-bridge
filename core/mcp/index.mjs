@@ -13,7 +13,6 @@
  * It degrades gracefully when the server is not running.
  *
  * Environment:
- *   UI_BRIDGE_ROOT  — project root (directory containing .ui-bridge/)
  *   UI_BRIDGE_URL   — full server URL (overrides port discovery)
  *   UI_BRIDGE_PORT  — server port (overrides .port file)
  *

@@ -42,6 +42,7 @@
   },
   "dependencies": {
     "@ui-bridge/astro": "workspace:*",
+    "@ui-bridge/mcp": "workspace:*",
     "astro": "^6.3.1",
     "gsap": "^3.12.7",
     "@awesome.me/webawesome": "^3.7.0"

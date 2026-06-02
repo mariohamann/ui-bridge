@@ -1,0 +1,144 @@
+---
+import { Code } from 'astro:components';
+
+const configVSCode = `// .vscode/mcp.json
+{
+  "servers": {
+    "ui-bridge": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["--no", "ui-bridge-mcp"]
+    }
+  }
+}`;
+
+const configClaudeCode = `// .mcp.json (project root)
+{
+  "mcpServers": {
+    "ui-bridge": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["--no", "ui-bridge-mcp"]
+    }
+  }
+}`;
+
+const configCursor = `// ~/.cursor/mcp.json
+{
+  "mcpServers": {
+    "ui-bridge": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["--no", "ui-bridge-mcp"]
+    }
+  }
+}`;
+
+const configClaudeDesktop = `// ~/Library/Application Support/Claude/claude_desktop_config.json
+{
+  "mcpServers": {
+    "ui-bridge": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["--no", "ui-bridge-mcp"]
+    }
+  }
+}`;
+
+const configMonorepo = `{
+  "servers": {
+    "ui-bridge": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["--no", "ui-bridge-mcp"],
+      "cwd": "\${workspaceFolder}/packages/my-app"
+    }
+  }
+}`;
+---
+
+<script>
+  import '@awesome.me/webawesome/dist/components/tab-group/tab-group.js';
+  import '@awesome.me/webawesome/dist/components/tab/tab.js';
+  import '@awesome.me/webawesome/dist/components/tab-panel/tab-panel.js';
+</script>
+
+<section id="connect-agent" class="bg-wa-surface-raised px-6 py-20">
+  <div class="mx-auto max-w-[640px]">
+    <h2>Connect your agent</h2>
+
+    <p>
+      UI Bridge exposes an MCP server so your AI agent can read comments and apply tweaks. Add it to
+      your agent's MCP config and restart the client.
+    </p>
+
+    <wa-tab-group class="mb-9 mt-8">
+      <wa-tab panel="vscode">VS Code</wa-tab>
+      <wa-tab panel="claude-code">Claude Code</wa-tab>
+      <wa-tab panel="cursor">Cursor</wa-tab>
+      <wa-tab panel="claude-desktop">Claude Desktop</wa-tab>
+
+      <wa-tab-panel name="vscode">
+        <p class="mb-3 text-wa-text-quiet">
+          Add the server to <code>.vscode/mcp.json</code> in your project root.
+        </p>
+        <div class="code-block">
+          <div class="code-block-header">
+            <span class="code-block-filename">.vscode/mcp.json</span>
+          </div>
+          <Code code={configVSCode} lang="json" theme="github-dark" />
+        </div>
+      </wa-tab-panel>
+
+      <wa-tab-panel name="claude-code">
+        <p class="mb-3 text-wa-text-quiet">
+          Add a <code>.mcp.json</code> file at the project root.
+        </p>
+        <div class="code-block">
+          <div class="code-block-header">
+            <span class="code-block-filename">.mcp.json</span>
+          </div>
+          <Code code={configClaudeCode} lang="json" theme="github-dark" />
+        </div>
+      </wa-tab-panel>
+
+      <wa-tab-panel name="cursor">
+        <div class="code-block">
+          <div class="code-block-header">
+            <span class="code-block-filename">~/.cursor/mcp.json</span>
+          </div>
+          <Code code={configCursor} lang="json" theme="github-dark" />
+        </div>
+      </wa-tab-panel>
+
+      <wa-tab-panel name="claude-desktop">
+        <div class="code-block">
+          <div class="code-block-header">
+            <span class="code-block-filename"
+              >~/Library/Application Support/Claude/claude_desktop_config.json</span
+            >
+          </div>
+          <Code code={configClaudeDesktop} lang="json" theme="github-dark" />
+        </div>
+      </wa-tab-panel>
+    </wa-tab-group>
+
+    <h3>Pointing to the right directory</h3>
+
+    <p>
+      The MCP server finds its data by looking for a <code>.ui-bridge/</code> folder, starting from its
+      working directory and walking up. This works automatically when UI Bridge runs at your project root.
+    </p>
+    <p class="mt-3">
+      If UI Bridge runs in a subdirectory — a <code>docs/</code> folder, a monorepo package, etc. — set
+      <code>cwd</code> to that directory so the server starts looking in the right place:
+    </p>
+
+    <div class="code-block mt-6">
+      <div class="code-block-header">
+        <span class="code-block-filename">.vscode/mcp.json</span>
+      </div>
+      <Code code={configMonorepo} lang="json" theme="github-dark" />
+    </div>
+  </div>
+</section>

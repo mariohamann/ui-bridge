@@ -4,7 +4,7 @@
  * Discovery order:
  *   1. UI_BRIDGE_URL  — full base URL (e.g. http://localhost:7378)
  *   2. UI_BRIDGE_PORT — port number, builds http://localhost:<port>
- *   3. Walk up from UI_BRIDGE_ROOT (or cwd) looking for .ui-bridge/.port
+ *   3. Walk up cwd looking for .ui-bridge/.port
  *   4. Default: http://localhost:7378
  *
  * resolveRoot() returns the project root directory using the same walk-up logic.
@@ -17,7 +17,7 @@ export async function resolveBaseUrl(env = process.env, cwd = process.cwd()) {
   if (env.UI_BRIDGE_URL) return env.UI_BRIDGE_URL.replace(/\/$/, '');
   if (env.UI_BRIDGE_PORT) return `http://localhost:${env.UI_BRIDGE_PORT}`;
 
-  const startDir = env.UI_BRIDGE_ROOT ?? cwd;
+  const startDir = cwd;
   let dir = startDir;
   for (let i = 0; i < 10; i++) {
     try {
@@ -40,13 +40,9 @@ export async function resolveBaseUrl(env = process.env, cwd = process.cwd()) {
  * contain) the .ui-bridge/ folder.
  *
  * Discovery order:
- *   1. UI_BRIDGE_ROOT env var
- *   2. Walk up from cwd looking for an existing .ui-bridge/ directory
- *   3. Fallback: cwd
+ *   Walk up from cwd looking for an existing .ui-bridge/ directory
  */
 export async function resolveRoot(env = process.env, cwd = process.cwd()) {
-  if (env.UI_BRIDGE_ROOT) return resolve(env.UI_BRIDGE_ROOT);
-
   let dir = cwd;
   for (let i = 0; i < 10; i++) {
     try {

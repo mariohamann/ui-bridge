@@ -435,6 +435,28 @@ test.describe('Badge hover preview', () => {
 });
 
 test.describe('Panel scrolling & textarea autogrow', () => {
+  /**
+   * Helper: add N replies to the open uib-comment panel via the component's
+   * internal save method. Waits for each reply to be reflected in the DOM so
+   * comments:sync round-trips are included in the final count.
+   */
+  async function addReplies(page: Page, panel: Locator, count: number, prefix = 'Reply') {
+    const el = '#uib-items uib-comment';
+    for (let i = 1; i <= count; i++) {
+      // Set _replyDraft directly and call _saveReply via evaluate so no DOM
+      // interaction is needed and the event doesn't get lost in shadow-DOM layers.
+      await page.evaluate(
+        ([sel, text]) => {
+          const c = document.querySelector(sel) as any;
+          c._replyDraft = text;
+          c._saveReply();
+        },
+        [el, `${prefix} ${i}`] as const,
+      );
+      await expect(panel.locator('.comment-text')).toHaveCount(i + 1);
+    }
+  }
+
   test('panel scrolls when replies overflow its max-height', async ({ page }) => {
     await createComment(page, 'h1', 'Overflow test');
 
@@ -443,14 +465,7 @@ test.describe('Panel scrolling & textarea autogrow', () => {
     const p = page.locator('#uib-items uib-comment .panel:not([hidden])');
 
     // Add enough replies to overflow the panel (max-height is ~88dvh so we need many)
-    for (let i = 1; i <= 20; i++) {
-      const reply = innerTA(p.locator('uib-textarea[data-role="reply"]'));
-      await reply.scrollIntoViewIfNeeded();
-      await expect(reply).toBeVisible();
-      await reply.fill(`Reply number ${i} with some extra text to take up space`);
-      await reply.press('Enter');
-      await expect(p.locator('.comment-text')).toHaveCount(i + 1);
-    }
+    await addReplies(page, p, 20, 'Reply with some extra text to take up space');
 
     // Panel should be scrollable: scrollHeight > clientHeight
     const isScrollable = await p
@@ -466,18 +481,11 @@ test.describe('Panel scrolling & textarea autogrow', () => {
     await badge.click();
     const p = page.locator('#uib-items uib-comment .panel:not([hidden])');
 
-    for (let i = 1; i <= 8; i++) {
-      const reply = innerTA(p.locator('uib-textarea[data-role="reply"]'));
-      await reply.scrollIntoViewIfNeeded();
-      await expect(reply).toBeVisible();
-      await reply.fill(`Reply ${i}`);
-      await reply.press('Enter');
-      await expect(p.locator('.comment-text')).toHaveCount(i + 1);
-    }
+    await addReplies(page, p, 8);
 
-    // Even with 8 replies, the textarea should still be visible/reachable
+    // Even with 8 replies, the textarea should still be visible/reachable after
+    // auto-scroll to bottom (which _saveReply triggers via updateComplete.then).
     const reply = innerTA(p.locator('uib-textarea[data-role="reply"]'));
-    await reply.scrollIntoViewIfNeeded();
     await expect(reply).toBeVisible();
     await expect(reply).toBeEditable();
   });

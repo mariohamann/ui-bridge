@@ -3,3 +3,7 @@ packages:
   - integrations/*
   - demos/*
   - docs
+allowBuilds:
+  '@parcel/watcher': true
+  esbuild: true
+  sharp: true

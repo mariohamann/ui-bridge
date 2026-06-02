@@ -4,7 +4,7 @@
  * Use createCommentStore(rootDir) to get a bound store instance.
  */
 
-import { readFile, writeFile, mkdir, rm } from 'node:fs/promises';
+import { readFile, writeFile, rename, mkdir, rm } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
 /**
@@ -17,19 +17,41 @@ export function createCommentStore(rootDir) {
   /** @type {Map<string, object>} */
   const comments = new Map();
 
+  /**
+   * Tracks pending self-writes per comment ID. The FS watcher should skip
+   * reloads for writes the server itself made — the in-memory store and
+   * broadcast are already up-to-date from store.upsert().
+   * @type {Map<string, number>}
+   */
+  const selfWriteCount = new Map();
+
   async function persist(ann) {
     const id = ann?.meta?.id;
     if (!id) return;
     try {
       await mkdir(ANNOTATIONS_DIR, { recursive: true });
-      await writeFile(
-        resolve(ANNOTATIONS_DIR, `${id}.json`),
-        JSON.stringify(ann, null, 2),
-        'utf-8',
-      );
+      const dest = resolve(ANNOTATIONS_DIR, `${id}.json`);
+      const tmp = `${dest}.tmp`;
+      await writeFile(tmp, JSON.stringify(ann, null, 2), 'utf-8');
+      await rename(tmp, dest);
+      // Mark AFTER rename so the flag is set before the FS-watcher callback fires.
+      selfWriteCount.set(id, (selfWriteCount.get(id) ?? 0) + 1);
     } catch (e) {
       console.warn('[ui-bridge] could not write comment file:', e);
     }
+  }
+
+  /**
+   * Returns true (and consumes one self-write token) when the FS event for
+   * `id` was triggered by the server's own persist(). The watcher should
+   * skip reload + broadcast in this case.
+   */
+  function consumeSelfWrite(id) {
+    const n = selfWriteCount.get(id) ?? 0;
+    if (n <= 0) return false;
+    if (n === 1) selfWriteCount.delete(id);
+    else selfWriteCount.set(id, n - 1);
+    return true;
   }
 
   async function remove(id) {
@@ -94,5 +116,26 @@ export function createCommentStore(rootDir) {
     await load();
   }
 
-  return { load, reload, upsert, del, clear, all, get, has };
+  /**
+   * Reload a single comment by id from disk.
+   * Called by the FS watcher for external writes (e.g. MCP).
+   * - File updated → merge into in-memory store.
+   * - File deleted (ENOENT) → remove from in-memory store.
+   * - File unreadable/partial → leave existing entry intact.
+   */
+  async function reloadOne(id) {
+    try {
+      const raw = await readFile(resolve(ANNOTATIONS_DIR, `${id}.json`), 'utf-8');
+      const ann = JSON.parse(raw);
+      if (ann?.meta?.id) comments.set(ann.meta.id, ann);
+    } catch (e) {
+      if (e.code === 'ENOENT') {
+        comments.delete(id);
+      } else {
+        console.warn(`[ui-bridge] could not parse comment ${id}.json:`, e);
+      }
+    }
+  }
+
+  return { load, reload, reloadOne, upsert, del, clear, all, get, has, consumeSelfWrite };
 }

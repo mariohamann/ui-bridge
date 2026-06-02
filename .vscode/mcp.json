@@ -1,12 +1,10 @@
 {
   "servers": {
-    "ui-bridge-docs": {
+    "ui-bridge/docs": {
       "type": "stdio",
-      "command": "node",
-      "args": ["${workspaceFolder}/core/mcp/index.mjs"],
-      "env": {
-        "UI_BRIDGE_ROOT": "${workspaceFolder}/docs"
-      }
+      "command": "npx",
+      "args": ["--no", "ui-bridge-mcp"],
+      "cwd": "${workspaceFolder}/docs"
     }
   }
 }

@@ -57,8 +57,8 @@ before(async () => {
     stdio: 'pipe',
   });
 
-  serverProc.stderr.on('data', () => {});
-  serverProc.stdout.on('data', () => {});
+  serverProc.stderr.on('data', () => { });
+  serverProc.stdout.on('data', () => { });
 
   await waitForServer();
 
@@ -85,9 +85,10 @@ after(async () => {
 function mcpCall(method, params = {}) {
   return new Promise((resolve, reject) => {
     const proc = spawn(process.execPath, [MCP_BIN], {
+      cwd: TEST_ROOT,
       env: {
         ...process.env,
-        UI_BRIDGE_ROOT: TEST_ROOT,
+        UI_BRIDGE_PORT: String(TEST_PORT),
         // suppress MCP SDK internal logs that go to stderr
       },
       stdio: ['pipe', 'pipe', 'pipe'],
@@ -538,16 +539,11 @@ describe('resolveBaseUrl — port discovery', () => {
     assert.equal(url, 'http://localhost:9999');
   });
 
-  it('reads the .port file from UI_BRIDGE_ROOT', async () => {
-    const url = await resolveBaseUrl({ UI_BRIDGE_ROOT: TEST_ROOT });
-    assert.equal(url, `http://localhost:${TEST_PORT}`);
-  });
-
   it('walks up the directory tree to find a .port file', async () => {
     // Create a subdirectory two levels deep inside TEST_ROOT with no .port file
     const subDir = resolve(TEST_ROOT, 'src', 'components');
     await mkdir(subDir, { recursive: true });
-    // Pass the subdirectory as cwd with no UI_BRIDGE_ROOT set
+    // Pass the subdirectory as cwd
     const url = await resolveBaseUrl({}, subDir);
     assert.equal(url, `http://localhost:${TEST_PORT}`);
   });
@@ -563,11 +559,6 @@ describe('resolveBaseUrl — port discovery', () => {
 // ── resolveRoot unit tests ────────────────────────────────────────────────────
 
 describe('resolveRoot — root directory discovery', () => {
-  it('uses UI_BRIDGE_ROOT when set', async () => {
-    const root = await resolveRoot({ UI_BRIDGE_ROOT: TEST_ROOT });
-    assert.equal(root, resolve(TEST_ROOT));
-  });
-
   it('finds .ui-bridge dir by walking up from cwd', async () => {
     const subDir = resolve(TEST_ROOT, 'src', 'deep');
     await mkdir(subDir, { recursive: true });
@@ -584,8 +575,7 @@ describe('resolveRoot — root directory discovery', () => {
 // ── Integration: list_comments works file-direct ─────────────────────────────
 
 describe('list_comments — file-direct (no server required)', () => {
-  it('returns comments from disk when UI_BRIDGE_ROOT is set', async () => {
-    // mcpCall passes UI_BRIDGE_ROOT=TEST_ROOT — MCP reads files directly,
+  it('returns comments from disk', async () => {
     // no HTTP call to the server is made.
     const responses = await mcpCall('tools/call', {
       name: 'list_comments',

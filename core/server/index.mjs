@@ -478,7 +478,11 @@ let commentsWatcher;
 mkdir(COMMENTS_WATCH_DIR, { recursive: true }).then(() => {
   commentsWatcher = watch(COMMENTS_WATCH_DIR, { persistent: false }, async (_, filename) => {
     if (!filename?.endsWith('.json')) return;
-    await store.reload();
+    const id = filename.slice(0, -5);
+    // Skip reloads triggered by the server's own atomic writes — the in-memory
+    // store and broadcast are already up-to-date from store.upsert().
+    if (store.consumeSelfWrite(id)) return;
+    await store.reloadOne(id);
     broadcast({ type: 'comments:sync', payload: store.all() });
   });
 });
