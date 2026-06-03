@@ -129,6 +129,9 @@ async function executeAction(rootDir, { scripts, files, cache }, action, value) 
       console.error(`[ui-bridge] script "${action.scriptId}" did not return a string — skipped`);
       return;
     }
+    // Skip writing if the content is unchanged — avoids triggering a
+    // spurious Vite HMR update (or full page reload) on every replay.
+    if (transformed === current) return;
     await writeFile(abs, transformed, 'utf-8');
   }
 

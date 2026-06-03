@@ -137,5 +137,16 @@ export function createCommentStore(rootDir) {
     }
   }
 
-  return { load, reload, reloadOne, upsert, del, clear, all, get, has, consumeSelfWrite };
+  /**
+   * Update the in-memory store only — no disk write.
+   * Use for ephemeral UI state (e.g. lastReadAt) that should not cause
+   * Vite HMR reloads or pollute the persisted JSON files.
+   */
+  function updateInMemory(ann) {
+    const id = ann?.meta?.id;
+    if (!id) return;
+    comments.set(id, ann);
+  }
+
+  return { load, reload, reloadOne, upsert, updateInMemory, del, clear, all, get, has, consumeSelfWrite };
 }

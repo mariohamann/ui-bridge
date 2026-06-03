@@ -64,6 +64,18 @@ function syncComments(list: CommentThread[]): void {
   for (const ann of [...list, ...demos]) comments.set(ann.meta.id, ann);
   reconcileItems();
   notifyChange();
+  // Restore the previously open panel after a page reload / WS reconnect.
+  const savedId = getPersistedOpenPanel();
+  if (savedId) {
+    const item = itemEls.get(savedId);
+    if (item && !item.isOpen) {
+      // Wait one rAF so the element has had a chance to position itself.
+      requestAnimationFrame(() => openItemPanel(item));
+    } else if (!item) {
+      // Comment was deleted/resolved — clear stale key.
+      persistOpenPanel(null);
+    }
+  }
 }
 
 export function upsertComment(ann: CommentThread): void {
@@ -100,6 +112,25 @@ let draftItem: UibComment | null = null;
 /** ID of the comment we want to focus on the next click, when the current panel has a dirty draft. */
 let pendingFocusId: string | null = null;
 
+const OPEN_PANEL_KEY = 'uib:open-panel';
+
+function persistOpenPanel(id: string | null): void {
+  try {
+    if (id) sessionStorage.setItem(OPEN_PANEL_KEY, id);
+    else sessionStorage.removeItem(OPEN_PANEL_KEY);
+  } catch {
+    /* sessionStorage unavailable */
+  }
+}
+
+function getPersistedOpenPanel(): string | null {
+  try {
+    return sessionStorage.getItem(OPEN_PANEL_KEY);
+  } catch {
+    return null;
+  }
+}
+
 export function getItemById(id: string): UibComment | undefined {
   return itemEls.get(id);
 }
@@ -109,6 +140,7 @@ function closeAllPanels(): void {
   for (const item of itemEls.values()) {
     if (item.isOpen) item.closePanel();
   }
+  persistOpenPanel(null);
 }
 
 /** Open a saved panel, closing any other open panel first. */
@@ -116,6 +148,7 @@ function openItemPanel(item: UibComment): void {
   closeAllPanels();
   pendingFocusId = null;
   item.openPanel();
+  persistOpenPanel(item.comment?.meta.id ?? null);
 }
 
 export function getOpenItem(): UibComment | null {
@@ -142,6 +175,7 @@ export function focusComment(id: string): boolean {
   // Clicking the badge of the already-open panel → toggle it closed
   if (currentOpen === target) {
     target.closePanel();
+    persistOpenPanel(null);
     pendingFocusId = null;
     return false;
   }
@@ -164,6 +198,7 @@ export function focusComment(id: string): boolean {
 
   pendingFocusId = null;
   target.openPanel();
+  persistOpenPanel(id);
 
   // Scroll the annotated DOM element into view only when it isn't already visible.
   const ann = comments.get(id);
@@ -334,7 +369,7 @@ function onPointerDownForInspect(e: PointerEvent): void {
 }
 
 function onTrackCode(e: Event): void {
-  const detail = (e as CustomEvent<{ path?: string; line?: number; column?: number }>).detail;
+  const detail = (e as CustomEvent<{ path?: string; line?: number; column?: number; }>).detail;
   hideHighlight();
   if (!itemContainer) return;
 
@@ -372,7 +407,7 @@ function onTrackCode(e: Event): void {
 // ─── Cross-tab BroadcastChannel ──────────────────────────────────────────────
 
 channel.addEventListener('message', (e) => {
-  const { type, payload } = e.data as { type: string; payload: CommentThread[] };
+  const { type, payload } = e.data as { type: string; payload: CommentThread[]; };
   if (type === 'comments:sync') syncComments(payload);
 });
 

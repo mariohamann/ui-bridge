@@ -137,7 +137,10 @@ const unpluginFactory = createUnplugin((options: UiBridgeOptions = {}) => {
     // ── vite-specific hooks ─────────────────────────────────────────────────
     vite: {
       config() {
-        return { server: { watch: { ignored: ['**/.ui-bridge/.cache/**'] } } };
+        // Ignore all UI Bridge internal files — comments, scripts, file assets,
+        // and the cache — so Vite never treats them as app source changes and
+        // triggers spurious HMR updates or full page reloads.
+        return { server: { watch: { ignored: ['**/.ui-bridge/**'] } } };
       },
 
       async configResolved(config: { root: string; command: string; }) {

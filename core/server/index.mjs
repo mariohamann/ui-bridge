@@ -231,7 +231,10 @@ wss.on('connection', (ws) => {
       case 'comment:read': {
         const thread = store.get(msg.payload.id);
         if (thread) {
-          store.upsert({ ...thread, meta: { ...thread.meta, lastReadAt: Date.now() } });
+          // Update in-memory only — lastReadAt is ephemeral UI state.
+          // Writing to disk would cause Vite to reload the page on every panel open
+          // when .ui-bridge/ is inside the watched project root.
+          store.updateInMemory({ ...thread, meta: { ...thread.meta, lastReadAt: Date.now() } });
           broadcast({ type: 'comments:sync', payload: store.all() });
         }
         break;
