@@ -37,23 +37,16 @@ export class UibCommentBar extends _UibCommentBarBase {
   connectedCallback(): void {
     super.connectedCallback();
     this.classList.add('wa-dark');
-  }
-
-  protected override firstUpdated(): void {
     this._panelObserver = new MutationObserver(() => {
-      this._hasOpenPanel = this.shadowRoot
-        ? Array.from(this.shadowRoot.querySelectorAll('uib-comment')).some((el) =>
-          el.hasAttribute('panel-open'),
-        )
-        : false;
+      this._hasOpenPanel = Array.from(document.querySelectorAll('uib-comment')).some((el) =>
+        el.hasAttribute('panel-open'),
+      );
     });
-    if (this.shadowRoot) {
-      this._panelObserver.observe(this.shadowRoot, {
-        subtree: true,
-        attributes: true,
-        attributeFilter: ['panel-open'],
-      });
-    }
+    this._panelObserver.observe(document.body, {
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['panel-open'],
+    });
   }
 
   disconnectedCallback(): void {

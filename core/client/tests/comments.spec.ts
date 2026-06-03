@@ -1826,8 +1826,9 @@ test.describe('Comment bar', () => {
     await page.mouse.move(800, 400);
     await expect(bar).toHaveClass(/has-open-panel/);
 
-    // Close the panel by clicking the badge again (toggle)
-    await barBadge.click();
+    // Close the panel via the Close button in the open panel
+    const panel = commentPanel(page);
+    await panel.locator('uib-button[title="Close"]').click();
 
     // Move away — bar should no longer have the pinned class
     await page.mouse.move(800, 400);

@@ -57,8 +57,8 @@ before(async () => {
     stdio: 'pipe',
   });
 
-  serverProc.stderr.on('data', () => { });
-  serverProc.stdout.on('data', () => { });
+  serverProc.stderr.on('data', () => {});
+  serverProc.stdout.on('data', () => {});
 
   await waitForServer();
 
@@ -619,10 +619,7 @@ function createMcpSession() {
   // Handshake
   const initId = nextId++;
   const initPromise = new Promise((resolve, reject) => {
-    const timer = setTimeout(
-      () => reject(new Error('MCP session init timeout')),
-      TEST_TIMEOUT_MS,
-    );
+    const timer = setTimeout(() => reject(new Error('MCP session init timeout')), TEST_TIMEOUT_MS);
     pending.set(initId, { resolve, reject, timer });
   });
   send({
@@ -672,10 +669,7 @@ describe('list_comments — reflects disk changes within the same MCP session', 
       arguments: {},
     });
     const beforeBody = JSON.parse(before.result.content[0].text);
-    assert.ok(
-      !beforeBody.comments.find((c) => c.meta?.id === id),
-      'comment should not exist yet',
-    );
+    assert.ok(!beforeBody.comments.find((c) => c.meta?.id === id), 'comment should not exist yet');
 
     // Create comment via HTTP (simulates browser writing through the server)
     const now = Date.now();

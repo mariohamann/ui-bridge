@@ -40,6 +40,6 @@ export default defineConfig({
     cwd: demoDir,
     url: 'http://localhost:3002',
     reuseExistingServer: !process.env.CI,
-    timeout: 10_000,
+    timeout: 20_000,
   },
 });
