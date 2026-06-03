@@ -30,29 +30,9 @@ function stableRanks(threads: CommentThread[]): Map<string, number> {
 export class UibCommentBar extends _UibCommentBarBase {
   static styles = dbCommentBarStyles;
 
-  @state() private _hasOpenPanel = false;
-
-  private _panelObserver: MutationObserver | null = null;
-
   connectedCallback(): void {
     super.connectedCallback();
     this.classList.add('wa-dark');
-    this._panelObserver = new MutationObserver(() => {
-      this._hasOpenPanel = Array.from(document.querySelectorAll('uib-comment')).some((el) =>
-        el.hasAttribute('panel-open'),
-      );
-    });
-    this._panelObserver.observe(document.body, {
-      subtree: true,
-      attributes: true,
-      attributeFilter: ['panel-open'],
-    });
-  }
-
-  disconnectedCallback(): void {
-    super.disconnectedCallback();
-    this._panelObserver?.disconnect();
-    this._panelObserver = null;
   }
 
   render(): TemplateResult {
@@ -72,7 +52,7 @@ export class UibCommentBar extends _UibCommentBarBase {
     const hidden = newest.slice(SHOW_OVERFLOW_AFTER);
 
     return html`
-      <div class="bar visible ${this._hasOpenPanel ? 'has-open-panel' : ''}">
+      <div class="bar visible">
         ${visible.map((thread, i) => {
       const isOrphaned = orphanedIds.has(thread.meta.id);
       return html`

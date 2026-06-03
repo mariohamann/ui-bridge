@@ -41,6 +41,9 @@ const ANNOTATION_ITEM_LOCAL_STYLES = css`
   wa-button.badge:hover {
     transform: scale(1.25);
   }
+  :host([docked]) wa-button.badge:hover {
+    transform: none;
+  }
   wa-button.badge.resolved {
     opacity: 0.55;
   }

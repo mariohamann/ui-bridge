@@ -72,7 +72,7 @@ export const dbCommentBarStyles = [
 
     /* ── Hovered or panel open: fan out, show all ──────────────────── */
     .bar:hover uib-comment,
-    .bar.has-open-panel uib-comment {
+    .bar:has(uib-comment[panel-open]) uib-comment {
       margin-top: 8px;
       opacity: 1;
       transform: scale(1);
@@ -80,11 +80,11 @@ export const dbCommentBarStyles = [
       display: block;
     }
     .bar:hover uib-comment:first-child,
-    .bar.has-open-panel uib-comment:first-child {
+    .bar:has(uib-comment[panel-open]) uib-comment:first-child {
       margin-top: 0;
     }
     .bar:hover .overflow-pill,
-    .bar.has-open-panel .overflow-pill {
+    .bar:has(uib-comment[panel-open]) .overflow-pill {
       display: none;
     }
   `,

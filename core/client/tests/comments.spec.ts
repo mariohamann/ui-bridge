@@ -1791,13 +1791,40 @@ test.describe('Comment bar', () => {
     return page.locator('uib-comment-bar .bar');
   }
 
-  test('comment bar stays expanded when a panel is open after hover leaves', async ({ page }) => {
-    await createComment(page, 'h1', 'Bar stays open');
+  /**
+   * POSTs a comment whose CSS selector never matches any DOM element, so the
+   * client immediately marks it orphaned without any UI interaction or DOM removal.
+   * Fast enough to fit comfortably within the 3000ms test budget.
+   */
+  async function createOrphanedComment(page: Page, text: string): Promise<void> {
+    const id = `test-orphan-${Date.now()}`;
+    await page.request.post(`${API_BASE}/comments`, {
+      data: {
+        meta: { id, createdAt: Date.now() },
+        elements: [{ minimalSelector: '#__uib-nonexistent-selector-xyz' }],
+        comments: [{ id: `entry-${id}`, type: 'comment', text, author: 'user', createdAt: Date.now() }],
+      },
+    });
+
+    // Wait for the bar's shadow DOM to reflect orphaned=true — confirms the
+    // client synced the comment and _repositionBadge marked it orphaned.
+    await page.waitForFunction(
+      () =>
+        !!document
+          .querySelector('uib-comment-bar')
+          ?.shadowRoot?.querySelector('uib-comment[orphaned]'),
+    );
+  }
+
+  test('comment bar stays expanded when an orphaned panel is open after hover leaves', async ({
+    page,
+  }) => {
+    await createOrphanedComment(page, 'Orphaned — bar stays open');
 
     const bar = commentBar(page);
     const barEl = page.locator('uib-comment-bar');
 
-    // Hover to expand the bar, then click the badge to open the panel
+    // Hover to expand the bar, then click the badge to open its panel
     await barEl.hover();
     const barBadge = bar.locator('uib-comment uib-button.badge').first();
     await expect(barBadge).toBeVisible();
@@ -1806,12 +1833,23 @@ test.describe('Comment bar', () => {
     // Move cursor away from the bar to a neutral spot
     await page.mouse.move(800, 400);
 
-    // The panel opened from the bar badge should still be visible
-    await expect(bar).toHaveClass(/has-open-panel/);
+    // The panel is open in the bar's shadow DOM — verified via panel-open attribute
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () =>
+            !!document
+              .querySelector('uib-comment-bar')
+              ?.shadowRoot?.querySelector('uib-comment[panel-open]'),
+        ),
+      )
+      .toBe(true);
   });
 
-  test('comment bar collapses after panel is closed and hover leaves', async ({ page }) => {
-    await createComment(page, 'h1', 'Bar collapses');
+  test('comment bar collapses after orphaned panel is closed and hover leaves', async ({
+    page,
+  }) => {
+    await createOrphanedComment(page, 'Orphaned — bar collapses');
 
     const bar = commentBar(page);
     const barEl = page.locator('uib-comment-bar');
@@ -1822,16 +1860,45 @@ test.describe('Comment bar', () => {
     await expect(barBadge).toBeVisible();
     await barBadge.click();
 
-    // Move away — bar should still be pinned open
+    // Move away — panel should still be open
     await page.mouse.move(800, 400);
-    await expect(bar).toHaveClass(/has-open-panel/);
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () =>
+            !!document
+              .querySelector('uib-comment-bar')
+              ?.shadowRoot?.querySelector('uib-comment[panel-open]'),
+        ),
+      )
+      .toBe(true);
 
-    // Close the panel via the Close button in the open panel
-    const panel = commentPanel(page);
-    await panel.locator('uib-button[title="Close"]').click();
+    // Close the panel via evaluate
+    await page.evaluate(() => {
+      const barEl = document.querySelector('uib-comment-bar');
+      const uc = barEl?.shadowRoot?.querySelector('uib-comment[panel-open]') as any;
+      uc?.closePanel?.();
+    });
 
-    // Move away — bar should no longer have the pinned class
-    await page.mouse.move(800, 400);
-    await expect(bar).not.toHaveClass(/has-open-panel/);
+    // Wait for Lit's re-render to remove panel-open from shadow DOM
+    await page.waitForFunction(
+      () =>
+        !document
+          .querySelector('uib-comment-bar')
+          ?.shadowRoot?.querySelector('uib-comment[panel-open]'),
+    );
+
+    // No open panel — bar should no longer keep a panel-open element
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () =>
+            !!document
+              .querySelector('uib-comment-bar')
+              ?.shadowRoot?.querySelector('uib-comment[panel-open]'),
+        ),
+      )
+      .toBe(false);
   });
+
 });
