@@ -70,18 +70,21 @@ export const dbCommentBarStyles = [
       z-index: 2;
     }
 
-    /* ── Hovered: fan out, show all ──────────────────── */
-    .bar:hover uib-comment {
+    /* ── Hovered or panel open: fan out, show all ──────────────────── */
+    .bar:hover uib-comment,
+    .bar.has-open-panel uib-comment {
       margin-top: 8px;
       opacity: 1;
       transform: scale(1);
       pointer-events: auto;
       display: block;
     }
-    .bar:hover uib-comment:first-child {
+    .bar:hover uib-comment:first-child,
+    .bar.has-open-panel uib-comment:first-child {
       margin-top: 0;
     }
-    .bar:hover .overflow-pill {
+    .bar:hover .overflow-pill,
+    .bar.has-open-panel .overflow-pill {
       display: none;
     }
   `,

@@ -369,7 +369,7 @@ function onPointerDownForInspect(e: PointerEvent): void {
 }
 
 function onTrackCode(e: Event): void {
-  const detail = (e as CustomEvent<{ path?: string; line?: number; column?: number; }>).detail;
+  const detail = (e as CustomEvent<{ path?: string; line?: number; column?: number }>).detail;
   hideHighlight();
   if (!itemContainer) return;
 
@@ -407,7 +407,7 @@ function onTrackCode(e: Event): void {
 // ─── Cross-tab BroadcastChannel ──────────────────────────────────────────────
 
 channel.addEventListener('message', (e) => {
-  const { type, payload } = e.data as { type: string; payload: CommentThread[]; };
+  const { type, payload } = e.data as { type: string; payload: CommentThread[] };
   if (type === 'comments:sync') syncComments(payload);
 });
 

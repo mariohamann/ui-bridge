@@ -1,6 +1,6 @@
 import '@ui-bridge/components/comment';
 import { LitElement, html, type TemplateResult } from 'lit';
-import { customElement } from 'lit/decorators.js';
+import { customElement, state } from 'lit/decorators.js';
 import { SignalWatcher } from '@lit-labs/signals';
 import type { CommentThread } from '@ui-bridge/protocol';
 import { commentsSignal, orphanedIdsSignal } from '../state/comments-store.js';
@@ -30,9 +30,36 @@ function stableRanks(threads: CommentThread[]): Map<string, number> {
 export class UibCommentBar extends _UibCommentBarBase {
   static styles = dbCommentBarStyles;
 
+  @state() private _hasOpenPanel = false;
+
+  private _panelObserver: MutationObserver | null = null;
+
   connectedCallback(): void {
     super.connectedCallback();
     this.classList.add('wa-dark');
+  }
+
+  protected override firstUpdated(): void {
+    this._panelObserver = new MutationObserver(() => {
+      this._hasOpenPanel = this.shadowRoot
+        ? Array.from(this.shadowRoot.querySelectorAll('uib-comment')).some((el) =>
+          el.hasAttribute('panel-open'),
+        )
+        : false;
+    });
+    if (this.shadowRoot) {
+      this._panelObserver.observe(this.shadowRoot, {
+        subtree: true,
+        attributes: true,
+        attributeFilter: ['panel-open'],
+      });
+    }
+  }
+
+  disconnectedCallback(): void {
+    super.disconnectedCallback();
+    this._panelObserver?.disconnect();
+    this._panelObserver = null;
   }
 
   render(): TemplateResult {
@@ -52,10 +79,10 @@ export class UibCommentBar extends _UibCommentBarBase {
     const hidden = newest.slice(SHOW_OVERFLOW_AFTER);
 
     return html`
-      <div class="bar visible">
+      <div class="bar visible ${this._hasOpenPanel ? 'has-open-panel' : ''}">
         ${visible.map((thread, i) => {
-          const isOrphaned = orphanedIds.has(thread.meta.id);
-          return html`
+      const isOrphaned = orphanedIds.has(thread.meta.id);
+      return html`
             <uib-comment
               style="z-index:${SHOW_OVERFLOW_AFTER - i}"
               .comment=${thread}
@@ -64,11 +91,11 @@ export class UibCommentBar extends _UibCommentBarBase {
               ?orphaned=${isOrphaned}
             ></uib-comment>
           `;
-        })}
+    })}
         ${overflowCount > 0 ? html`<div class="overflow-pill">+${overflowCount}</div>` : ''}
         ${hidden.map((thread) => {
-          const isOrphaned = orphanedIds.has(thread.meta.id);
-          return html`
+      const isOrphaned = orphanedIds.has(thread.meta.id);
+      return html`
             <uib-comment
               class="overflow-hidden"
               .comment=${thread}
@@ -77,7 +104,7 @@ export class UibCommentBar extends _UibCommentBarBase {
               ?orphaned=${isOrphaned}
             ></uib-comment>
           `;
-        })}
+    })}
       </div>
     `;
   }

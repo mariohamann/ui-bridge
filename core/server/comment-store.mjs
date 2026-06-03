@@ -148,5 +148,17 @@ export function createCommentStore(rootDir) {
     comments.set(id, ann);
   }
 
-  return { load, reload, reloadOne, upsert, updateInMemory, del, clear, all, get, has, consumeSelfWrite };
+  return {
+    load,
+    reload,
+    reloadOne,
+    upsert,
+    updateInMemory,
+    del,
+    clear,
+    all,
+    get,
+    has,
+    consumeSelfWrite,
+  };
 }

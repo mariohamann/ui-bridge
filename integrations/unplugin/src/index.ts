@@ -41,7 +41,7 @@ async function getServerPort(port: number, expectedRoot: string): Promise<number
       signal: AbortSignal.timeout(600),
     });
     if (!resp.ok) return null;
-    const body = (await resp.json()) as { port?: number; root?: string; };
+    const body = (await resp.json()) as { port?: number; root?: string };
     if (body.root && body.root !== expectedRoot) return null;
     return body.port ?? port;
   } catch {
@@ -55,7 +55,7 @@ async function getServerPort(port: number, expectedRoot: string): Promise<number
 function spawnServer(
   rootDir: string,
   preferredPort: number,
-): { child: ChildProcess; ready: Promise<number>; } {
+): { child: ChildProcess; ready: Promise<number> } {
   const serverEntry = _require.resolve('@ui-bridge/server');
   const child = spawn(process.execPath, [serverEntry, '--root', rootDir], {
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -143,13 +143,13 @@ const unpluginFactory = createUnplugin((options: UiBridgeOptions = {}) => {
         return { server: { watch: { ignored: ['**/.ui-bridge/**'] } } };
       },
 
-      async configResolved(config: { root: string; command: string; }) {
+      async configResolved(config: { root: string; command: string }) {
         rootDir = config.root;
         isDevServer = config.command === 'serve';
       },
 
       configureServer(server: {
-        httpServer: { once: (event: string, cb: () => void) => void; } | null;
+        httpServer: { once: (event: string, cb: () => void) => void } | null;
         middlewares: {
           use: (
             path: string,
@@ -166,7 +166,7 @@ const unpluginFactory = createUnplugin((options: UiBridgeOptions = {}) => {
           add: (path: string) => void;
           on: (event: string, cb: (file: string) => void) => void;
         };
-        ws: { send: (payload: { type: string; }) => void; };
+        ws: { send: (payload: { type: string }) => void };
       }) {
         const CLIENT_URL = '/__ui-bridge/client.js';
         const clientBundlePath: string = _require.resolve('@ui-bridge/client');
@@ -229,7 +229,7 @@ const unpluginFactory = createUnplugin((options: UiBridgeOptions = {}) => {
       },
 
       transformIndexHtml: {
-        handler(_html: string, ctx: { server?: unknown; }) {
+        handler(_html: string, ctx: { server?: unknown }) {
           if (!ctx.server) return;
           const wsUrl = `ws://localhost:${resolvedPort}/ui-bridge`;
           const CLIENT_URL = '/__ui-bridge/client.js';
@@ -395,7 +395,7 @@ export function uiBridgeTurbopack(options: UiBridgeOptions = {}): Record<string,
   // Merge our inject loader into every rule entry that code-inspector produces
   const merged: Record<string, unknown> = {};
   for (const [glob, rule] of Object.entries(codeInspectorRules)) {
-    const existing = (rule as { loaders: unknown[]; }).loaders ?? [];
+    const existing = (rule as { loaders: unknown[] }).loaders ?? [];
     merged[glob] = {
       loaders: [...existing, { loader: loaderPath, options: { port } }],
     };
