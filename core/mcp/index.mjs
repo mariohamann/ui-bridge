@@ -289,6 +289,7 @@ server.tool(
   },
   async ({ includeResolved = false } = {}) => {
     const { store } = await getStore();
+    await store.reload();
     let comments = store.all();
     if (!includeResolved) comments = comments.filter((c) => !c.meta?.resolvedAt);
     return { content: [{ type: 'text', text: JSON.stringify({ comments }, null, 2) }] };
@@ -302,6 +303,7 @@ server.tool(
   { id: z.string().describe('Comment id') },
   async ({ id }) => {
     const { store } = await getStore();
+    await store.reload();
     const comment = store.get(id);
     if (!comment) throw new Error(`Comment not found: ${id}`);
     return { content: [{ type: 'text', text: JSON.stringify(comment, null, 2) }] };
@@ -360,6 +362,7 @@ server.tool(
   },
   async ({ elements, comment, pageUrl, knob, actions }) => {
     const { store } = await getStore();
+    await store.reload();
     const now = Date.now();
     const id = `agent-${now}-${Math.random().toString(36).slice(2, 8)}`;
     const rootEntry = {
@@ -371,18 +374,18 @@ server.tool(
     };
     const comments = knob
       ? [
-          rootEntry,
-          {
-            id: `${id}-tweak`,
-            type: 'tweak',
-            text: comment,
-            createdAt: now,
-            author: 'agent',
-            knob,
-            actions: actions ?? [],
-            tweakStatus: 'pending',
-          },
-        ]
+        rootEntry,
+        {
+          id: `${id}-tweak`,
+          type: 'tweak',
+          text: comment,
+          createdAt: now,
+          author: 'agent',
+          knob,
+          actions: actions ?? [],
+          tweakStatus: 'pending',
+        },
+      ]
       : [rootEntry];
     const payload = {
       meta: { id, pageUrl, timestamp: now, createdAt: now },
@@ -433,6 +436,7 @@ server.tool(
   },
   async ({ commentId, text, knob, actions }) => {
     const { store } = await getStore();
+    await store.reload();
     const existing = store.get(commentId);
     if (!existing) throw new Error(`Comment not found: ${commentId}`);
     const now = Date.now();
@@ -440,19 +444,19 @@ server.tool(
     const textEntry = { id: replyId, type: 'comment', text, createdAt: now, author: 'agent' };
     const newComments = knob
       ? [
-          ...(existing.comments ?? []),
-          textEntry,
-          {
-            id: `${replyId}-tweak`,
-            type: 'tweak',
-            text,
-            createdAt: now,
-            author: 'agent',
-            knob,
-            actions: actions ?? [],
-            tweakStatus: 'pending',
-          },
-        ]
+        ...(existing.comments ?? []),
+        textEntry,
+        {
+          id: `${replyId}-tweak`,
+          type: 'tweak',
+          text,
+          createdAt: now,
+          author: 'agent',
+          knob,
+          actions: actions ?? [],
+          tweakStatus: 'pending',
+        },
+      ]
       : [...(existing.comments ?? []), textEntry];
     const updated = {
       ...existing,

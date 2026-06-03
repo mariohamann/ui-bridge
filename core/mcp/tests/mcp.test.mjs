@@ -57,8 +57,8 @@ before(async () => {
     stdio: 'pipe',
   });
 
-  serverProc.stderr.on('data', () => {});
-  serverProc.stdout.on('data', () => {});
+  serverProc.stderr.on('data', () => { });
+  serverProc.stdout.on('data', () => { });
 
   await waitForServer();
 
@@ -569,6 +569,274 @@ describe('resolveRoot — root directory discovery', () => {
   it('falls back to cwd when no .ui-bridge dir found', async () => {
     const root = await resolveRoot({}, tmpdir());
     assert.equal(root, tmpdir());
+  });
+});
+
+// ── Long-lived session helper ─────────────────────────────────────────────────
+
+/**
+ * Spawn a single MCP process and keep it alive so multiple tool calls can be
+ * sent within the same process lifetime — this is how real AI agents use the
+ * MCP server.  Calling `session.call()` returns a Promise resolved with the
+ * JSON-RPC response for that specific request id.
+ */
+function createMcpSession() {
+  let nextId = 1;
+  /** @type {Map<number, { resolve: (v: unknown) => void; reject: (e: Error) => void; timer: ReturnType<typeof setTimeout> }>} */
+  const pending = new Map();
+  let buf = '';
+
+  const proc = spawn(process.execPath, [MCP_BIN], {
+    cwd: TEST_ROOT,
+    env: { ...process.env, UI_BRIDGE_PORT: String(TEST_PORT) },
+    stdio: ['pipe', 'pipe', 'pipe'],
+  });
+
+  proc.stdout.on('data', (chunk) => {
+    buf += chunk.toString();
+    const lines = buf.split('\n');
+    buf = lines.pop() ?? '';
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+      let msg;
+      try {
+        msg = JSON.parse(trimmed);
+      } catch {
+        continue;
+      }
+      if (msg.id !== undefined && pending.has(msg.id)) {
+        const entry = pending.get(msg.id);
+        pending.delete(msg.id);
+        clearTimeout(entry.timer);
+        entry.resolve(msg);
+      }
+    }
+  });
+
+  const send = (obj) => proc.stdin.write(JSON.stringify(obj) + '\n');
+
+  // Handshake
+  const initId = nextId++;
+  const initPromise = new Promise((resolve, reject) => {
+    const timer = setTimeout(
+      () => reject(new Error('MCP session init timeout')),
+      TEST_TIMEOUT_MS,
+    );
+    pending.set(initId, { resolve, reject, timer });
+  });
+  send({
+    jsonrpc: '2.0',
+    id: initId,
+    method: 'initialize',
+    params: {
+      protocolVersion: '2024-11-05',
+      capabilities: {},
+      clientInfo: { name: 'session-test', version: '0.0.1' },
+    },
+  });
+  send({ jsonrpc: '2.0', method: 'notifications/initialized', params: {} });
+
+  const call = (method, params = {}) => {
+    const id = nextId++;
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(
+        () => reject(new Error(`MCP session call timeout: ${method}`)),
+        TEST_TIMEOUT_MS,
+      );
+      pending.set(id, { resolve, reject, timer });
+      send({ jsonrpc: '2.0', id, method, params });
+    });
+  };
+
+  const close = () => proc.kill();
+
+  return { initPromise, call, close };
+}
+
+// ── Staleness regression tests ────────────────────────────────────────────────
+// These tests send MULTIPLE calls within the same MCP process to verify that
+// list_comments / reply_to_comment always reflects the current disk state, not
+// the snapshot from the initial load().
+
+describe('list_comments — reflects disk changes within the same MCP session', () => {
+  it('sees a comment created externally after the session started', async () => {
+    const session = createMcpSession();
+    await session.initPromise;
+
+    const id = `staleness-add-${Date.now()}`;
+
+    // First call — comment does not exist yet
+    const before = await session.call('tools/call', {
+      name: 'list_comments',
+      arguments: {},
+    });
+    const beforeBody = JSON.parse(before.result.content[0].text);
+    assert.ok(
+      !beforeBody.comments.find((c) => c.meta?.id === id),
+      'comment should not exist yet',
+    );
+
+    // Create comment via HTTP (simulates browser writing through the server)
+    const now = Date.now();
+    await fetch(`${BASE_URL}/api/comments`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        meta: { id, pageUrl: 'http://localhost:5173/', timestamp: now, createdAt: now },
+        elements: [{ minimalSelector: 'h1', tag: 'h1', classes: [] }],
+        comments: [
+          {
+            id: `${id}-root`,
+            type: 'comment',
+            text: 'Externally added',
+            createdAt: now,
+            author: 'user',
+          },
+        ],
+      }),
+    });
+
+    // Second call on the SAME session — must see the new comment
+    const after = await session.call('tools/call', {
+      name: 'list_comments',
+      arguments: {},
+    });
+    session.close();
+    await fetch(`${BASE_URL}/api/comments/${id}`, { method: 'DELETE' });
+
+    const afterBody = JSON.parse(after.result.content[0].text);
+    assert.ok(
+      afterBody.comments.find((c) => c.meta?.id === id),
+      'newly created comment must be visible on second list_comments call',
+    );
+  });
+
+  it('does not return a comment deleted externally after the session started', async () => {
+    const id = `staleness-del-${Date.now()}`;
+    const now = Date.now();
+
+    // Pre-create the comment so it is loaded on session start
+    await fetch(`${BASE_URL}/api/comments`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        meta: { id, pageUrl: 'http://localhost:5173/', timestamp: now, createdAt: now },
+        elements: [{ minimalSelector: 'h1', tag: 'h1', classes: [] }],
+        comments: [
+          {
+            id: `${id}-root`,
+            type: 'comment',
+            text: 'Will be deleted',
+            createdAt: now,
+            author: 'user',
+          },
+        ],
+      }),
+    });
+
+    const session = createMcpSession();
+    await session.initPromise;
+
+    // First call — comment exists
+    const before = await session.call('tools/call', {
+      name: 'list_comments',
+      arguments: {},
+    });
+    const beforeBody = JSON.parse(before.result.content[0].text);
+    assert.ok(
+      beforeBody.comments.find((c) => c.meta?.id === id),
+      'comment should be present initially',
+    );
+
+    // Delete via HTTP (simulates user deleting from browser)
+    await fetch(`${BASE_URL}/api/comments/${id}`, { method: 'DELETE' });
+
+    // Second call on the SAME session — must NOT return the deleted comment
+    const after = await session.call('tools/call', {
+      name: 'list_comments',
+      arguments: {},
+    });
+    session.close();
+
+    const afterBody = JSON.parse(after.result.content[0].text);
+    assert.ok(
+      !afterBody.comments.find((c) => c.meta?.id === id),
+      'deleted comment must not appear on second list_comments call',
+    );
+  });
+});
+
+describe('reply_to_comment — reads up-to-date thread from disk', () => {
+  it('preserves replies added externally between two calls in the same session', async () => {
+    const id = `staleness-reply-${Date.now()}`;
+    const now = Date.now();
+
+    // Create base thread
+    await fetch(`${BASE_URL}/api/comments`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        meta: { id, pageUrl: 'http://localhost:5173/', timestamp: now, createdAt: now },
+        elements: [{ minimalSelector: 'p', tag: 'p', classes: [] }],
+        comments: [
+          {
+            id: `${id}-root`,
+            type: 'comment',
+            text: 'User comment',
+            createdAt: now,
+            author: 'user',
+          },
+        ],
+      }),
+    });
+
+    const session = createMcpSession();
+    await session.initPromise;
+
+    // Simulate another process adding a reply directly (e.g. browser user replying)
+    const threadRes = await fetch(`${BASE_URL}/api/comments/${id}`);
+    const thread = await threadRes.json();
+    const extNow = Date.now();
+    thread.comments.push({
+      id: `${id}-ext`,
+      type: 'comment',
+      text: 'External reply',
+      createdAt: extNow,
+      author: 'user',
+    });
+    thread.meta.timestamp = extNow;
+    await fetch(`${BASE_URL}/api/comments`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(thread),
+    });
+
+    // Now MCP reply_to_comment — must base its update on the current disk state
+    const res = await session.call('tools/call', {
+      name: 'reply_to_comment',
+      arguments: { commentId: id, text: 'Agent reply' },
+    });
+    assert.ok(!res.error, `reply_to_comment errored: ${JSON.stringify(res.error)}`);
+
+    // Verify via MCP get_comment (reads directly from disk — no server race)
+    const getRes = await session.call('tools/call', {
+      name: 'get_comment',
+      arguments: { id },
+    });
+    session.close();
+    await fetch(`${BASE_URL}/api/comments/${id}`, { method: 'DELETE' });
+
+    const final = JSON.parse(getRes.result.content[0].text);
+
+    assert.ok(
+      final.comments.find((c) => c.text === 'External reply'),
+      'external reply must be preserved',
+    );
+    assert.ok(
+      final.comments.find((c) => c.text === 'Agent reply'),
+      'agent reply must be appended',
+    );
   });
 });
 
