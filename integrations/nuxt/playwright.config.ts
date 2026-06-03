@@ -19,7 +19,7 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   reporter: 'list',
-  timeout: 30_000,
+  timeout: 3_000,
 
   use: {
     baseURL: 'http://localhost:3002',
@@ -40,6 +40,6 @@ export default defineConfig({
     cwd: demoDir,
     url: 'http://localhost:3002',
     reuseExistingServer: !process.env.CI,
-    timeout: 90_000,
+    timeout: 10_000,
   },
 });

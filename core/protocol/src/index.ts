@@ -30,6 +30,7 @@ export type {
   CommentClearMsg,
   CommentsSyncMsg,
   InspectPickMsg,
+  SourceAnnotationConfig,
 } from './protocol.js';
 
 export {

@@ -32,7 +32,7 @@ export default defineConfig({
     url: `http://localhost:${TEST_PORT}/health`,
     reuseExistingServer: false,
     env: { UI_BRIDGE_PORT: String(TEST_PORT) },
-    timeout: 15_000,
+    timeout: 10_000,
   },
 
   globalSetup: './tests/global-setup.ts',

@@ -22,7 +22,7 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   reporter: 'list',
   // Generous timeout — Astro cold-starts slower than plain Vite
-  timeout: 20_000,
+  timeout: 3_000,
 
   use: {
     baseURL: 'http://localhost:4321',
@@ -45,6 +45,6 @@ export default defineConfig({
     cwd: demoDir,
     url: 'http://localhost:4321',
     reuseExistingServer: !process.env.CI,
-    timeout: 90_000,
+    timeout: 10_000,
   },
 });

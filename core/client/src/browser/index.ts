@@ -2,6 +2,7 @@ import { initInspector, upsertComment } from './inspector.js';
 import '@ui-bridge/components/comment';
 import '@ui-bridge/components/orphaned';
 import './ws-adapter.js'; // side-effect: wires signal stores ↔ WebSocket
+import type { SourceAnnotationConfig } from '@ui-bridge/protocol';
 import {
   updateComments,
   commentsSignal,
@@ -11,7 +12,10 @@ import {
 } from '@ui-bridge/components';
 
 function boot(): void {
-  initInspector();
+  const sourceConfig = (window as unknown as Record<string, unknown>).__UIB_SOURCE_CONFIG__ as
+    | SourceAnnotationConfig
+    | undefined;
+  initInspector(sourceConfig);
   if (!document.querySelector('uib-comment-bar')) {
     const bar = document.createElement('uib-comment-bar');
     document.body.appendChild(bar);

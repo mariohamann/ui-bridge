@@ -1,5 +1,43 @@
 import { z } from 'zod';
 
+// ─── Source annotation config ─────────────────────────────────────────────────
+
+/**
+ * Configures how the client resolves source file/line information when the user
+ * clicks an element. JSON-serializable so it can be injected as a global via
+ * the Vite plugin.
+ */
+export interface SourceAnnotationConfig {
+  /**
+   * Match source location from HTML comments in the DOM (e.g. Blade, Twig,
+   * Django templates that emit surrounding comments).
+   *
+   * Each entry is a pattern definition. The walker tries them in order and
+   * returns the first match — so you can list multiple frameworks at once.
+   *
+   * Each entry's `pattern` is a regex string. Capture groups:
+   *   - `fileGroup` (default 1) → file path
+   *   - `lineGroup` (optional) → 1-based line number
+   *   - `columnGroup` (optional) → 0-based column number
+   *
+   * Example for Laravel Blade:
+   *   [{ pattern: 'Start view: (.+?\\.blade\\.php)' }]
+   */
+  htmlComments?: Array<{
+    pattern: string;
+    fileGroup?: number;
+    lineGroup?: number;
+    columnGroup?: number;
+  }>;
+  /**
+   * Additional data-attribute strategies, checked before the built-in ones.
+   * Two formats are supported:
+   *   - `{ pathAttr }` — single attribute encoding "file:line:col"
+   *   - `{ fileAttr, locAttr }` — separate file and "line:col" attributes
+   */
+  dataAttributes?: Array<{ pathAttr: string; } | { fileAttr: string; locAttr: string; }>;
+}
+
 // ─── Knob types ───────────────────────────────────────────────────────────────
 
 export const TweakKnobTypeSchema = z.enum([

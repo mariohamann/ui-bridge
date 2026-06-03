@@ -1,0 +1,15 @@
+<footer data-theme="dark">
+    <nav class="container">
+        <ul>
+            <li><strong><a href="#">✦ Luminary</a></strong></li>
+        </ul>
+        <ul>
+            <li><small>&copy; {{ date('Y') }} Luminary Inc. All rights reserved.</small></li>
+        </ul>
+        <ul>
+            <li><a href="#" class="secondary">Privacy</a></li>
+            <li><a href="#" class="secondary">Terms</a></li>
+            <li><a href="#" class="secondary">Status</a></li>
+        </ul>
+    </nav>
+</footer>

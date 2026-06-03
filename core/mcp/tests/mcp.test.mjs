@@ -57,8 +57,8 @@ before(async () => {
     stdio: 'pipe',
   });
 
-  serverProc.stderr.on('data', () => { });
-  serverProc.stdout.on('data', () => { });
+  serverProc.stderr.on('data', () => {});
+  serverProc.stdout.on('data', () => {});
 
   await waitForServer();
 

@@ -9,7 +9,7 @@
 
 import { sendMessage, onMessage } from './ws-client.js';
 import { finder, idName } from '@medv/finder';
-import type { CommentThread } from '@ui-bridge/protocol';
+import type { CommentThread, SourceAnnotationConfig } from '@ui-bridge/protocol';
 import { UIB_COMMENT_TAG, UIB_SOURCE_INSPECTOR_TAG } from '@ui-bridge/protocol';
 import type { UibComment } from '@ui-bridge/components';
 import {
@@ -35,6 +35,8 @@ function buildSelector(el: Element): string {
 }
 
 // ─── State ───────────────────────────────────────────────────────────────────
+
+let sourceAnnotationConfig: SourceAnnotationConfig | undefined;
 
 const comments = new Map<string, CommentThread>();
 const changeListeners = new Set<() => void>();
@@ -332,7 +334,7 @@ function onPointerDownForInspect(e: PointerEvent): void {
 }
 
 function onTrackCode(e: Event): void {
-  const detail = (e as CustomEvent<{ path?: string; line?: number; column?: number }>).detail;
+  const detail = (e as CustomEvent<{ path?: string; line?: number; column?: number; }>).detail;
   hideHighlight();
   if (!itemContainer) return;
 
@@ -347,7 +349,7 @@ function onTrackCode(e: Event): void {
   const detailSource = detail?.path
     ? { file: detail.path, line: detail.line ?? 1, column: detail.column ?? 0 }
     : null;
-  const source = detailSource ?? getSourceInfo(el) ?? undefined;
+  const source = detailSource ?? getSourceInfo(el, sourceAnnotationConfig) ?? undefined;
 
   if (existing && !draftItem) {
     openItemPanel(getItemById(existing.meta.id)!);
@@ -370,7 +372,7 @@ function onTrackCode(e: Event): void {
 // ─── Cross-tab BroadcastChannel ──────────────────────────────────────────────
 
 channel.addEventListener('message', (e) => {
-  const { type, payload } = e.data as { type: string; payload: CommentThread[] };
+  const { type, payload } = e.data as { type: string; payload: CommentThread[]; };
   if (type === 'comments:sync') syncComments(payload);
 });
 
@@ -386,7 +388,8 @@ onMessage((msg) => {
 
 // ─── Boot ─────────────────────────────────────────────────────────────────────
 
-export function initInspector(): void {
+export function initInspector(config?: SourceAnnotationConfig): void {
+  sourceAnnotationConfig = config;
   itemContainer = document.createElement('div');
   itemContainer.id = 'uib-items';
   itemContainer.style.cssText =
@@ -484,7 +487,7 @@ export function initInspector(): void {
       e.stopPropagation();
       window.dispatchEvent(
         new CustomEvent('code-inspector:trackCode', {
-          detail: getSourceInfo(lastInspectedEl!) ?? {},
+          detail: getSourceInfo(lastInspectedEl!, sourceAnnotationConfig) ?? {},
         }),
       );
     },

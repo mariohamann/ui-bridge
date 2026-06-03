@@ -40,6 +40,6 @@ export default defineConfig({
     cwd: viteDemoDir,
     url: 'http://localhost:5173',
     reuseExistingServer: !process.env.CI,
-    timeout: 60_000,
+    timeout: 10_000,
   },
 });

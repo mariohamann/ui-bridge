@@ -58,6 +58,15 @@ const configWebpack = `import { uiBridge } from '@ui-bridge/unplugin'
 export default {
   plugins: [uiBridge.webpack()]
 }`;
+
+const sourceAnnotationHtmlComments = `uiBridgeVite({
+  sourceAnnotation: {
+    // Each pattern is a regex — capture group 1 is the file path.
+    htmlComments: [
+      { pattern: 'Start view: (.+?\\.blade\\.php)' },
+    ],
+  },
+})`;
 ---
 
 <script>
@@ -146,5 +155,36 @@ export default {
     </wa-tab-group>
 
     <p>Run your dev server. The panel appears in your browser.</p>
+
+    <h3>Source location for server-rendered frameworks</h3>
+
+    <p>
+      For Vite-based frameworks, source location is detected automatically. For server-rendered
+      frameworks like Laravel, you can configure UI Bridge to read it from HTML comments that your
+      template engine emits.
+    </p>
+
+    <p>
+      If you're using <a
+        href="https://github.com/pixelfear/laravel-view-debug"
+        target="_blank"
+        rel="noopener">pixelfear/laravel-view-debug</a
+      >, it wraps every rendered Blade partial in comments like
+      <code>&lt;!-- Start view: /path/to/file.blade.php --&gt;</code>. Tell UI Bridge to pick those
+      up with <code>htmlComments</code>:
+    </p>
+
+    <div class="code-block mb-9">
+      <div class="code-block-header">
+        <span class="code-block-filename">vite.config.ts</span>
+      </div>
+      <Code code={sourceAnnotationHtmlComments} lang="ts" theme="github-dark" />
+    </div>
+
+    <p>
+      You can pass multiple patterns — they're tried in order and the first match wins. The same
+      approach works for any framework that annotates the DOM with HTML comments, such as Twig or
+      Django templates.
+    </p>
   </div>
 </section>

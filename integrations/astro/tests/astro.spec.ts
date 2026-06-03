@@ -46,7 +46,7 @@ test('injects __UIB_WS_URL__ into the page', async ({ page }) => {
 
 test('uib-comment custom element is registered after client boots', async ({ page }) => {
   await page.goto('/');
-  await page.waitForFunction(() => !!customElements.get('uib-comment'), { timeout: 10_000 });
+  await page.waitForFunction(() => !!customElements.get('uib-comment'), { timeout: 3_000 });
   const isDefined = await page.evaluate(() => !!customElements.get('uib-comment'));
   expect(isDefined).toBe(true);
 });
@@ -60,14 +60,14 @@ test('serves the client bundle at /__ui-bridge/client.js', async ({ request }) =
 test('UI Bridge server health endpoint is reachable', async ({ request }) => {
   const res = await request.get(`http://localhost:${UIB_PORT}/health`);
   expect(res.status()).toBe(200);
-  const body = (await res.json()) as { port: number };
+  const body = (await res.json()) as { port: number; };
   expect(typeof body.port).toBe('number');
 });
 
 test('comment round-trip: created on the page appears on the review UI', async ({ page }) => {
   // 1. Load the Astro demo and wait for the UI Bridge client to be ready
   await page.goto('/');
-  await page.waitForFunction(() => !!customElements.get('uib-comment'), { timeout: 10_000 });
+  await page.waitForFunction(() => !!customElements.get('uib-comment'), { timeout: 3_000 });
 
   // 2. Alt+Shift+click the h1. The inspector reads Astro's
   //    data-astro-source-file / data-astro-source-loc attributes and dispatches
@@ -85,7 +85,7 @@ test('comment round-trip: created on the page appears on the review UI', async (
   // 3. Verify it was persisted via the API
   const res = await page.request.get(`${API_BASE}/comments`);
   const body = (await res.json()) as {
-    comments: { meta: { id: string }; comments?: { text: string }[] }[];
+    comments: { meta: { id: string; }; comments?: { text: string; }[]; }[];
   };
   expect(body.comments.some((a) => a.comments?.[0]?.text === 'Round-trip check from Astro')).toBe(
     true,

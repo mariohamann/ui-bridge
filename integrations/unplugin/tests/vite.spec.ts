@@ -25,10 +25,10 @@ const API_BASE = `http://localhost:${UIB_PORT}/api`;
 
 /** Resolve the comment directory from the running server's reported root. */
 async function getCommentsDir(request: {
-  get: (url: string) => Promise<{ json: () => Promise<unknown> }>;
+  get: (url: string) => Promise<{ json: () => Promise<unknown>; }>;
 }): Promise<string> {
   const res = await request.get(`http://localhost:${UIB_PORT}/health`);
-  const body = (await res.json()) as { root: string };
+  const body = (await res.json()) as { root: string; };
   return resolve(body.root, '.ui-bridge', 'comments');
 }
 
@@ -47,9 +47,17 @@ test('injects __UIB_WS_URL__ into the page', async ({ page }) => {
   expect(wsUrl).toMatch(/^ws:\/\//);
 });
 
+test('injects __UIB_SOURCE_CONFIG__ with configured htmlComments pattern', async ({ page }) => {
+  await page.goto('/');
+  const config = await page.evaluate(() => (window as any).__UIB_SOURCE_CONFIG__);
+  expect(config).toBeDefined();
+  expect(Array.isArray(config.htmlComments)).toBe(true);
+  expect(config.htmlComments[0].pattern).toContain('.vue');
+});
+
 test('uib-comment custom element is registered after client boots', async ({ page }) => {
   await page.goto('/');
-  await page.waitForFunction(() => !!customElements.get('uib-comment'), { timeout: 10_000 });
+  await page.waitForFunction(() => !!customElements.get('uib-comment'), { timeout: 3_000 });
   const isDefined = await page.evaluate(() => !!customElements.get('uib-comment'));
   expect(isDefined).toBe(true);
 });
@@ -63,7 +71,7 @@ test('serves the client bundle at /__ui-bridge/client.js', async ({ request }) =
 test('UI Bridge server health endpoint is reachable', async ({ request }) => {
   const res = await request.get(`http://localhost:${UIB_PORT}/health`);
   expect(res.status()).toBe(200);
-  const body = (await res.json()) as { port: number };
+  const body = (await res.json()) as { port: number; };
   expect(typeof body.port).toBe('number');
 });
 
@@ -74,7 +82,7 @@ test('comment round-trip: created on the page is persisted to the server', async
   await page.goto('/');
   await page.waitForFunction(
     () => !!customElements.get('uib-comment') && typeof (window as any).__UIB_WS_URL__ === 'string',
-    { timeout: 10_000 },
+    { timeout: 3_000 },
   );
 
   await page
@@ -91,7 +99,7 @@ test('comment round-trip: created on the page is persisted to the server', async
 
   const res = await page.request.get(`${API_BASE}/comments`);
   const body = (await res.json()) as {
-    comments: { meta: { id: string }; comments?: { text: string }[] }[];
+    comments: { meta: { id: string; }; comments?: { text: string; }[]; }[];
   };
   expect(body.comments.some((a) => a.comments?.[0]?.text === 'unplugin integration check')).toBe(
     true,

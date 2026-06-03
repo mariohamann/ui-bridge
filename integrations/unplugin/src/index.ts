@@ -4,6 +4,7 @@ import { createRequire } from 'node:module';
 import { createInterface } from 'node:readline';
 import { createUnplugin } from 'unplugin';
 import { codeInspectorPlugin } from 'code-inspector-plugin';
+import type { SourceAnnotationConfig } from '@ui-bridge/protocol';
 
 const _require = createRequire(import.meta.url);
 
@@ -14,6 +15,13 @@ export interface UiBridgeOptions {
    * Resolution order: this option → UI_BRIDGE_PORT env var → UIB_PORT env var (legacy) → 7378.
    */
   port?: number;
+  /**
+   * Configure how the client detects source file/line information when the
+   * user clicks an element. Useful for server-side frameworks that annotate
+   * the DOM with HTML comments (Blade, Twig, Django) or custom data attributes
+   * instead of the default code-inspector / Astro strategies.
+   */
+  sourceAnnotation?: SourceAnnotationConfig;
 }
 
 /**
@@ -26,7 +34,7 @@ async function getServerPort(port: number, expectedRoot: string): Promise<number
       signal: AbortSignal.timeout(600),
     });
     if (!resp.ok) return null;
-    const body = (await resp.json()) as { port?: number; root?: string };
+    const body = (await resp.json()) as { port?: number; root?: string; };
     if (body.root && body.root !== expectedRoot) return null;
     return body.port ?? port;
   } catch {
@@ -40,7 +48,7 @@ async function getServerPort(port: number, expectedRoot: string): Promise<number
 function spawnServer(
   rootDir: string,
   preferredPort: number,
-): { child: ChildProcess; ready: Promise<number> } {
+): { child: ChildProcess; ready: Promise<number>; } {
   const serverEntry = _require.resolve('@ui-bridge/server');
   const child = spawn(process.execPath, [serverEntry, '--root', rootDir], {
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -74,11 +82,18 @@ function spawnServer(
  * Build the injection HTML for a given WS port.
  * For webpack/rspack the client bundle is served by the ui-bridge server itself.
  */
-function buildInjectionHtml(resolvedPort: number): string {
+function buildInjectionHtml(
+  resolvedPort: number,
+  sourceAnnotation?: SourceAnnotationConfig,
+): string {
   const wsUrl = `ws://localhost:${resolvedPort}/ui-bridge`;
   const clientUrl = `http://localhost:${resolvedPort}/ui-bridge/client.js`;
+  const sourceConfigScript = sourceAnnotation
+    ? `<script>window.__UIB_SOURCE_CONFIG__=${JSON.stringify(sourceAnnotation)};</script>`
+    : '';
   return (
     `<script>window.__UIB_WS_URL__=${JSON.stringify(wsUrl)};</script>` +
+    sourceConfigScript +
     `<script src="${clientUrl}"></script>`
   );
 }
@@ -91,6 +106,7 @@ const unpluginFactory = createUnplugin((options: UiBridgeOptions = {}) => {
 
   let resolvedPort = preferredPort;
   let rootDir = '';
+  let isDevServer = false;
   let child: ChildProcess | null = null;
   let serverReady = false;
 
@@ -117,12 +133,13 @@ const unpluginFactory = createUnplugin((options: UiBridgeOptions = {}) => {
         return { server: { watch: { ignored: ['**/.ui-bridge/.cache/**'] } } };
       },
 
-      async configResolved(config: { root: string }) {
+      async configResolved(config: { root: string; command: string; }) {
         rootDir = config.root;
+        isDevServer = config.command === 'serve';
       },
 
       configureServer(server: {
-        httpServer: { once: (event: string, cb: () => void) => void } | null;
+        httpServer: { once: (event: string, cb: () => void) => void; } | null;
         middlewares: {
           use: (
             path: string,
@@ -139,7 +156,7 @@ const unpluginFactory = createUnplugin((options: UiBridgeOptions = {}) => {
           add: (path: string) => void;
           on: (event: string, cb: (file: string) => void) => void;
         };
-        ws: { send: (payload: { type: string }) => void };
+        ws: { send: (payload: { type: string; }) => void; };
       }) {
         const CLIENT_URL = '/__ui-bridge/client.js';
         const clientBundlePath: string = _require.resolve('@ui-bridge/client');
@@ -172,21 +189,69 @@ const unpluginFactory = createUnplugin((options: UiBridgeOptions = {}) => {
         });
       },
 
+      // ── virtual:ui-bridge module ──────────────────────────────────────────
+      // Provides an importable entry point for frameworks where Vite does not
+      // serve HTML (e.g. Laravel). Add `import 'virtual:ui-bridge'` to your
+      // JS entry file (e.g. resources/js/app.js). Resolves to an IIFE that
+      // injects the WS URL global and loads the client bundle in dev mode; in
+      // production builds Vite tree-shakes it to an empty module.
+      resolveId(id: string) {
+        if (id === 'virtual:ui-bridge') return '\0virtual:ui-bridge';
+      },
+
+      load(id: string) {
+        if (id !== '\0virtual:ui-bridge') return;
+        if (!isDevServer) return 'export {};';
+        const wsUrl = `ws://localhost:${preferredPort}/ui-bridge`;
+        const clientUrl = `http://localhost:${preferredPort}/ui-bridge/client.js`;
+        const sourceConfigInit = options.sourceAnnotation
+          ? `window.__UIB_SOURCE_CONFIG__=${JSON.stringify(options.sourceAnnotation)};`
+          : '';
+        return (
+          `if(typeof window!=='undefined'&&!window.__UIB_WS_URL__){` +
+          `window.__UIB_WS_URL__=${JSON.stringify(wsUrl)};` +
+          sourceConfigInit +
+          `var s=document.createElement('script');` +
+          `s.src=${JSON.stringify(clientUrl)};` +
+          `document.head.appendChild(s);}` +
+          `export {};`
+        );
+      },
+
       transformIndexHtml: {
-        order: 'pre' as const,
-        handler(_html: string, ctx: { server?: unknown }) {
+        handler(_html: string, ctx: { server?: unknown; }) {
           if (!ctx.server) return;
           const wsUrl = `ws://localhost:${resolvedPort}/ui-bridge`;
           const CLIENT_URL = '/__ui-bridge/client.js';
-          return [
+          type InjectTo = 'head' | 'body' | 'head-prepend' | 'body-prepend';
+          type Tag = {
+            tag: string;
+            attrs?: Record<string, string>;
+            children?: string;
+            injectTo: InjectTo;
+          };
+          const tags: Tag[] = [
             {
               tag: 'script',
               attrs: { type: 'text/javascript' },
               children: `window.__UIB_WS_URL__=${JSON.stringify(wsUrl)};`,
               injectTo: 'head-prepend',
             },
-            { tag: 'script', attrs: { src: `${CLIENT_URL}?t=${Date.now()}` }, injectTo: 'head' },
           ];
+          if (options.sourceAnnotation) {
+            tags.push({
+              tag: 'script',
+              attrs: { type: 'text/javascript' },
+              children: `window.__UIB_SOURCE_CONFIG__=${JSON.stringify(options.sourceAnnotation)};`,
+              injectTo: 'head-prepend',
+            });
+          }
+          tags.push({
+            tag: 'script',
+            attrs: { src: `${CLIENT_URL}?t=${Date.now()}` },
+            injectTo: 'head',
+          });
+          return tags;
         },
       },
     },
@@ -240,7 +305,7 @@ const unpluginFactory = createUnplugin((options: UiBridgeOptions = {}) => {
           for (const filename of Object.keys(assets)) {
             if (!filename.endsWith('.html')) continue;
             const html: string = assets[filename].source();
-            const injection = buildInjectionHtml(resolvedPort);
+            const injection = buildInjectionHtml(resolvedPort, options.sourceAnnotation);
             const patched = html.replace('</head>', `${injection}</head>`);
             compilation.updateAsset(filename, {
               source: () => patched,
@@ -294,7 +359,7 @@ export function uiBridgeTurbopack(options: UiBridgeOptions = {}): Record<string,
   // Merge our inject loader into every rule entry that code-inspector produces
   const merged: Record<string, unknown> = {};
   for (const [glob, rule] of Object.entries(codeInspectorRules)) {
-    const existing = (rule as { loaders: unknown[] }).loaders ?? [];
+    const existing = (rule as { loaders: unknown[]; }).loaders ?? [];
     merged[glob] = {
       loaders: [...existing, { loader: loaderPath, options: { port } }],
     };

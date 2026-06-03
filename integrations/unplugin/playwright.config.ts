@@ -22,7 +22,7 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   reporter: 'list',
-  timeout: 15_000,
+  timeout: 3_000,
 
   use: {
     trace: 'on-first-retry',
@@ -53,7 +53,7 @@ export default defineConfig({
       cwd: viteDemoDir,
       url: 'http://localhost:5173',
       reuseExistingServer: !process.env.CI,
-      timeout: 60_000,
+      timeout: 10_000,
     },
     {
       // When SKIP_BUILD=true (set by root `pnpm test`), packages are already built.
@@ -61,7 +61,7 @@ export default defineConfig({
       cwd: webpackDemoDir,
       url: 'http://localhost:5174',
       reuseExistingServer: !process.env.CI,
-      timeout: 60_000,
+      timeout: 10_000,
     },
     {
       // When SKIP_BUILD=true (set by root `pnpm test`), packages are already built.
@@ -69,7 +69,7 @@ export default defineConfig({
       cwd: rspackDemoDir,
       url: 'http://localhost:5175',
       reuseExistingServer: !process.env.CI,
-      timeout: 120_000,
+      timeout: 10_000,
       stdout: 'pipe',
     },
   ],

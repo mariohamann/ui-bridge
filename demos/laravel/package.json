@@ -1,0 +1,46 @@
+{
+    "name": "ui-bridge-demo-laravel",
+    "version": "0.0.1",
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "dev": "wireit"
+    },
+    "wireit": {
+        "dev": {
+            "command": "php artisan serve",
+            "service": {
+                "readyWhen": {
+                    "lineMatches": "Server running"
+                }
+            },
+            "dependencies": [
+                "vite"
+            ]
+        },
+        "vite": {
+            "command": "vite --port 5176",
+            "service": {
+                "readyWhen": {
+                    "lineMatches": "Local.*http://localhost"
+                }
+            },
+            "dependencies": [
+                "../../integrations/unplugin:dev"
+            ],
+            "files": [
+                "resources/**",
+                "routes/**",
+                "vite.config.*"
+            ]
+        }
+    },
+    "dependencies": {
+        "@ui-bridge/demo-styles": "workspace:*"
+    },
+    "devDependencies": {
+        "@ui-bridge/unplugin": "workspace:*",
+        "laravel-vite-plugin": "^1.0.0",
+        "vite": "^6.0.0"
+    }
+}

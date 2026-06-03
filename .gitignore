@@ -8,4 +8,5 @@
 .agents/skills/webawesome
 **/.next
 **/.nuxt
+demos/laravel/vendor/
 **/.output

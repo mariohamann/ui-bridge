@@ -14,6 +14,7 @@
     "dev:astro": "pnpm --filter ui-bridge-demo-astro dev",
     "dev:next": "pnpm --filter ui-bridge-demo-next dev",
     "dev:nuxt": "pnpm --filter ui-bridge-demo-nuxt dev",
+    "dev:laravel": "pnpm --filter ui-bridge-demo-laravel dev",
     "docs": "pnpm --filter @ui-bridge/docs dev",
     "docs:dev": "pnpm --filter @ui-bridge/docs dev",
     "docs:build": "pnpm --filter @ui-bridge/docs build",
