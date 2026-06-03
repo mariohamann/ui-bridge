@@ -33,7 +33,7 @@ const configVite = `import { defineConfig } from 'vite'
 import { uiBridgeVite } from '@ui-bridge/unplugin'
 
 export default defineConfig({
-  plugins: [uiBridgeVite()]
+  plugins: [...uiBridgeVite()]
 })`;
 
 const configNext = `import { withUiBridge } from '@ui-bridge/next'
@@ -53,13 +53,38 @@ export default defineConfig({
   integrations: [uiBridge()]
 })`;
 
-const sourceAnnotationHtmlComments = `uiBridgeVite({
-  sourceAnnotation: {
-    // Each pattern is a regex — capture group 1 is the file path.
-    htmlComments: [
-      { pattern: 'Start view: (.+?\\.blade\\.php)' },
-    ],
-  },
+const sourceAnnotationHtmlComments = `import { defineConfig } from 'vite'
+import { uiBridgeVite } from '@ui-bridge/unplugin'
+
+export default defineConfig({
+  plugins: [
+    ...uiBridgeVite({
+      inspector: false,
+      sourceAnnotation: {
+        // Each entry is a regex. Capture group 1 is the file path.
+        // List multiple patterns if you mix frameworks — first match wins.
+        htmlComments: [
+          { pattern: 'Start view: (.+?\.blade\.php)' },
+        ],
+      },
+    }),
+  ],
+})`;
+
+const sourceAnnotationDataAttribute = `import { defineConfig } from 'vite'
+import { uiBridgeVite } from '@ui-bridge/unplugin'
+
+export default defineConfig({
+  plugins: [
+    ...uiBridgeVite({
+      sourceAnnotation: {
+        // Single attribute encoding "file:line:col"
+        dataAttributes: [{ pathAttr: 'data-source' }],
+        // Or split across two attributes:
+        // dataAttributes: [{ fileAttr: 'data-file', locAttr: 'data-loc' }],
+      },
+    }),
+  ],
 })`;
 ---
 
@@ -136,25 +161,25 @@ const sourceAnnotationHtmlComments = `uiBridgeVite({
 
     <p>Run your dev server. The panel appears in your browser.</p>
 
-    <h3>Source location for server-rendered frameworks</h3>
+    <h3>Custom source location</h3>
 
     <p>
-      For Vite-based frameworks, source location is detected automatically. For server-rendered
-      frameworks like Laravel, you can configure UI Bridge to read it from HTML comments that your
-      template engine emits.
+      Source location is detected automatically. If your stack doesn't support it — or you want to
+      override it — you can read it from HTML comments or data attributes in the rendered markup.
     </p>
 
     <p>
-      If you're using <a
+      <strong>HTML comments</strong> — use <code>htmlComments</code> with a regex pattern. Useful for
+      frameworks like Laravel Blade with <a
         href="https://github.com/pixelfear/laravel-view-debug"
         target="_blank"
-        rel="noopener">pixelfear/laravel-view-debug</a
-      >, it wraps every rendered Blade partial in comments like
-      <code>&lt;!-- Start view: /path/to/file.blade.php --&gt;</code>. Tell UI Bridge to pick those
-      up with <code>htmlComments</code>:
+        rel="noopener">laravel-view-debug</a
+      > that wrap partials in comments like
+      <code>&lt;!-- Start view: /path/to/file.blade.php --&gt;</code>. Set
+      <code>inspector: false</code> when code-inspector can't annotate your templates:
     </p>
 
-    <div class="code-block mb-9">
+    <div class="code-block mb-6">
       <div class="code-block-header">
         <span class="code-block-filename">vite.config.ts</span>
       </div>
@@ -162,9 +187,16 @@ const sourceAnnotationHtmlComments = `uiBridgeVite({
     </div>
 
     <p>
-      You can pass multiple patterns — they're tried in order and the first match wins. The same
-      approach works for any framework that annotates the DOM with HTML comments, such as Twig or
-      Django templates.
+      <strong>Data attributes</strong> — use <code>dataAttributes</code> if your build pipeline stamps
+      location onto elements. Supports a single <code>file:line:col</code> attribute or separate file
+      and location attributes:
     </p>
+
+    <div class="code-block mb-9">
+      <div class="code-block-header">
+        <span class="code-block-filename">vite.config.ts</span>
+      </div>
+      <Code code={sourceAnnotationDataAttribute} lang="ts" theme="github-dark" />
+    </div>
   </div>
 </section>
