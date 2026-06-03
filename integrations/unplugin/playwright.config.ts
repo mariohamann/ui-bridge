@@ -7,8 +7,6 @@ const skipBuild = process.env.SKIP_BUILD === 'true';
 const protocolDir = path.resolve(__dirname, '../../core/protocol');
 const clientDir = path.resolve(__dirname, '../../core/client');
 const viteDemoDir = path.resolve(__dirname, '../../demos/vite');
-const webpackDemoDir = path.resolve(__dirname, '../../demos/webpack');
-const rspackDemoDir = path.resolve(__dirname, '../../demos/rspack');
 const buildPrefix = skipBuild
   ? ''
   : `cd ${protocolDir} && node_modules/.bin/tsc -p tsconfig.json && cd ${__dirname} && node build.mjs && cd ${clientDir} && node build.mjs && `;
@@ -34,16 +32,6 @@ export default defineConfig({
       testMatch: 'vite.spec.ts',
       use: { ...devices['Desktop Chrome'], baseURL: 'http://localhost:5173' },
     },
-    {
-      name: 'webpack',
-      testMatch: 'webpack.spec.ts',
-      use: { ...devices['Desktop Chrome'], baseURL: 'http://localhost:5174' },
-    },
-    {
-      name: 'rspack',
-      testMatch: 'rspack.spec.ts',
-      use: { ...devices['Desktop Chrome'], baseURL: 'http://localhost:5175' },
-    },
   ],
 
   webServer: [
@@ -54,23 +42,6 @@ export default defineConfig({
       url: 'http://localhost:5173',
       reuseExistingServer: !process.env.CI,
       timeout: 10_000,
-    },
-    {
-      // When SKIP_BUILD=true (set by root `pnpm test`), packages are already built.
-      command: `${buildPrefix}cd ${webpackDemoDir} && pnpm exec webpack serve`,
-      cwd: webpackDemoDir,
-      url: 'http://localhost:5174',
-      reuseExistingServer: !process.env.CI,
-      timeout: 10_000,
-    },
-    {
-      // When SKIP_BUILD=true (set by root `pnpm test`), packages are already built.
-      command: `${buildPrefix}cd ${rspackDemoDir} && pnpm exec rspack serve`,
-      cwd: rspackDemoDir,
-      url: 'http://localhost:5175',
-      reuseExistingServer: !process.env.CI,
-      timeout: 10_000,
-      stdout: 'pipe',
     },
   ],
 });

@@ -22,7 +22,7 @@ The project is a pnpm monorepo with packages split across `core/`, `integrations
 
 | Package               | Role                                                                                                                                                |
 | --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `@ui-bridge/unplugin` | Universal plugin built with `unplugin`. Exposes `.vite()`, `.webpack()`, and `.rspack()` — spawns the server and injects the client bundle.         |
+| `@ui-bridge/unplugin` | Universal plugin built with `unplugin`. Exposes `.vite()` — spawns the server and injects the client bundle. (webpack, rspack, rollup, and esbuild variants exist in the codebase but are not yet officially supported.) |
 | `@ui-bridge/astro`    | Astro integration. Wraps the unplugin and registers it with the Astro Vite pipeline.                                                                |
 | `@ui-bridge/next`     | Next.js integration. Exports `withUiBridge(nextConfig)` and a `UiBridgeScript` React Server Component for injecting the client in `app/layout.tsx`. |
 | `@ui-bridge/nuxt`     | Nuxt 3 module. Injects the client scripts via `nuxt.options.app.head.script`.                                                                       |
@@ -58,7 +58,7 @@ Tests are spread across packages in `core/` and `integrations/`, each with a dif
 | `@ui-bridge/components` | Node.js built-in test runner (`node --test`) | Signal stores and intent bus — no browser, no server |
 | `@ui-bridge/server`     | Playwright (API-only, no browser)            | HTTP + WebSocket API of the standalone server        |
 | `@ui-bridge/client`     | Playwright (Chromium)                        | Comment UI end-to-end against the Vite dev server    |
-| `@ui-bridge/unplugin`   | Playwright (Chromium)                        | Vite, webpack, and rspack plugin integration         |
+| `@ui-bridge/unplugin`   | Playwright (Chromium)                        | Vite plugin integration (vite demo only)             |
 | `@ui-bridge/astro`      | Playwright (Chromium)                        | Astro integration against the Astro demo             |
 | `@ui-bridge/next`       | Playwright (Chromium)                        | Next.js integration against the Next.js demo         |
 | `@ui-bridge/nuxt`       | Playwright (Chromium)                        | Nuxt 3 integration against the Nuxt demo             |
@@ -88,9 +88,8 @@ pnpm --filter @ui-bridge/nuxt test
 # Any Playwright-based package
 pnpm --filter @ui-bridge/client test -- -g "comment panel"
 
-# unplugin: also select a specific bundler project with --project
-pnpm --filter @ui-bridge/unplugin test -- --project=rspack
-pnpm --filter @ui-bridge/unplugin test -- --project=rspack -g "injects __UIB_WS_URL__"
+# unplugin: there is only one project (vite), but --project can still be used
+pnpm --filter @ui-bridge/unplugin test -- --project=vite
 ```
 
 **Target a single Node.js test** (components and mcp packages use `node --test`):

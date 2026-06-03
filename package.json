@@ -9,8 +9,6 @@
   "scripts": {
     "dev": "pnpm --filter ui-bridge-demo-vite dev",
     "dev:vite": "pnpm --filter ui-bridge-demo-vite dev",
-    "dev:webpack": "pnpm --filter ui-bridge-demo-webpack dev",
-    "dev:rspack": "pnpm --filter ui-bridge-demo-rspack dev",
     "dev:astro": "pnpm --filter ui-bridge-demo-astro dev",
     "dev:next": "pnpm --filter ui-bridge-demo-next dev",
     "dev:nuxt": "pnpm --filter ui-bridge-demo-nuxt dev",

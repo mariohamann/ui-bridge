@@ -325,17 +325,22 @@ export const uiBridge = unpluginFactory;
 /** Vite plugin — use in vite.config.js */
 export const uiBridgeVite = unpluginFactory.vite;
 
-/** Webpack plugin — use in webpack.config.js */
-export const uiBridgeWebpack = unpluginFactory.webpack;
+// ── future bundler support (not yet officially maintained) ───────────────────
+// The underlying unplugin factory supports webpack, rspack, rollup, and esbuild.
+// These exports are commented out until first-class support is added with demos
+// and integration tests. Uncomment to use at your own risk.
 
-/** Rspack plugin — use in rspack.config.js */
-export const uiBridgeRspack = unpluginFactory.rspack;
+// /** Webpack plugin — use in webpack.config.js */
+// export const uiBridgeWebpack = unpluginFactory.webpack;
 
-/** Rollup plugin — use in rollup.config.js */
-export const uiBridgeRollup = unpluginFactory.rollup;
+// /** Rspack plugin — use in rspack.config.js */
+// export const uiBridgeRspack = unpluginFactory.rspack;
 
-/** esbuild plugin — use in esbuild.build({ plugins: [...] }) */
-export const uiBridgeEsbuild = unpluginFactory.esbuild;
+// /** Rollup plugin — use in rollup.config.js */
+// export const uiBridgeRollup = unpluginFactory.rollup;
+
+// /** esbuild plugin — use in esbuild.build({ plugins: [...] }) */
+// export const uiBridgeEsbuild = unpluginFactory.esbuild;
 
 // ── turbopack (Next.js 15.3+) ─────────────────────────────────────────────────
 
