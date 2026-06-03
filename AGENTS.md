@@ -20,12 +20,12 @@ The project is a pnpm monorepo with packages split across `core/`, `integrations
 
 **Integration packages** (`integrations/`):
 
-| Package               | Role                                                                                                                                                |
-| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Package               | Role                                                                                                                                                                                                                     |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `@ui-bridge/unplugin` | Universal plugin built with `unplugin`. Exposes `.vite()` — spawns the server and injects the client bundle. (webpack, rspack, rollup, and esbuild variants exist in the codebase but are not yet officially supported.) |
-| `@ui-bridge/astro`    | Astro integration. Wraps the unplugin and registers it with the Astro Vite pipeline.                                                                |
-| `@ui-bridge/next`     | Next.js integration. Exports `withUiBridge(nextConfig)` and a `UiBridgeScript` React Server Component for injecting the client in `app/layout.tsx`. |
-| `@ui-bridge/nuxt`     | Nuxt 3 module. Injects the client scripts via `nuxt.options.app.head.script`.                                                                       |
+| `@ui-bridge/astro`    | Astro integration. Wraps the unplugin and registers it with the Astro Vite pipeline.                                                                                                                                     |
+| `@ui-bridge/next`     | Next.js integration. Exports `withUiBridge(nextConfig)` and a `UiBridgeScript` React Server Component for injecting the client in `app/layout.tsx`.                                                                      |
+| `@ui-bridge/nuxt`     | Nuxt 3 module. Injects the client scripts via `nuxt.options.app.head.script`.                                                                                                                                            |
 
 ### Capabilities
 

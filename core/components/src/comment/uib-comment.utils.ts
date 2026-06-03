@@ -13,7 +13,7 @@ export function uid(): string {
 function findHtmlComment(
   el: Element,
   config: NonNullable<SourceAnnotationConfig['htmlComments']>[number],
-): { path: string; line: number; column: number; } | null {
+): { path: string; line: number; column: number } | null {
   const re = new RegExp(config.pattern);
   const fileGroup = config.fileGroup ?? 1;
   const lineGroup = config.lineGroup;
@@ -49,7 +49,7 @@ function findHtmlComment(
 function readDataAttributes(
   node: Element,
   attrs: NonNullable<SourceAnnotationConfig['dataAttributes']>,
-): { path: string; line: number; column: number; } | null {
+): { path: string; line: number; column: number } | null {
   for (const entry of attrs) {
     if ('pathAttr' in entry) {
       const val = node.getAttribute(entry.pathAttr);
@@ -86,7 +86,7 @@ function readDataAttributes(
 export function getSourceInfo(
   el: Element,
   config?: SourceAnnotationConfig,
-): { path: string; line: number; column: number; } | null {
+): { path: string; line: number; column: number } | null {
   // 1. Custom data attributes (user-defined, highest priority)
   if (config?.dataAttributes?.length) {
     let node: Element | null = el;

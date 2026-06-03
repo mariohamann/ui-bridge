@@ -22,6 +22,13 @@ export interface UiBridgeOptions {
    * instead of the default code-inspector / Astro strategies.
    */
   sourceAnnotation?: SourceAnnotationConfig;
+  /**
+   * Include code-inspector for automatic source file/line attribution when
+   * clicking elements. Enabled by default. Set to `false` for frameworks that
+   * provide their own source attribution (e.g. Astro) or where code-inspector
+   * cannot annotate templates (e.g. Laravel/Blade).
+   */
+  inspector?: boolean;
 }
 
 /**
@@ -322,8 +329,29 @@ const unpluginFactory = createUnplugin((options: UiBridgeOptions = {}) => {
 
 export const uiBridge = unpluginFactory;
 
-/** Vite plugin — use in vite.config.js */
-export const uiBridgeVite = unpluginFactory.vite;
+/**
+ * Vite plugin set for use in vite.config.js. Includes code-inspector for
+ * automatic source attribution by default. Spread into the plugins array:
+ *
+ *   plugins: [...uiBridgeVite()]
+ *
+ * Pass `inspector: false` for frameworks that handle source attribution
+ * themselves (Astro) or where code-inspector cannot annotate templates
+ * (Laravel/Blade, Django, Twig).
+ */
+export function uiBridgeVite(options: UiBridgeOptions = {}) {
+  const { inspector = true, ...rest } = options;
+  const base = unpluginFactory.vite(rest);
+  if (!inspector) return [base];
+  return [
+    {
+      ...codeInspectorPlugin({ bundler: 'vite', behavior: { locate: false } }),
+      transformIndexHtml: undefined,
+      apply: 'serve' as const,
+    },
+    base,
+  ];
+}
 
 // ── future bundler support (not yet officially maintained) ───────────────────
 // The underlying unplugin factory supports webpack, rspack, rollup, and esbuild.
@@ -371,21 +399,4 @@ export function uiBridgeTurbopack(options: UiBridgeOptions = {}): Record<string,
   }
 
   return merged;
-}
-
-// ── vite plugin bundle (with code-inspector) ──────────────────────────────────
-
-/**
- * Full Vite plugin set including code-inspector for source attribution.
- * This is what most Vite-based consumers should use.
- */
-export function uiBridgeWithInspector(options: UiBridgeOptions = {}) {
-  return [
-    {
-      ...codeInspectorPlugin({ bundler: 'vite', behavior: { locate: false } }),
-      transformIndexHtml: undefined,
-      apply: 'serve',
-    },
-    unpluginFactory.vite(options),
-  ];
 }

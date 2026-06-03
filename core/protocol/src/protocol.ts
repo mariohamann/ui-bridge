@@ -35,7 +35,7 @@ export interface SourceAnnotationConfig {
    *   - `{ pathAttr }` — single attribute encoding "file:line:col"
    *   - `{ fileAttr, locAttr }` — separate file and "line:col" attributes
    */
-  dataAttributes?: Array<{ pathAttr: string; } | { fileAttr: string; locAttr: string; }>;
+  dataAttributes?: Array<{ pathAttr: string } | { fileAttr: string; locAttr: string }>;
 }
 
 // ─── Knob types ───────────────────────────────────────────────────────────────
@@ -189,17 +189,17 @@ export type CommentThread = z.infer<typeof CommentThreadSchema>;
 
 export interface TweakChangeMsg {
   type: 'tweak:change';
-  payload: { marker: string; value: string; };
+  payload: { marker: string; value: string };
 }
 
 export interface TweakFinalizeMsg {
   type: 'tweak:finalize';
-  payload: { markers: string[]; };
+  payload: { markers: string[] };
 }
 
 export interface TweakResetMsg {
   type: 'tweak:reset';
-  payload: { marker: string; };
+  payload: { marker: string };
 }
 
 export interface TweakResetAllMsg {
@@ -212,22 +212,22 @@ export interface TweakDiscardAllMsg {
 
 export interface TweakDiscardMsg {
   type: 'tweak:discard';
-  payload: { commentId: string; };
+  payload: { commentId: string };
 }
 
 export interface TweakAcceptCommentMsg {
   type: 'tweak:accept-comment';
-  payload: { commentId: string; };
+  payload: { commentId: string };
 }
 
 export interface TweakAcceptTweakMsg {
   type: 'tweak:accept-tweak';
-  payload: { commentId: string; marker: string; };
+  payload: { commentId: string; marker: string };
 }
 
 export interface TweakDismissMsg {
   type: 'tweak:dismiss';
-  payload: { commentId: string; marker: string; };
+  payload: { commentId: string; marker: string };
 }
 
 export interface CommentUpsertMsg {
@@ -237,7 +237,7 @@ export interface CommentUpsertMsg {
 
 export interface CommentDeleteMsg {
   type: 'comment:delete';
-  payload: { id: string; };
+  payload: { id: string };
 }
 
 export interface CommentClearMsg {
@@ -246,7 +246,7 @@ export interface CommentClearMsg {
 
 export interface CommentReadMsg {
   type: 'comment:read';
-  payload: { id: string; };
+  payload: { id: string };
 }
 
 export type BrowserMessage =

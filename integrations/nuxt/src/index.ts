@@ -1,6 +1,6 @@
 import { addVitePlugin, defineNuxtModule, useNuxt } from '@nuxt/kit';
 import type { NuxtModule } from '@nuxt/schema';
-import { uiBridgeWithInspector } from '@ui-bridge/unplugin';
+import { uiBridgeVite } from '@ui-bridge/unplugin';
 
 export interface UiBridgeModuleOptions {
   /**
@@ -47,7 +47,7 @@ const uiBridgeModule: NuxtModule<UiBridgeModuleOptions> = defineNuxtModule<UiBri
     const wsUrl = `ws://localhost:${port}/ui-bridge`;
     const clientUrl = `http://localhost:${port}/ui-bridge/client.js`;
 
-    const plugins = uiBridgeWithInspector({ port: options.port });
+    const plugins = uiBridgeVite({ port: options.port });
     for (const plugin of plugins) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       addVitePlugin(plugin as any);
@@ -65,4 +65,4 @@ const uiBridgeModule: NuxtModule<UiBridgeModuleOptions> = defineNuxtModule<UiBri
 });
 
 export default uiBridgeModule;
-export { uiBridgeWithInspector };
+export { uiBridgeVite };
