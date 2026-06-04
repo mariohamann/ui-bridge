@@ -497,7 +497,9 @@ test.describe('WebSocket — comment messages', () => {
     // Initial connect may send one sync; but no extra one from comment:read
     // The store is empty (cleared in beforeEach), so initial sync has 0 items
     // and no extra sync is emitted for an unknown id
-    expect(syncs.every((s) => (s as { payload: unknown[] }).payload?.length === 0)).toBe(true);
+    expect(syncs.every((s) => (s as unknown as { payload: unknown[] }).payload?.length === 0)).toBe(
+      true,
+    );
   });
 });
 
