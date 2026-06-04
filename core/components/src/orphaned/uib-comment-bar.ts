@@ -54,8 +54,8 @@ export class UibCommentBar extends _UibCommentBarBase {
     return html`
       <div class="bar visible">
         ${visible.map((thread, i) => {
-      const isOrphaned = orphanedIds.has(thread.meta.id);
-      return html`
+          const isOrphaned = orphanedIds.has(thread.meta.id);
+          return html`
             <uib-comment
               style="z-index:${SHOW_OVERFLOW_AFTER - i}"
               .comment=${thread}
@@ -64,11 +64,11 @@ export class UibCommentBar extends _UibCommentBarBase {
               ?orphaned=${isOrphaned}
             ></uib-comment>
           `;
-    })}
+        })}
         ${overflowCount > 0 ? html`<div class="overflow-pill">+${overflowCount}</div>` : ''}
         ${hidden.map((thread) => {
-      const isOrphaned = orphanedIds.has(thread.meta.id);
-      return html`
+          const isOrphaned = orphanedIds.has(thread.meta.id);
+          return html`
             <uib-comment
               class="overflow-hidden"
               .comment=${thread}
@@ -77,7 +77,7 @@ export class UibCommentBar extends _UibCommentBarBase {
               ?orphaned=${isOrphaned}
             ></uib-comment>
           `;
-    })}
+        })}
       </div>
     `;
   }

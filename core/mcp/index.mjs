@@ -5,28 +5,18 @@
  * Exposes UI Bridge comment and tweak actions as MCP tools, and
  * provides workflow guidance as MCP resources.
  *
- * Comment operations work entirely via the file system — no running server
+ * All operations work entirely via the file system — no running server
  * required. The server (if running) will pick up file changes via its watcher
  * and broadcast them to connected browsers.
- *
- * get_tweaks still calls the HTTP server (live knob state lives in memory).
- * It degrades gracefully when the server is not running.
- *
- * Environment:
- *   UI_BRIDGE_URL   — full server URL (overrides port discovery)
- *   UI_BRIDGE_PORT  — server port (overrides .port file)
  *
  * Usage in .mcp.json:
  *   { "type": "stdio", "command": "node", "args": ["path/to/core/mcp/index.mjs"] }
  */
 
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
-import { createCommentStore } from '@ui-bridge/server/comment-store';
-import { resolveBaseUrl, resolveRoot } from './resolve-url.mjs';
+import { createCommentStore, resolveRoot, scriptsDir, commentsDir } from '@ui-bridge/store';
 
 // ── Lazy store ────────────────────────────────────────────────────────────────
 
@@ -40,28 +30,6 @@ async function getStore() {
     await _store.load();
   }
   return { store: _store, root: _root };
-}
-
-// ── Fetch helpers (server-dependent tools only) ───────────────────────────────
-
-async function apiFetch(baseUrl, path, { method = 'GET', body } = {}) {
-  const res = await fetch(`${baseUrl}${path}`, {
-    method,
-    headers: body !== undefined ? { 'Content-Type': 'application/json' } : {},
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-  });
-  const text = await res.text();
-  let data;
-  try {
-    data = JSON.parse(text);
-  } catch {
-    data = text;
-  }
-  if (!res.ok) {
-    const message = typeof data === 'object' && data?.error ? data.error : text;
-    throw new Error(`HTTP ${res.status}: ${message}`);
-  }
-  return data;
 }
 
 // ── Guidance content (MCP resources) ─────────────────────────────────────────
@@ -216,7 +184,7 @@ When in doubt, use Mode A.
 - \`list_comments\` / \`get_comment\` — read threads
 - \`create_comment\` — start a new agent thread
 - \`reply_to_comment\` — add text or text + tweak reply
-- \`get_tweaks\` — live knob state
+
 - \`get_server_info\` — root, scriptsDir, commentsDir
 - \`get_write_scripts_guide\` — full script reference (call before writing any .mjs tweak)
 `;
@@ -469,65 +437,26 @@ server.tool(
 );
 
 server.tool(
-  'get_tweaks',
-  `Get the current knobs schema — lists all active tweak knobs with their current values.
-  Useful to check which tweaks are live and summarise the current exploration state to the user.
-  Each knob entry includes the comment id (\`marker\`), label, type, and current value.`,
-  {},
-  async () => {
-    try {
-      const url = await resolveBaseUrl();
-      const data = await apiFetch(url, '/api/tweaks');
-      return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
-    } catch {
-      return {
-        content: [
-          {
-            type: 'text',
-            text: JSON.stringify(
-              {
-                tweaks: [],
-                note: 'UI Bridge server not running — live tweak state unavailable',
-              },
-              null,
-              2,
-            ),
-          },
-        ],
-      };
-    }
-  },
-);
-
-server.tool(
   'get_server_info',
-  `Get the running UI Bridge server's root directory and key paths.
+  `Get the UI Bridge root directory and key paths.
   Call this first when creating a tweak — it tells you where to write script files.
 
-  Returns: { port, root, scriptsDir, commentsDir }
-  - root: the project root the server is watching
+  Returns: { root, scriptsDir, commentsDir }
+  - root: the project root containing the .ui-bridge/ folder
   - scriptsDir: write {scriptId}.mjs files here BEFORE calling reply_to_comment / create_comment
   - commentsDir: where comment JSON files are persisted`,
   {},
   async () => {
     const { root } = await getStore();
-    let port = null;
-    try {
-      const portStr = await readFile(resolve(root, '.ui-bridge', '.port'), 'utf-8');
-      port = parseInt(portStr.trim(), 10);
-    } catch {
-      // server not running — port stays null
-    }
     return {
       content: [
         {
           type: 'text',
           text: JSON.stringify(
             {
-              port,
               root,
-              scriptsDir: `${root}/.ui-bridge/scripts`,
-              commentsDir: `${root}/.ui-bridge/comments`,
+              scriptsDir: scriptsDir(root),
+              commentsDir: commentsDir(root),
             },
             null,
             2,

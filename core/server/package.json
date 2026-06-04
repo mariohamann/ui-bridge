@@ -5,8 +5,7 @@
   "description": "Standalone UI Bridge server — works with any stack, no Vite required",
   "main": "./index.mjs",
   "exports": {
-    ".": "./index.mjs",
-    "./comment-store": "./comment-store.mjs"
+    ".": "./index.mjs"
   },
   "bin": {
     "ui-bridge-server": "./index.mjs"
@@ -17,6 +16,7 @@
   },
   "dependencies": {
     "@ui-bridge/client": "workspace:*",
+    "@ui-bridge/store": "workspace:*",
     "fast-glob": "^3.3.2",
     "ws": "^8.18.0"
   },

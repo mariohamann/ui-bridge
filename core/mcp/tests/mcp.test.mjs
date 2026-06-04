@@ -17,9 +17,7 @@ import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { mkdir, rm, writeFile } from 'node:fs/promises';
 import { resolve, dirname } from 'node:path';
-import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
-import { resolveBaseUrl, resolveRoot } from '../resolve-url.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(__dirname, '../../..');
@@ -61,12 +59,6 @@ before(async () => {
   serverProc.stdout.on('data', () => {});
 
   await waitForServer();
-
-  // The server writes the port file itself, but write a fallback to confirm
-  // the MCP discovery path works independently too.
-  const portFileDir = resolve(TEST_ROOT, '.ui-bridge');
-  await mkdir(portFileDir, { recursive: true });
-  await writeFile(resolve(portFileDir, '.port'), String(TEST_PORT), 'utf-8');
 });
 
 after(async () => {
@@ -168,7 +160,7 @@ describe('MCP initialize', () => {
 });
 
 describe('MCP tools/list', () => {
-  it('returns all 7 tools', async () => {
+  it('returns all 6 tools', async () => {
     const responses = await mcpCall('tools/list', {});
     const res = findResponse(responses, 2);
     assert.ok(res?.result?.tools, 'tools missing');
@@ -179,13 +171,12 @@ describe('MCP tools/list', () => {
       'get_comment',
       'create_comment',
       'reply_to_comment',
-      'get_tweaks',
       'get_server_info',
     ];
     for (const name of expected) {
       assert.ok(names.includes(name), `tool "${name}" missing`);
     }
-    assert.equal(names.length, 7);
+    assert.equal(names.length, 6);
   });
 });
 
@@ -430,10 +421,8 @@ describe('MCP tools/call — get_comment (backward compat)', () => {
   });
 });
 
-describe('MCP tools/call — get_server_info + get_tweaks', () => {
-  const ANN_ID = 'mcp-tweak-comment';
-
-  it('get_server_info returns port, root, scriptsDir, commentsDir', async () => {
+describe('MCP tools/call — get_server_info', () => {
+  it('get_server_info returns root, scriptsDir, commentsDir', async () => {
     const responses = await mcpCall('tools/call', {
       name: 'get_server_info',
       arguments: {},
@@ -441,134 +430,9 @@ describe('MCP tools/call — get_server_info + get_tweaks', () => {
     const res = findResponse(responses, 2);
     assert.ok(!res?.error, `error: ${JSON.stringify(res?.error)}`);
     const body = JSON.parse(res?.result?.content?.[0]?.text);
-    assert.ok(typeof body.port === 'number', 'port should be a number');
     assert.ok(typeof body.root === 'string', 'root should be a string');
     assert.ok(body.scriptsDir.includes('.ui-bridge/scripts'), 'scriptsDir incorrect');
     assert.ok(body.commentsDir.includes('.ui-bridge/comments'), 'commentsDir incorrect');
-  });
-
-  it('upserts a tweak comment and it appears in get_tweaks', async () => {
-    const ann = {
-      meta: {
-        id: ANN_ID,
-        pageUrl: 'http://localhost:5173/',
-        timestamp: Date.now(),
-        createdAt: Date.now(),
-      },
-      elements: [{ minimalSelector: 'h1', tag: 'h1', classes: [] }],
-      comments: [
-        {
-          id: `${ANN_ID}-root`,
-          type: 'comment',
-          text: 'Icon tweak',
-          createdAt: Date.now(),
-          author: 'user',
-        },
-        {
-          id: `${ANN_ID}-tweak`,
-          type: 'tweak',
-          text: 'Icon tweak',
-          createdAt: Date.now(),
-          author: 'user',
-          tweakStatus: 'pending',
-          knob: {
-            label: 'Feature icon',
-            type: 'select',
-            value: '🎨',
-            options: { Palette: '🎨', Fire: '🔥' },
-          },
-          actions: [
-            {
-              type: 'content-edit',
-              file: 'src/components/FeaturesSection.vue',
-              scriptId: 'mcp-icon-script',
-            },
-          ],
-        },
-      ],
-    };
-
-    // Upsert via HTTP directly for simplicity (comment creation already tested above)
-    const httpRes = await fetch(`${BASE_URL}/api/comments`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(ann),
-    });
-    assert.equal(httpRes.status, 200);
-
-    const responses = await mcpCall('tools/call', {
-      name: 'get_tweaks',
-      arguments: {},
-    });
-    const res = findResponse(responses, 2);
-    const body = JSON.parse(res?.result?.content?.[0]?.text);
-    const knob = body.knobs.find((k) => k.marker === ANN_ID);
-    assert.ok(knob, 'knob not found in schema');
-    assert.equal(knob.value, '🎨');
-  });
-
-  it('cleans up the tweak comment', async () => {
-    const httpRes = await fetch(`${BASE_URL}/api/comments/${ANN_ID}`, { method: 'DELETE' });
-    assert.ok(httpRes.status === 200 || httpRes.status === 204 || httpRes.status === 404);
-  });
-});
-
-// ── Port discovery unit tests ─────────────────────────────────────────────────
-
-describe('resolveBaseUrl — port discovery', () => {
-  it('uses UI_BRIDGE_URL when set', async () => {
-    const url = await resolveBaseUrl({ UI_BRIDGE_URL: 'http://localhost:9999' });
-    assert.equal(url, 'http://localhost:9999');
-  });
-
-  it('strips trailing slash from UI_BRIDGE_URL', async () => {
-    const url = await resolveBaseUrl({ UI_BRIDGE_URL: 'http://localhost:9999/' });
-    assert.equal(url, 'http://localhost:9999');
-  });
-
-  it('uses UI_BRIDGE_PORT when set', async () => {
-    const url = await resolveBaseUrl({ UI_BRIDGE_PORT: '8888' });
-    assert.equal(url, 'http://localhost:8888');
-  });
-
-  it('UI_BRIDGE_URL takes precedence over UI_BRIDGE_PORT', async () => {
-    const url = await resolveBaseUrl({
-      UI_BRIDGE_URL: 'http://localhost:9999',
-      UI_BRIDGE_PORT: '8888',
-    });
-    assert.equal(url, 'http://localhost:9999');
-  });
-
-  it('walks up the directory tree to find a .port file', async () => {
-    // Create a subdirectory two levels deep inside TEST_ROOT with no .port file
-    const subDir = resolve(TEST_ROOT, 'src', 'components');
-    await mkdir(subDir, { recursive: true });
-    // Pass the subdirectory as cwd
-    const url = await resolveBaseUrl({}, subDir);
-    assert.equal(url, `http://localhost:${TEST_PORT}`);
-  });
-
-  it('falls back to default URL when no discovery method succeeds', async () => {
-    // Use os.tmpdir() as cwd — it is guaranteed to have no .ui-bridge/.port
-    // file anywhere in its ancestry.
-    const url = await resolveBaseUrl({}, tmpdir());
-    assert.equal(url, 'http://localhost:7378');
-  });
-});
-
-// ── resolveRoot unit tests ────────────────────────────────────────────────────
-
-describe('resolveRoot — root directory discovery', () => {
-  it('finds .ui-bridge dir by walking up from cwd', async () => {
-    const subDir = resolve(TEST_ROOT, 'src', 'deep');
-    await mkdir(subDir, { recursive: true });
-    const root = await resolveRoot({}, subDir);
-    assert.equal(root, TEST_ROOT);
-  });
-
-  it('falls back to cwd when no .ui-bridge dir found', async () => {
-    const root = await resolveRoot({}, tmpdir());
-    assert.equal(root, tmpdir());
   });
 });
 

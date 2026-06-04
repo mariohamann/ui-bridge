@@ -1,0 +1,15 @@
+{
+  "name": "@ui-bridge/store",
+  "version": "0.0.1",
+  "type": "module",
+  "description": "Shared comment store and path conventions for UI Bridge server and MCP",
+  "exports": {
+    ".": "./index.mjs",
+    "./comment-store": "./comment-store.mjs",
+    "./paths": "./paths.mjs",
+    "./resolve-root": "./resolve-root.mjs"
+  },
+  "scripts": {
+    "test": "node --test tests/store.test.mjs"
+  }
+}

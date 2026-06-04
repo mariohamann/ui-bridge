@@ -24,15 +24,15 @@
 import { readFile, writeFile, mkdir, rm, access } from 'node:fs/promises';
 import { resolve, relative, isAbsolute } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { scriptsDir, filesDir, cacheDir } from '@ui-bridge/store';
 
 // ─── Path constants ───────────────────────────────────────────────────────────
 
 function dirs(rootDir) {
-  const db = resolve(rootDir, '.ui-bridge');
   return {
-    scripts: resolve(db, 'scripts'),
-    files: resolve(db, 'files'),
-    cache: resolve(db, '.cache'),
+    scripts: scriptsDir(rootDir),
+    files: filesDir(rootDir),
+    cache: cacheDir(rootDir),
   };
 }
 
