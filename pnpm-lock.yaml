@@ -292,6 +292,9 @@ importers:
       '@ui-bridge/mcp':
         specifier: workspace:*
         version: link:../../core/mcp
+      '@ui-bridge/protocol':
+        specifier: workspace:*
+        version: link:../../core/protocol
       '@ui-bridge/unplugin':
         specifier: workspace:*
         version: link:../unplugin

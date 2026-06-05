@@ -3,6 +3,7 @@
   "version": "0.0.1",
   "description": "UI Bridge MCP server — exposes comment and tweak actions to AI agents",
   "license": "MIT",
+  "homepage": "https://ui-bridge.mariohamann.com",
   "repository": {
     "type": "git",
     "url": "https://github.com/mariohamann/ui-bridge",

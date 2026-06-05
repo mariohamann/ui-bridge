@@ -3,6 +3,7 @@
   "version": "0.0.1",
   "description": "Astro integration for UI Bridge",
   "license": "MIT",
+  "homepage": "https://ui-bridge.mariohamann.com",
   "repository": {
     "type": "git",
     "url": "https://github.com/mariohamann/ui-bridge",
@@ -62,6 +63,7 @@
   },
   "dependencies": {
     "@ui-bridge/mcp": "workspace:*",
+    "@ui-bridge/protocol": "workspace:*",
     "@ui-bridge/unplugin": "workspace:*"
   },
   "devDependencies": {

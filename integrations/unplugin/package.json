@@ -3,6 +3,7 @@
   "version": "0.0.1",
   "description": "Universal Vite/webpack/rspack/rollup plugin to integrate UI Bridge into any project",
   "license": "MIT",
+  "homepage": "https://ui-bridge.mariohamann.com",
   "repository": {
     "type": "git",
     "url": "https://github.com/mariohamann/ui-bridge",
@@ -17,6 +18,7 @@
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
+      "source": "./src/index.ts",
       "import": "./dist/index.js",
       "types": "./dist/index.d.ts"
     }

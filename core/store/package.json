@@ -3,6 +3,7 @@
   "version": "0.0.1",
   "description": "Shared comment store and path conventions for UI Bridge server and MCP",
   "license": "MIT",
+  "homepage": "https://ui-bridge.mariohamann.com",
   "repository": {
     "type": "git",
     "url": "https://github.com/mariohamann/ui-bridge",

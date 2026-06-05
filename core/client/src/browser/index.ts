@@ -2,7 +2,7 @@ import { initInspector, upsertComment } from './inspector.js';
 import '@ui-bridge/components/comment';
 import '@ui-bridge/components/orphaned';
 import './ws-adapter.js'; // side-effect: wires signal stores ↔ WebSocket
-import type { SourceAnnotationConfig } from '@ui-bridge/protocol';
+import type { CommentThread, SourceAnnotationConfig } from '@ui-bridge/protocol';
 import {
   updateComments,
   commentsSignal,
@@ -19,6 +19,13 @@ function boot(): void {
   if (!document.querySelector('uib-comment-bar')) {
     const bar = document.createElement('uib-comment-bar');
     document.body.appendChild(bar);
+  }
+  // Seed pre-baked static comments (set by staticMode builds via __UIB_STATIC_COMMENTS__).
+  const staticComments = (window as unknown as Record<string, unknown>).__UIB_STATIC_COMMENTS__ as
+    | CommentThread[]
+    | undefined;
+  if (Array.isArray(staticComments)) {
+    updateComments(staticComments);
   }
   // Expose signal store helpers for E2E tests and demo adapters.
   (window as unknown as Record<string, unknown>).__UIB_COMPONENTS__ = {

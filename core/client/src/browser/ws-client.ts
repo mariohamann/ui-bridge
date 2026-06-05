@@ -73,4 +73,6 @@ export function onConnectionChange(handler: ConnectionHandler): () => void {
   return () => connectionHandlers.delete(handler);
 }
 
-connect();
+if (!(window as unknown as Record<string, unknown>).__UIB_STATIC_MODE__) {
+  connect();
+}

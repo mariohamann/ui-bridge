@@ -4,7 +4,7 @@ import { createRequire } from 'node:module';
 import { createInterface } from 'node:readline';
 import { createUnplugin } from 'unplugin';
 import { codeInspectorPlugin } from 'code-inspector-plugin';
-import type { SourceAnnotationConfig, UserPreferences } from '@ui-bridge/protocol';
+import type { CommentThread, SourceAnnotationConfig, UserPreferences } from '@ui-bridge/protocol';
 
 const _require = createRequire(import.meta.url);
 
@@ -35,6 +35,17 @@ export interface UiBridgeOptions {
    * The runtime overrides are persisted in `.ui-bridge/preferences.json`.
    */
   preferences?: UserPreferences;
+  /**
+   * Inject the UI Bridge client into production/static builds without a
+   * running server. No WebSocket connection is attempted. The client bundle
+   * is emitted as a static asset at `ui-bridge/client.js`.
+   */
+  staticMode?: boolean;
+  /**
+   * Pre-baked comments to display in static mode. Only used when
+   * `staticMode` is `true`.
+   */
+  staticComments?: CommentThread[];
 }
 
 /**
@@ -240,11 +251,16 @@ const unpluginFactory = createUnplugin((options: UiBridgeOptions = {}) => {
         );
       },
 
+      generateBundle() {
+        if (!options.staticMode) return;
+        const clientBundlePath: string = _require.resolve('@ui-bridge/client');
+        const source = readFileSync(clientBundlePath);
+        this.emitFile({ type: 'asset', fileName: 'ui-bridge/client.js', source });
+      },
+
       transformIndexHtml: {
         handler(_html: string, ctx: { server?: unknown }) {
-          if (!ctx.server) return;
-          const wsUrl = `ws://localhost:${resolvedPort}/ui-bridge`;
-          const CLIENT_URL = '/__ui-bridge/client.js';
+          if (!ctx.server && !options.staticMode) return;
           type InjectTo = 'head' | 'body' | 'head-prepend' | 'body-prepend';
           type Tag = {
             tag: string;
@@ -252,27 +268,51 @@ const unpluginFactory = createUnplugin((options: UiBridgeOptions = {}) => {
             children?: string;
             injectTo: InjectTo;
           };
-          const tags: Tag[] = [
-            {
+          const tags: Tag[] = [];
+
+          if (options.staticMode) {
+            tags.push({
+              tag: 'script',
+              attrs: { type: 'text/javascript' },
+              children: `window.__UIB_STATIC_MODE__=true;`,
+              injectTo: 'head-prepend',
+            });
+            if (options.staticComments?.length) {
+              tags.push({
+                tag: 'script',
+                attrs: { type: 'text/javascript' },
+                children: `window.__UIB_STATIC_COMMENTS__=${JSON.stringify(options.staticComments)};`,
+                injectTo: 'head-prepend',
+              });
+            }
+            tags.push({
+              tag: 'script',
+              attrs: { src: '/ui-bridge/client.js' },
+              injectTo: 'head',
+            });
+          } else {
+            const wsUrl = `ws://localhost:${resolvedPort}/ui-bridge`;
+            const CLIENT_URL = '/__ui-bridge/client.js';
+            tags.push({
               tag: 'script',
               attrs: { type: 'text/javascript' },
               children: `window.__UIB_WS_URL__=${JSON.stringify(wsUrl)};`,
               injectTo: 'head-prepend',
-            },
-          ];
-          if (options.sourceAnnotation) {
+            });
+            if (options.sourceAnnotation) {
+              tags.push({
+                tag: 'script',
+                attrs: { type: 'text/javascript' },
+                children: `window.__UIB_SOURCE_CONFIG__=${JSON.stringify(options.sourceAnnotation)};`,
+                injectTo: 'head-prepend',
+              });
+            }
             tags.push({
               tag: 'script',
-              attrs: { type: 'text/javascript' },
-              children: `window.__UIB_SOURCE_CONFIG__=${JSON.stringify(options.sourceAnnotation)};`,
-              injectTo: 'head-prepend',
+              attrs: { src: `${CLIENT_URL}?t=${Date.now()}` },
+              injectTo: 'head',
             });
           }
-          tags.push({
-            tag: 'script',
-            attrs: { src: `${CLIENT_URL}?t=${Date.now()}` },
-            injectTo: 'head',
-          });
           return tags;
         },
       },

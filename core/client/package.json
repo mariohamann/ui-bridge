@@ -3,6 +3,7 @@
   "version": "0.0.1",
   "description": "Self-contained browser bundle that powers the UI Bridge panel",
   "license": "MIT",
+  "homepage": "https://ui-bridge.mariohamann.com",
   "repository": {
     "type": "git",
     "url": "https://github.com/mariohamann/ui-bridge",

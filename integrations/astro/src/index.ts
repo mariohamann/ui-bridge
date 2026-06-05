@@ -1,5 +1,6 @@
 import type { AstroIntegration } from 'astro';
 import { uiBridgeVite } from '@ui-bridge/unplugin';
+import type { CommentThread } from '@ui-bridge/protocol';
 
 /** Options accepted by the uiBridge() Astro integration. */
 export interface UiBridgeOptions {
@@ -8,6 +9,16 @@ export interface UiBridgeOptions {
    * Resolution order: this option → UI_BRIDGE_PORT env var → UIB_PORT env var (legacy) → 7378.
    */
   port?: number;
+  /**
+   * Inject the UI Bridge client into production/static builds without a
+   * running server. No WebSocket connection is attempted.
+   */
+  staticMode?: boolean;
+  /**
+   * Pre-baked comments to display in static mode. Only used when
+   * `staticMode` is `true`.
+   */
+  staticComments?: CommentThread[];
 }
 
 /**
@@ -45,8 +56,25 @@ export function uiBridge(options: UiBridgeOptions = {}): AstroIntegration {
     name: 'ui-bridge',
     hooks: {
       'astro:config:setup': ({ updateConfig, injectScript, command }) => {
-        // Only active during dev (the bridge panel has no purpose in builds)
-        if (command !== 'dev') return;
+        // Only active during dev (or staticMode for production builds)
+        if (command !== 'dev' && !options.staticMode) return;
+
+        if (options.staticMode) {
+          // In static mode: emit the client bundle as an asset and inject it
+          // without any WebSocket connection.
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          updateConfig({ vite: { plugins: [uiBridgeVite(options) as any] } });
+          const staticModeScript =
+            `window.__UIB_STATIC_MODE__=true;` +
+            (options.staticComments?.length
+              ? `window.__UIB_STATIC_COMMENTS__=${JSON.stringify(options.staticComments)};`
+              : '') +
+            `(function(){var s=document.createElement('script');` +
+            `s.src='/ui-bridge/client.js';` +
+            `document.head.appendChild(s);})();`;
+          injectScript('head-inline', staticModeScript);
+          return;
+        }
 
         // Add the Vite plugin so the server is spawned and the bundle is served.
         // We intentionally do NOT include code-inspector-plugin here: it injects
