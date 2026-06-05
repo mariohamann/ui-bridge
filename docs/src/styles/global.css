@@ -1,5 +1,6 @@
-@import 'tailwindcss';
-@import '@awesome.me/webawesome/dist/styles/themes/default.css';
+@import 'tailwindcss/theme';
+@import 'tailwindcss/utilities';
+@import '@awesome.me/webawesome/dist/styles/webawesome.css';
 
 @theme {
   /* #region Colors ~~~~~~~~~~~~~~~~~~~~~~~~~~~ */
@@ -188,4 +189,79 @@ body {
   .code-block-filename {
     @apply font-wa-code text-[11px] text-wa-text-quiet;
   }
+}
+
+/* ── Hero ──────────────────────────────────────────────── */
+.hero {
+  position: relative;
+  overflow: hidden;
+  padding: clamp(4rem, 10vw, 7rem) 1.5rem;
+  text-align: center;
+}
+
+.hero-glow {
+  pointer-events: none;
+  position: absolute;
+  left: 50%;
+  top: 33%;
+  width: 600px;
+  height: 400px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(124, 109, 250, 0.12) 0%, transparent 70%);
+}
+
+.hero-content {
+  position: relative;
+  z-index: 1;
+  max-width: 680px;
+  margin: 0 auto;
+}
+
+.hero-content h1 {
+  font-size: clamp(2.5rem, 6vw, 4.5rem);
+  font-weight: var(--wa-font-weight-semibold);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  margin-bottom: 1.5rem;
+}
+
+.hero-content > p {
+  font-size: clamp(1rem, 2vw, 1.25rem);
+  color: var(--wa-color-text-quiet);
+  max-width: 540px;
+  margin: 0 auto 3rem;
+  line-height: var(--wa-line-height-expanded);
+}
+
+.hero-cta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1rem;
+}
+
+/* ── How it works band ─────────────────────────────────── */
+.how-it-works-band {
+  background: var(--wa-color-surface-lowered);
+  border-top: 1px solid var(--wa-color-surface-border);
+  border-bottom: 1px solid var(--wa-color-surface-border);
+  padding: clamp(3rem, 6vw, 5rem) 1.5rem;
+}
+
+.band-inner {
+  max-width: 52rem;
+  margin: 0 auto;
+}
+
+/* ── Docs content ──────────────────────────────────────── */
+.docs-content {
+  max-width: 52rem;
+  margin: 0 auto;
+  padding: 3rem 1.5rem 5rem;
+}
+
+/* ── Details — spacing between consecutive items ────────── */
+details + details {
+  margin-top: 0.375rem;
 }
