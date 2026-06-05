@@ -26,6 +26,13 @@ if (band && ol) {
   // Remove any video element already rendered from the README source
   band.querySelectorAll('video').forEach((v) => v.closest('p')?.remove() ?? v.remove());
 
+  // Remove the raw GitHub video URL link that GitHub renders as a video but shows as a plain link in the docs
+  band.querySelectorAll('a').forEach((a) => {
+    if (a.href.includes('github.com/user-attachments/assets/')) {
+      a.closest('p')?.remove() ?? a.remove();
+    }
+  });
+
   // Build video wrapper
   const videoWrapper = document.createElement('div');
   videoWrapper.className = 'hiw-video-wrapper';
