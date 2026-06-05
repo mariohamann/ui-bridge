@@ -60,6 +60,7 @@ jobs:
   server-tests:
     name: Server Tests (Playwright API)
     runs-on: ubuntu-latest
+    container: mcr.microsoft.com/playwright:v1.59.1-noble
     steps:
       - uses: actions/checkout@v4
 
@@ -76,13 +77,12 @@ jobs:
 
       - run: pnpm build:core
 
-      - run: npx playwright install --with-deps chromium
-
       - run: SKIP_BUILD=true pnpm --filter @ui-bridge/server test
 
   e2e-tests:
     name: E2E Tests (client + integrations)
     runs-on: ubuntu-latest
+    container: mcr.microsoft.com/playwright:v1.59.1-noble
     steps:
       - uses: actions/checkout@v4
 
@@ -98,8 +98,6 @@ jobs:
       - run: pnpm install --frozen-lockfile
 
       - run: pnpm build:core && pnpm build:integrations
-
-      - run: npx playwright install --with-deps chromium
 
       - run: SKIP_BUILD=true pnpm --filter @ui-bridge/client test
 
