@@ -1,6 +1,17 @@
 {
   "name": "@ui-bridge/components",
   "version": "0.0.1",
+  "description": "Lit web components for the UI Bridge browser panel",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mariohamann/ui-bridge",
+    "directory": "core/components"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -51,7 +62,8 @@
     "dev": "wireit",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "node --loader ./tests/css-loader.mjs --test tests/stores.test.mjs",
-    "postinstall": "cp -r node_modules/@awesome.me/webawesome/dist/skills/webawesome ../../.agents/skills"
+    "postinstall": "cp -r node_modules/@awesome.me/webawesome/dist/skills/webawesome ../../.agents/skills",
+    "prepublishOnly": "pnpm build"
   },
   "wireit": {
     "build": {
@@ -95,5 +107,42 @@
   "devDependencies": {
     "@types/autosize": "^4.0.3",
     "typescript": "~6.0.2"
+  },
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      ".": {
+        "import": "./dist/index.js",
+        "types": "./dist/index.d.ts"
+      },
+      "./styles/tokens": {
+        "import": "./dist/styles/tokens.js",
+        "types": "./dist/styles/tokens.d.ts"
+      },
+      "./state/knobs-store": {
+        "import": "./dist/state/knobs-store.js",
+        "types": "./dist/state/knobs-store.d.ts"
+      },
+      "./state/comments-store": {
+        "import": "./dist/state/comments-store.js",
+        "types": "./dist/state/comments-store.d.ts"
+      },
+      "./state/intents": {
+        "import": "./dist/state/intents.js",
+        "types": "./dist/state/intents.d.ts"
+      },
+      "./comment": {
+        "import": "./dist/comment/index.js",
+        "types": "./dist/comment/index.d.ts"
+      },
+      "./comment/utils": {
+        "import": "./dist/comment/uib-comment-utils.js",
+        "types": "./dist/comment/uib-comment-utils.d.ts"
+      },
+      "./orphaned": {
+        "import": "./dist/orphaned/index.js",
+        "types": "./dist/orphaned/index.d.ts"
+      }
+    }
   }
 }

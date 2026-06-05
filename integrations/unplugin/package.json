@@ -1,6 +1,17 @@
 {
   "name": "@ui-bridge/unplugin",
   "version": "0.0.1",
+  "description": "Universal Vite/webpack/rspack/rollup plugin to integrate UI Bridge into any project",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mariohamann/ui-bridge",
+    "directory": "integrations/unplugin"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -14,7 +25,8 @@
     "build": "wireit",
     "dev": "wireit",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test": "playwright test"
+    "test": "playwright test",
+    "prepublishOnly": "pnpm build"
   },
   "wireit": {
     "build": {
@@ -80,5 +92,8 @@
     "@rspack/core": {
       "optional": true
     }
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

@@ -1,8 +1,22 @@
 {
   "name": "@ui-bridge/mcp",
   "version": "0.0.1",
-  "type": "module",
   "description": "UI Bridge MCP server — exposes comment and tweak actions to AI agents",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mariohamann/ui-bridge",
+    "directory": "core/mcp"
+  },
+  "files": [
+    "*.mjs",
+    "README.md"
+  ],
+  "type": "module",
+  "main": "./index.mjs",
+  "exports": {
+    ".": "./index.mjs"
+  },
   "bin": {
     "ui-bridge-mcp": "./index.mjs"
   },
@@ -13,5 +27,8 @@
     "@ui-bridge/store": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "zod": "^3.24.0"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

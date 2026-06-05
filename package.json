@@ -20,6 +20,7 @@
     "build:core": "pnpm --filter \"./core/**\" build",
     "build:integrations": "pnpm --filter \"./integrations/**\" build",
     "build:demos": "pnpm --filter \"./demos/**\" build",
+    "build:packages": "pnpm --filter \"./core/**\" --filter \"./integrations/**\" build",
     "typecheck": "pnpm -r --parallel typecheck",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
@@ -30,9 +31,13 @@
     "test:client": "pnpm --filter @ui-bridge/client test",
     "test:components": "pnpm --filter @ui-bridge/components test",
     "test:protocol": "pnpm --filter @ui-bridge/protocol test",
-    "test:server": "pnpm --filter @ui-bridge/server test"
+    "test:server": "pnpm --filter @ui-bridge/server test",
+    "changeset": "changeset",
+    "version-packages": "changeset version",
+    "release": "pnpm build:packages && changeset publish"
   },
   "devDependencies": {
+    "@changesets/cli": "^2.31.0",
     "prettier": "^3.8.3",
     "wireit": "^0.14.12"
   }

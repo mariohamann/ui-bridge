@@ -1,6 +1,17 @@
 {
   "name": "@ui-bridge/next",
   "version": "0.0.1",
+  "description": "Next.js integration for UI Bridge",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mariohamann/ui-bridge",
+    "directory": "integrations/next"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -14,7 +25,8 @@
     "build": "wireit",
     "dev": "wireit",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test": "playwright test"
+    "test": "playwright test",
+    "prepublishOnly": "pnpm build"
   },
   "wireit": {
     "build": {
@@ -63,5 +75,8 @@
   "peerDependencies": {
     "next": "^13.0.0 || ^14.0.0 || ^15.0.0",
     "react": ">=18.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

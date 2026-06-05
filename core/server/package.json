@@ -1,8 +1,18 @@
 {
   "name": "@ui-bridge/server",
   "version": "0.0.1",
-  "type": "module",
   "description": "Standalone UI Bridge server — works with any stack, no Vite required",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mariohamann/ui-bridge",
+    "directory": "core/server"
+  },
+  "files": [
+    "*.mjs",
+    "README.md"
+  ],
+  "type": "module",
   "main": "./index.mjs",
   "exports": {
     ".": "./index.mjs"
@@ -24,5 +34,8 @@
     "@playwright/test": "^1.50.0",
     "@types/ws": "^8.5.14",
     "typescript": "~6.0.3"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

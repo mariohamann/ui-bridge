@@ -1,0 +1,112 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint-and-types:
+    name: Format & Typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm format:check
+
+      - run: pnpm typecheck
+
+  node-tests:
+    name: Node.js Tests (components + mcp + store)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm build:core
+
+      - run: pnpm --filter @ui-bridge/components test
+
+      - run: pnpm --filter @ui-bridge/mcp test
+
+      - run: pnpm --filter @ui-bridge/store test
+
+  server-tests:
+    name: Server Tests (Playwright API)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm build:core
+
+      - run: npx playwright install --with-deps chromium
+
+      - run: SKIP_BUILD=true pnpm --filter @ui-bridge/server test
+
+  e2e-tests:
+    name: E2E Tests (client + integrations)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm build:core && pnpm build:integrations
+
+      - run: npx playwright install --with-deps chromium
+
+      - run: SKIP_BUILD=true pnpm --filter @ui-bridge/client test
+
+      - run: SKIP_BUILD=true pnpm --filter @ui-bridge/unplugin test
+
+      - run: SKIP_BUILD=true pnpm --filter @ui-bridge/astro test
+
+      - run: SKIP_BUILD=true pnpm --filter @ui-bridge/next test
+
+      - run: SKIP_BUILD=true pnpm --filter @ui-bridge/nuxt test

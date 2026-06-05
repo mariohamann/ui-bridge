@@ -1,0 +1,24 @@
+{
+  "$schema": "https://unpkg.com/@changesets/config@3.1.4/schema.json",
+  "changelog": "@changesets/cli/changelog",
+  "commit": false,
+  "fixed": [
+    [
+      "@ui-bridge/protocol",
+      "@ui-bridge/components",
+      "@ui-bridge/client",
+      "@ui-bridge/server",
+      "@ui-bridge/mcp",
+      "@ui-bridge/store",
+      "@ui-bridge/unplugin",
+      "@ui-bridge/astro",
+      "@ui-bridge/next",
+      "@ui-bridge/nuxt"
+    ]
+  ],
+  "linked": [],
+  "access": "public",
+  "baseBranch": "main",
+  "updateInternalDependencies": "patch",
+  "ignore": []
+}

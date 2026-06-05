@@ -1,0 +1,52 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  release:
+    name: Version or Publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # create tags and commits for the Version PR
+      pull-requests: write # open / update the Version Packages PR
+      id-token: write # required for npm OIDC trusted publishing
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # full history is required so changesets can compare versions
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          # point to the npm registry so the CLI picks up OIDC for trusted publishing
+          registry-url: https://registry.npmjs.org
+
+      - run: pnpm install --frozen-lockfile
+
+      # npm trusted publishing requires npm CLI >= 11.5.1
+      - run: npm install -g npm@latest
+
+      - name: Create Version PR or Publish to npm
+        uses: changesets/action@v1
+        with:
+          # when changesets exist  → opens/updates a "Version Packages" PR
+          # when no changesets left → builds and publishes all changed packages
+          publish: pnpm release
+          title: "chore: version packages"
+          commit: "chore: version packages"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # no NPM_TOKEN needed — authentication is handled by npm OIDC trusted publishing

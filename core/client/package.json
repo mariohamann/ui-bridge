@@ -1,6 +1,17 @@
 {
   "name": "@ui-bridge/client",
   "version": "0.0.1",
+  "description": "Self-contained browser bundle that powers the UI Bridge panel",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mariohamann/ui-bridge",
+    "directory": "core/client"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "type": "module",
   "main": "./dist/ui-bridge.js",
   "exports": {
@@ -9,7 +20,8 @@
   "scripts": {
     "build": "wireit",
     "dev": "wireit",
-    "test": "playwright test"
+    "test": "playwright test",
+    "prepublishOnly": "pnpm build"
   },
   "wireit": {
     "build": {
@@ -56,5 +68,8 @@
     "lit": "^3.3.0",
     "signal-polyfill": "^0.2.2",
     "typescript": "~6.0.2"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }
