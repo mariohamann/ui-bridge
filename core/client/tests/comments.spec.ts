@@ -368,6 +368,72 @@ test.describe('Single panel + dirty-draft guard', () => {
   });
 });
 
+test.describe('Preferences dialog', () => {
+  /**
+   * uib-preferences-dialog shadow root — use for querying the dialog's own
+   * slotted content (radio groups, buttons defined in its template).
+   */
+  function prefsDialogContent(page: Page): Locator {
+    return page.locator('uib-comment-bar').locator('uib-preferences-dialog');
+  }
+
+  /**
+   * The inner <dialog part="dialog"> inside uib-dialog's shadow root — use for
+   * open/closed visibility checks only.
+   */
+  function prefsDialogInner(page: Page): Locator {
+    return prefsDialogContent(page).locator('uib-dialog').locator('[part="dialog"]');
+  }
+
+  test('preferences dialog opens when the gear button is clicked', async ({ page }) => {
+    await page.locator('uib-comment-bar').locator('button.preferences-btn').click();
+    await expect(prefsDialogInner(page)).toBeVisible();
+  });
+
+  test('dialog is interactive — radio buttons inside can be clicked', async ({ page }) => {
+    await page.locator('uib-comment-bar').locator('button.preferences-btn').click();
+    await expect(prefsDialogInner(page)).toBeVisible();
+
+    // Click the "Never" radio inside the first radio-group (Knob Visibility in UI).
+    // If pointer-events were blocked this click would throw or time out.
+    const neverRadio = prefsDialogContent(page)
+      .locator('uib-radio-group')
+      .first()
+      .locator('uib-radio[value="never"]');
+    await expect(neverRadio).toBeVisible();
+    await neverRadio.click();
+    // Dialog should still be open after the click (no accidental close)
+    await expect(prefsDialogInner(page)).toBeVisible();
+  });
+
+  test('Cancel closes the dialog without persisting changes', async ({ page }) => {
+    await page.locator('uib-comment-bar').locator('button.preferences-btn').click();
+    await expect(prefsDialogInner(page)).toBeVisible();
+
+    await prefsDialogContent(page).locator('uib-button').filter({ hasText: 'Cancel' }).click();
+    await expect(prefsDialogInner(page)).not.toBeVisible();
+  });
+
+  test('Save closes the dialog and applies preference changes to the UI', async ({ page }) => {
+    test.setTimeout(8_000);
+    await page.locator('uib-comment-bar').locator('button.preferences-btn').click();
+    await expect(prefsDialogInner(page)).toBeVisible();
+
+    // Switch position to "bottom-right"
+    await prefsDialogContent(page)
+      .locator('uib-radio-group')
+      .last()
+      .locator('uib-radio[value="bottom-right"]')
+      .click();
+
+    await prefsDialogContent(page).locator('uib-button').filter({ hasText: 'Save' }).click();
+    await expect(prefsDialogInner(page)).not.toBeVisible();
+
+    // Comment bar should reflect the new position
+    await expect(page.locator('uib-comment-bar').locator('.bar--bottom-right')).toBeVisible();
+  });
+});
+
 test.describe('Badge hover preview', () => {
   test('preview appears on badge hover and shows the comment', async ({ page }) => {
     await createComment(page, 'h1', 'This headline needs a stronger CTA.');

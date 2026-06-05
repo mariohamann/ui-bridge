@@ -6,9 +6,11 @@ Annotate in the browser. Your agent turns comments into code.
 
 ## How it works
 
-1. **Pick any element** — hold `Alt-Shift` and click anything on your page to open a comment thread.
+1. **Pick any element** – hold `Alt-Shift` and click anything on your page to open a comment thread.
 2. **Your agent responds** – it reads the comment via MCP and suggests a code change or a live Tweak.
-3. **Refine in the thread**: reply to the thread or tweak values interactively.
+3. **React in the thread** – reply, tweak values interactively or resolve the thread.
+
+<video src="https://example.com/ui-bridge.mp4" autoplay muted loop playsinline></video>
 
 ---
 

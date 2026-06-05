@@ -67,7 +67,7 @@ export class UibPreferencesDialog extends _UibPreferencesDialogBase {
     }
   `;
 
-  @query('wa-dialog') private _dialog!: HTMLElement & { show(): void; hide(): void };
+  @query('wa-dialog') private _dialog!: HTMLElement & { show(): void; requestClose(): void };
 
   /** Local draft — edited in the dialog, committed on save */
   @state() private _draft: UserPreferences | null = null;
@@ -83,11 +83,11 @@ export class UibPreferencesDialog extends _UibPreferencesDialogBase {
   private _save(): void {
     if (!this._draft) return;
     dispatchIntent({ type: 'preferences:update', payload: this._draft });
-    this._dialog?.hide();
+    this._dialog?.requestClose();
   }
 
   private _cancel(): void {
-    this._dialog?.hide();
+    this._dialog?.requestClose();
   }
 
   private _setKnobVisibilityUI(v: KnobVisibility): void {
@@ -123,7 +123,7 @@ export class UibPreferencesDialog extends _UibPreferencesDialogBase {
         <p class="section-title">${label}</p>
         <wa-radio-group
           value=${current}
-          @wa-change=${(e: CustomEvent) =>
+          @change=${(e: CustomEvent) =>
             onChange((e.target as HTMLInputElement).value as KnobVisibility)}
         >
           <wa-radio value="always">Always</wa-radio>
@@ -147,19 +147,19 @@ export class UibPreferencesDialog extends _UibPreferencesDialogBase {
           <span class="route-matching-label">Route matching</span>
           <wa-switch
             ?checked=${draft.routeMatching.domain}
-            @wa-change=${(e: Event) =>
+            @change=${(e: Event) =>
               this._setRouteMatching('domain', (e.target as HTMLInputElement).checked)}
             >Domain</wa-switch
           >
           <wa-switch
             ?checked=${draft.routeMatching.path}
-            @wa-change=${(e: Event) =>
+            @change=${(e: Event) =>
               this._setRouteMatching('path', (e.target as HTMLInputElement).checked)}
             >Path</wa-switch
           >
           <wa-switch
             ?checked=${draft.routeMatching.params}
-            @wa-change=${(e: Event) =>
+            @change=${(e: Event) =>
               this._setRouteMatching('params', (e.target as HTMLInputElement).checked)}
             >Query Params</wa-switch
           >
@@ -179,7 +179,7 @@ export class UibPreferencesDialog extends _UibPreferencesDialogBase {
           <p class="section-title">Comment Bar Position</p>
           <wa-radio-group
             value=${draft.commentBarPosition}
-            @wa-change=${(e: CustomEvent) =>
+            @change=${(e: CustomEvent) =>
               this._setPosition((e.target as HTMLInputElement).value as CommentBarPosition)}
           >
             <wa-radio value="top-left">Top Left (default)</wa-radio>

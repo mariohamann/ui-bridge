@@ -254,6 +254,113 @@ body {
   margin: 0 auto;
 }
 
+/* Step list */
+.how-it-works-band ol {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  counter-reset: hiw-step;
+  display: flex;
+  flex-direction: column;
+  gap: var(--wa-space-l);
+}
+
+.how-it-works-band li {
+  --fill: 0;
+  counter-increment: hiw-step;
+  display: flex;
+  align-items: baseline;
+  gap: var(--wa-space-s);
+}
+
+.how-it-works-band li::before {
+  content: counter(hiw-step) '.';
+  flex-shrink: 0;
+  font-weight: var(--wa-font-weight-bold);
+}
+
+/* Seek button (wraps <strong>) */
+.hiw-seek-btn {
+  all: unset;
+  cursor: pointer;
+  display: inline-block;
+  position: relative;
+  padding-bottom: 3px;
+  vertical-align: baseline;
+  font: inherit;
+  color: inherit;
+}
+
+.hiw-seek-btn:focus-visible {
+  outline: 2px solid var(--wa-color-focus);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* Underline track */
+.hiw-seek-btn::before {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: var(--wa-color-neutral-border-normal);
+  border-radius: 1px;
+}
+
+/* Underline fill */
+.hiw-seek-btn::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 2px;
+  width: calc(var(--fill, 0) * 100%);
+  background: var(--wa-color-brand-fill-loud);
+  border-radius: 1px;
+  transition: width 0.15s linear;
+}
+
+/* Active step: boost text to brand color */
+.how-it-works-band li .hiw-seek-btn strong {
+  transition: color var(--wa-transition-normal) var(--wa-transition-easing);
+}
+
+.how-it-works-band li[data-active] .hiw-seek-btn strong {
+  color: var(--wa-color-brand-fill-loud);
+}
+
+/* Video wrapper */
+.hiw-video-wrapper {
+  margin-top: var(--wa-space-2xl);
+  border-radius: var(--wa-border-radius-l);
+  overflow: hidden;
+  border: 1px solid var(--wa-color-surface-border);
+  box-shadow:
+    var(--wa-shadow-l),
+    0 0 0 3px var(--wa-color-brand-fill-quiet);
+}
+
+.hiw-video-wrapper video {
+  display: block;
+  width: 100%;
+  height: auto;
+  cursor: pointer;
+}
+
+.hiw-video-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--wa-space-xs);
+  margin-top: var(--wa-space-m);
+}
+
+.hiw-video-controls select {
+  width: 80px !important;
+}
+
 /* ── Docs content ──────────────────────────────────────── */
 .docs-content {
   max-width: 52rem;

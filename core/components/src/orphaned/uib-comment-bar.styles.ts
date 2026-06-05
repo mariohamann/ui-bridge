@@ -13,6 +13,10 @@ export const dbCommentBarStyles = [
       display: block;
     }
 
+    uib-preferences-dialog {
+      pointer-events: auto;
+    }
+
     /* ── Position variants ──────────────────────────── */
     .bar {
       display: flex;
