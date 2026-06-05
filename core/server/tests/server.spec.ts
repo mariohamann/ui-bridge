@@ -89,11 +89,12 @@ function wsMessages(url: string, durationMs = 300): Promise<unknown[]> {
   });
 }
 
-/** Send one WS message and collect any server replies within a window. */
+/** Send one WS message and collect only server replies that arrive after sending. */
 function wsSend(url: string, message: unknown, durationMs = 400): Promise<unknown[]> {
   return new Promise((resolve, reject) => {
     const ws = new WebSocket(url);
     const replies: unknown[] = [];
+    let capturing = false;
     const done = (): void => {
       ws.close();
       resolve(replies);
@@ -102,11 +103,13 @@ function wsSend(url: string, message: unknown, durationMs = 400): Promise<unknow
     ws.on('open', () => {
       // Drain the initial state messages first, then send ours
       setTimeout(() => {
+        capturing = true;
         ws.send(JSON.stringify(message));
         setTimeout(done, durationMs);
-      }, 100);
+      }, 150);
     });
     ws.on('message', (raw) => {
+      if (!capturing) return;
       try {
         replies.push(JSON.parse(raw.toString()));
       } catch {
@@ -906,5 +909,92 @@ test.describe('File watcher — external comment file changes', () => {
       (s) => !s.payload?.some((c) => c.meta?.id === 'filewatcher-delete-test'),
     );
     expect(syncAfterDelete).toBeDefined();
+  });
+});
+
+// ─── Preferences ──────────────────────────────────────────────────────────────
+
+test.describe('Preferences', () => {
+  const PREFS_FILE = resolve(TEST_ROOT, '.ui-bridge', 'preferences.json');
+
+  test.afterEach(async () => {
+    // Remove persisted prefs so each test starts clean
+    await rm(PREFS_FILE, { force: true });
+  });
+
+  test('WS connection receives preferences:sync on connect', async () => {
+    const msgs = await wsMessages(WS_URL, 400);
+    const prefsMsg = msgs.find((m) => (m as { type: string }).type === 'preferences:sync') as
+      | { type: string; payload: Record<string, unknown> }
+      | undefined;
+    expect(prefsMsg).toBeDefined();
+    expect(prefsMsg?.payload).toMatchObject({
+      knobVisibilityUI: 'non-approved',
+      knobVisibilityBar: 'non-approved',
+      commentBarPosition: 'top-left',
+      routeMatching: { domain: false, path: true, params: false },
+    });
+  });
+
+  test('preferences:update persists to .ui-bridge/preferences.json and broadcasts sync', async () => {
+    const replies = await wsSend(
+      WS_URL,
+      {
+        type: 'preferences:update',
+        payload: { commentBarPosition: 'bottom-right' },
+      },
+      400,
+    );
+
+    // At least one preferences:sync broadcast should come back
+    const syncMsg = replies.find((m) => (m as { type: string }).type === 'preferences:sync') as
+      | { type: string; payload: { commentBarPosition: string } }
+      | undefined;
+    expect(syncMsg).toBeDefined();
+    expect(syncMsg?.payload.commentBarPosition).toBe('bottom-right');
+
+    // Verify persisted to disk
+    const raw = await readFile(PREFS_FILE, 'utf-8');
+    const persisted = JSON.parse(raw) as { commentBarPosition: string };
+    expect(persisted.commentBarPosition).toBe('bottom-right');
+  });
+
+  test('preferences:update deeply merges routeMatching without overwriting other fields', async () => {
+    // First update: set domain: true
+    await wsSend(
+      WS_URL,
+      { type: 'preferences:update', payload: { routeMatching: { domain: true } } },
+      400,
+    );
+    // Second update: set params: true — path and domain should survive
+    const replies = await wsSend(
+      WS_URL,
+      { type: 'preferences:update', payload: { routeMatching: { params: true } } },
+      400,
+    );
+
+    const syncMsg = replies.find((m) => (m as { type: string }).type === 'preferences:sync') as
+      | { type: string; payload: { routeMatching: Record<string, boolean> } }
+      | undefined;
+    expect(syncMsg).toBeDefined();
+    expect(syncMsg?.payload.routeMatching.domain).toBe(true);
+    expect(syncMsg?.payload.routeMatching.path).toBe(true);
+    expect(syncMsg?.payload.routeMatching.params).toBe(true);
+  });
+
+  test('preferences persist across reconnects', async () => {
+    // Write a preferences update
+    await wsSend(
+      WS_URL,
+      { type: 'preferences:update', payload: { knobVisibilityUI: 'always' } },
+      400,
+    );
+
+    // Reconnect and check the initial sync carries the saved value
+    const msgs = await wsMessages(WS_URL, 400);
+    const prefsMsg = msgs.find((m) => (m as { type: string }).type === 'preferences:sync') as
+      | { type: string; payload: { knobVisibilityUI: string } }
+      | undefined;
+    expect(prefsMsg?.payload.knobVisibilityUI).toBe('always');
   });
 });

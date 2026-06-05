@@ -15,6 +15,9 @@ import {
   getKnobByMarker,
   commentsSignal,
   updateComments,
+  preferencesSignal,
+  updatePreferences,
+  matchesCurrentRoute,
   dispatchIntent,
   onIntent,
 } from '../dist/index.js';
@@ -212,6 +215,7 @@ describe('intent bus', () => {
       { type: 'comment:read', id: 'ann1' },
       { type: 'panel:set-tab', tab: 'comments' },
       { type: 'panel:set-collapsed', collapsed: true },
+      { type: 'preferences:update', payload: { commentBarPosition: 'top-right' } },
     ];
 
     let idx = 0;
@@ -225,5 +229,114 @@ describe('intent bus', () => {
     });
 
     for (const intent of intents) dispatchIntent(intent);
+  });
+});
+
+// ── preferences store ─────────────────────────────────────────────────────────
+
+describe('preferences store', () => {
+  const DEFAULT = {
+    knobVisibilityUI: 'non-approved',
+    knobVisibilityBar: 'non-approved',
+    routeMatching: { domain: false, path: true, params: false },
+    commentBarPosition: 'top-left',
+  };
+
+  beforeEach(() => updatePreferences(DEFAULT));
+
+  test('starts with default preferences', () => {
+    assert.deepEqual(preferencesSignal.get(), DEFAULT);
+  });
+
+  test('updatePreferences merges top-level fields', () => {
+    updatePreferences({ knobVisibilityUI: 'always' });
+    assert.equal(preferencesSignal.get().knobVisibilityUI, 'always');
+    // other fields unchanged
+    assert.equal(preferencesSignal.get().knobVisibilityBar, 'non-approved');
+    assert.equal(preferencesSignal.get().commentBarPosition, 'top-left');
+  });
+
+  test('updatePreferences merges routeMatching deeply', () => {
+    updatePreferences({ routeMatching: { domain: true } });
+    const rm = preferencesSignal.get().routeMatching;
+    assert.equal(rm.domain, true);
+    assert.equal(rm.path, true); // unchanged
+    assert.equal(rm.params, false); // unchanged
+  });
+
+  test('updatePreferences sets commentBarPosition', () => {
+    updatePreferences({ commentBarPosition: 'bottom-right' });
+    assert.equal(preferencesSignal.get().commentBarPosition, 'bottom-right');
+  });
+
+  test('updatePreferences with knobVisibilityBar: never', () => {
+    updatePreferences({ knobVisibilityBar: 'never' });
+    assert.equal(preferencesSignal.get().knobVisibilityBar, 'never');
+  });
+});
+
+// ── route matching ─────────────────────────────────────────────────────────────
+
+describe('matchesCurrentRoute', () => {
+  const base = { domain: false, path: true, params: false };
+
+  test('all disabled — matches any URL', () => {
+    assert.equal(
+      matchesCurrentRoute('http://example.com/foo', 'http://other.com/bar', {
+        domain: false,
+        path: false,
+        params: false,
+      }),
+      true,
+    );
+  });
+
+  test('path only — matches same pathname', () => {
+    assert.equal(
+      matchesCurrentRoute('http://localhost/about', 'http://localhost/about', base),
+      true,
+    );
+  });
+
+  test('path only — no match on different pathname', () => {
+    assert.equal(
+      matchesCurrentRoute('http://localhost/about', 'http://localhost/home', base),
+      false,
+    );
+  });
+
+  test('path only — ignores domain mismatch', () => {
+    assert.equal(
+      matchesCurrentRoute('http://staging.example.com/page', 'http://localhost/page', base),
+      true,
+    );
+  });
+
+  test('domain + path — must match both', () => {
+    const config = { domain: true, path: true, params: false };
+    assert.equal(
+      matchesCurrentRoute('http://localhost/page', 'http://localhost/page', config),
+      true,
+    );
+    assert.equal(
+      matchesCurrentRoute('http://staging.example.com/page', 'http://localhost/page', config),
+      false,
+    );
+  });
+
+  test('params — must match query string', () => {
+    const config = { domain: false, path: false, params: true };
+    assert.equal(
+      matchesCurrentRoute('http://localhost/?tab=design', 'http://localhost/?tab=design', config),
+      true,
+    );
+    assert.equal(
+      matchesCurrentRoute('http://localhost/?tab=design', 'http://localhost/?tab=code', config),
+      false,
+    );
+  });
+
+  test('returns true for malformed URLs (safe fallback)', () => {
+    assert.equal(matchesCurrentRoute('not-a-url', 'http://localhost/', base), true);
   });
 });

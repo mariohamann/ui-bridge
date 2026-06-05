@@ -185,6 +185,38 @@ export const CommentThreadSchema = z.object({
 });
 export type CommentThread = z.infer<typeof CommentThreadSchema>;
 
+// ─── User Preferences ────────────────────────────────────────────────────────
+
+export type KnobVisibility = 'always' | 'non-approved' | 'never';
+export type CommentBarPosition = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
+
+export interface RouteMatchingConfig {
+  /** Match against the origin (protocol + hostname + port). Default: false. */
+  domain: boolean;
+  /** Match against the pathname. Default: true. */
+  path: boolean;
+  /** Match against query parameters. Default: false. */
+  params: boolean;
+}
+
+export interface UserPreferences {
+  /** Controls which knobs are rendered inside the floating comment UI. */
+  knobVisibilityUI: KnobVisibility;
+  /** Controls which knobs/comments are visible in the comment-bar. */
+  knobVisibilityBar: KnobVisibility;
+  /** Controls how the current URL is compared against a comment's pageUrl. */
+  routeMatching: RouteMatchingConfig;
+  /** Position of the comment-bar on screen. */
+  commentBarPosition: CommentBarPosition;
+}
+
+export const DEFAULT_PREFERENCES: UserPreferences = {
+  knobVisibilityUI: 'non-approved',
+  knobVisibilityBar: 'non-approved',
+  routeMatching: { domain: false, path: true, params: false },
+  commentBarPosition: 'top-left',
+};
+
 // ─── Browser → Server ────────────────────────────────────────────────────────
 
 export interface TweakChangeMsg {
@@ -249,6 +281,11 @@ export interface CommentReadMsg {
   payload: { id: string };
 }
 
+export interface PreferencesUpdateMsg {
+  type: 'preferences:update';
+  payload: Partial<UserPreferences>;
+}
+
 export type BrowserMessage =
   | TweakChangeMsg
   | TweakFinalizeMsg
@@ -262,7 +299,8 @@ export type BrowserMessage =
   | CommentUpsertMsg
   | CommentDeleteMsg
   | CommentClearMsg
-  | CommentReadMsg;
+  | CommentReadMsg
+  | PreferencesUpdateMsg;
 
 // ─── Server → Browser ────────────────────────────────────────────────────────
 
@@ -281,4 +319,9 @@ export interface InspectPickMsg {
   payload: CommentSource;
 }
 
-export type ServerMessage = TweakSchemaMsg | CommentsSyncMsg | InspectPickMsg;
+export interface PreferencesSyncMsg {
+  type: 'preferences:sync';
+  payload: UserPreferences;
+}
+
+export type ServerMessage = TweakSchemaMsg | CommentsSyncMsg | InspectPickMsg | PreferencesSyncMsg;

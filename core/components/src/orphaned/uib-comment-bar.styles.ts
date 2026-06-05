@@ -6,8 +6,6 @@ export const dbCommentBarStyles = [
   css`
     :host {
       position: fixed;
-      top: 12px;
-      left: 12px;
       z-index: 2147483647;
       color-scheme: dark;
       direction: ltr;
@@ -15,8 +13,9 @@ export const dbCommentBarStyles = [
       display: block;
     }
 
+    /* ── Position variants ──────────────────────────── */
     .bar {
-      display: none;
+      display: flex;
       flex-direction: column;
       align-items: flex-start;
       pointer-events: auto;
@@ -28,8 +27,60 @@ export const dbCommentBarStyles = [
       gap: 0;
     }
 
-    .bar.visible {
+    .bar--top-left {
+      top: 12px;
+      left: 12px;
+      position: fixed;
+    }
+    .bar--top-right {
+      top: 12px;
+      right: 12px;
+      position: fixed;
+      align-items: flex-end;
+    }
+    .bar--bottom-left {
+      bottom: 12px;
+      left: 12px;
+      position: fixed;
+    }
+    .bar--bottom-right {
+      bottom: 12px;
+      right: 12px;
+      position: fixed;
+      align-items: flex-end;
+    }
+
+    /* ── Comments container ──────────────────────────── */
+    .bar__comments {
       display: flex;
+      flex-direction: column;
+      align-items: inherit;
+      gap: 0;
+      width: 100%;
+    }
+
+    /* ── Gear / preferences button ──────────────────── */
+    .preferences-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      margin: 2px auto 0;
+      padding: 0;
+      border: none;
+      border-radius: var(--wa-border-radius-m, 6px);
+      background: transparent;
+      color: var(--wa-color-neutral-400, #888);
+      cursor: pointer;
+      transition:
+        background 0.15s ease,
+        color 0.15s ease;
+      pointer-events: auto;
+    }
+    .preferences-btn:hover {
+      background: var(--wa-color-neutral-100, rgba(255, 255, 255, 0.08));
+      color: var(--wa-color-neutral-0, #fff);
     }
 
     /* ── Collapsed: all badges stack ──────────────────── */

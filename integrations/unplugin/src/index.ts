@@ -4,7 +4,7 @@ import { createRequire } from 'node:module';
 import { createInterface } from 'node:readline';
 import { createUnplugin } from 'unplugin';
 import { codeInspectorPlugin } from 'code-inspector-plugin';
-import type { SourceAnnotationConfig } from '@ui-bridge/protocol';
+import type { SourceAnnotationConfig, UserPreferences } from '@ui-bridge/protocol';
 
 const _require = createRequire(import.meta.url);
 
@@ -29,6 +29,12 @@ export interface UiBridgeOptions {
    * cannot annotate templates (e.g. Laravel/Blade).
    */
   inspector?: boolean;
+  /**
+   * Default user preferences. These are used as a base layer and can be
+   * overridden by the user at runtime via the preferences dialog in the browser.
+   * The runtime overrides are persisted in `.ui-bridge/preferences.json`.
+   */
+  preferences?: Partial<UserPreferences>;
 }
 
 /**
@@ -55,11 +61,16 @@ async function getServerPort(port: number, expectedRoot: string): Promise<number
 function spawnServer(
   rootDir: string,
   preferredPort: number,
+  preferences?: Partial<UserPreferences>,
 ): { child: ChildProcess; ready: Promise<number> } {
   const serverEntry = _require.resolve('@ui-bridge/server');
   const child = spawn(process.execPath, [serverEntry, '--root', rootDir], {
     stdio: ['ignore', 'pipe', 'pipe'],
-    env: { ...process.env, UI_BRIDGE_PORT: String(preferredPort) },
+    env: {
+      ...process.env,
+      UI_BRIDGE_PORT: String(preferredPort),
+      ...(preferences ? { UI_BRIDGE_PREFERENCES: JSON.stringify(preferences) } : {}),
+    },
   });
 
   const ready = new Promise<number>((resolve, reject) => {
@@ -110,6 +121,7 @@ function buildInjectionHtml(
 const unpluginFactory = createUnplugin((options: UiBridgeOptions = {}) => {
   const preferredPort =
     options.port ?? parseInt(process.env.UI_BRIDGE_PORT ?? process.env.UIB_PORT ?? '7378', 10);
+  const preferences = options.preferences;
 
   let resolvedPort = preferredPort;
   let rootDir = '';
@@ -124,7 +136,7 @@ const unpluginFactory = createUnplugin((options: UiBridgeOptions = {}) => {
       resolvedPort = existingPort;
       console.log(`[ui-bridge] using existing server at http://localhost:${resolvedPort}`);
     } else {
-      const { child: c, ready } = spawnServer(rootDir, preferredPort);
+      const { child: c, ready } = spawnServer(rootDir, preferredPort, preferences);
       child = c;
       resolvedPort = await ready;
     }

@@ -8,7 +8,7 @@
  * No WebSocket or browser-API imports here — this module is transport-agnostic.
  */
 
-import type { CommentThread } from '@ui-bridge/protocol';
+import type { CommentThread, UserPreferences } from '@ui-bridge/protocol';
 
 // ── Intent types ──────────────────────────────────────────────────────────────
 
@@ -45,6 +45,11 @@ export type CommentReadIntent = { type: 'comment:read'; id: string };
 export type PanelTabIntent = { type: 'panel:set-tab'; tab: 'tweaks' | 'comments' };
 export type PanelCollapseIntent = { type: 'panel:set-collapsed'; collapsed: boolean };
 
+export type PreferencesUpdateIntent = {
+  type: 'preferences:update';
+  payload: Partial<UserPreferences>;
+};
+
 export type ComponentIntent =
   | TweakChangeIntent
   | TweakRevertIntent
@@ -64,7 +69,8 @@ export type ComponentIntent =
   | CommentBarClickIntent
   | CommentReadIntent
   | PanelTabIntent
-  | PanelCollapseIntent;
+  | PanelCollapseIntent
+  | PreferencesUpdateIntent;
 
 // ── Bus ───────────────────────────────────────────────────────────────────────
 

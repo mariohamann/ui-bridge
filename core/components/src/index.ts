@@ -10,6 +10,8 @@ export {
   markOrphaned,
   markUnorphaned,
 } from './state/comments-store.js';
+export { preferencesSignal, updatePreferences } from './state/preferences-store.js';
+export { matchesCurrentRoute } from './state/route-matching.js';
 
 // ── Intent bus ────────────────────────────────────────────────────────────────
 export { dispatchIntent, onIntent } from './state/intents.js';
@@ -20,6 +22,7 @@ export type {
   CommentResolveIntent,
   CommentBadgeClickIntent,
   CommentBarClickIntent,
+  PreferencesUpdateIntent,
 } from './state/intents.js';
 
 // ── Comment item ───────────────────────────────────────────────────────────
@@ -29,3 +32,4 @@ export { uid, shortLabel, formatTweakReply, getSourceInfo } from './comment/uib-
 
 // ── Comment bar ──────────────────────────────────────────────────────────────
 export { UibCommentBar } from './orphaned/uib-comment-bar.js';
+export { UibPreferencesDialog } from './comment/uib-preferences-dialog.js';

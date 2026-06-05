@@ -23,6 +23,7 @@ import { resolve } from 'node:path';
 import { createRequire } from 'node:module';
 import { createTweakEngine } from './tweak-engine.mjs';
 import { createCommentStore, commentsDir } from '@ui-bridge/store';
+import { createPreferencesStore } from './preferences-store.mjs';
 
 const _require = createRequire(import.meta.url);
 const CLIENT_BUNDLE_PATH = _require.resolve('@ui-bridge/client');
@@ -70,9 +71,22 @@ function findFreePort(start, maxAttempts = 10) {
 
 // ── Engine & store ────────────────────────────────────────────────────────────
 
+// ── Parse plugin-level preferences passed via env var ────────────────────────
+
+let pluginPrefs = {};
+try {
+  if (process.env.UI_BRIDGE_PREFERENCES) {
+    pluginPrefs = JSON.parse(process.env.UI_BRIDGE_PREFERENCES);
+  }
+} catch {
+  console.warn('[ui-bridge] could not parse UI_BRIDGE_PREFERENCES env var');
+}
+
 const store = createCommentStore(ROOT);
 // Engine receives a callback so it always reads the latest comment list.
 const tweaks = createTweakEngine(ROOT, () => store.all());
+const prefsStore = createPreferencesStore(ROOT, pluginPrefs);
+await prefsStore.load();
 
 /**
  * Update the most recent pending tweak entry in a thread to the given status.
@@ -137,6 +151,7 @@ wss.on('connection', (ws) => {
   if (schema.length > 0) ws.send(JSON.stringify({ type: 'tweak:schema', payload: schema }));
   const comments = store.all();
   if (comments.length > 0) ws.send(JSON.stringify({ type: 'comments:sync', payload: comments }));
+  ws.send(JSON.stringify({ type: 'preferences:sync', payload: prefsStore.get() }));
 
   ws.on('message', async (raw) => {
     let msg;
@@ -237,6 +252,12 @@ wss.on('connection', (ws) => {
           store.updateInMemory({ ...thread, meta: { ...thread.meta, lastReadAt: Date.now() } });
           broadcast({ type: 'comments:sync', payload: store.all() });
         }
+        break;
+      }
+
+      case 'preferences:update': {
+        const updated = await prefsStore.update(msg.payload);
+        broadcast({ type: 'preferences:sync', payload: updated });
         break;
       }
     }

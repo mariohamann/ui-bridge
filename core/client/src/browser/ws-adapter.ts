@@ -13,7 +13,7 @@
  */
 
 import { onMessage, sendMessage } from './ws-client.js';
-import { updateKnobs, updateComments, onIntent } from '@ui-bridge/components';
+import { updateKnobs, updateComments, updatePreferences, onIntent } from '@ui-bridge/components';
 
 // ── A: Server → stores ───────────────────────────────────────────────────────
 
@@ -22,6 +22,8 @@ onMessage((msg) => {
     updateKnobs(msg.payload);
   } else if (msg.type === 'comments:sync') {
     updateComments(msg.payload);
+  } else if (msg.type === 'preferences:sync') {
+    updatePreferences(msg.payload);
   }
   // inspect:pick is handled inside inspector.ts directly
   // because it needs DOM-level coordination (open draft).
@@ -70,6 +72,9 @@ onIntent((intent) => {
       break;
     case 'comment:read':
       sendMessage({ type: 'comment:read', payload: { id: intent.id } });
+      break;
+    case 'preferences:update':
+      sendMessage({ type: 'preferences:update', payload: intent.payload });
       break;
     // comment:delete / clear are handled locally by inspector.ts which also
     // calls sendMessage. Panel dispatches these through the comment store.
