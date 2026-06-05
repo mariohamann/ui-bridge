@@ -10,7 +10,7 @@ Annotate in the browser. Your agent turns comments into code.
 2. **Your agent responds** – it reads the comment via MCP and suggests a code change or a live Tweak.
 3. **React in the thread** – reply, tweak values interactively or resolve the thread.
 
-<video src="https://example.com/ui-bridge.mp4" autoplay muted loop playsinline></video>
+<video src="https://ui-bridge.mariohamann.com/ui-bridge.mp4" autoplay muted loop playsinline></video>
 
 ---
 
