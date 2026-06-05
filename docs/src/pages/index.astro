@@ -3,10 +3,12 @@ import Base from '../layouts/Base.astro';
 import * as readme from '../../../README.md';
 
 const html = await readme.compiledContent();
-// Split on <hr> — each `---` in the README becomes a section boundary.
-// sections[0] = hero (h1 + intro), sections[1] = how it works, sections[2+] = rest
-const sections = html.split(/<hr\s*\/?>/);
-const [heroSection, howItWorksSection, ...docsSections] = sections;
+// Split on <hr> — each `---` in the README becomes a zone boundary.
+// zones[0] = hero (h1 + tagline)
+// zones[1] = how it works
+// zones[2] = setup (install + connect agent)
+// zones[3] = documentation (config reference + license)
+const [heroSection, howItWorksSection, setupSection, configSection] = html.split(/<hr\s*\/?>/);
 ---
 
 <Base>
@@ -34,7 +36,15 @@ const [heroSection, howItWorksSection, ...docsSections] = sections;
     </div>
   </section>
 
-  <main class="docs-content wa-stack">
-    {docsSections.map((section) => <Fragment set:html={section} />)}
-  </main>
+  <section id="setup" class="setup-band">
+    <div class="setup-inner">
+      <Fragment set:html={setupSection} />
+    </div>
+  </section>
+
+  <section class="config-reference-band">
+    <div class="config-inner">
+      <Fragment set:html={configSection} />
+    </div>
+  </section>
 </Base>

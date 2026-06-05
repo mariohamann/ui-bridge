@@ -1,28 +1,22 @@
 # UI Bridge
 
-UI Bridge is a local developer tool that connects design feedback directly to your source code. You click elements in your browser, leave comments, and your AI agent reads them through an MCP server and can apply live changes — without you leaving the browser.
+Annotate in the browser. Your agent turns comments into code.
+
+
 
 ---
-
-<!-- section:how-it-works -->
 
 ## How it works
 
-UI Bridge sits between your running UI and your AI agent. You leave feedback directly on the page, the agent reads it via MCP, and changes land in your source files.
-
-1. **Select an element** — hold Alt and click any element in your browser. A comment thread opens attached to that element.
-2. **Write a comment** — describe what you want to change. The comment is stored locally and surfaced to your agent through the MCP server.
-3. **Get a live tweak** — the agent can reply with a knob: a live control that updates your source file on the fly so you can try values without switching to an editor.
-4. **Accept or discard** — keep the change by accepting it — the file is updated permanently. Discard to restore the original. Either way the thread stays as a record.
-<!-- /section:how-it-works -->
+1. **Pick any element** — hold `Alt-Shift` and click anything on your page to open a comment thread.
+2. **Your agent responds** – it reads the comment via MCP and suggests a code change or a live Tweak.
+3. **Refine in the thread**: reply to the thread or tweak values interactively.
 
 ---
 
-<!-- section:get-started -->
-
 ## Setup
 
-Install the package for your framework, add it to your config, and run your dev server.
+### 1. Install
 
 <details>
 <summary>Vite</summary>
@@ -36,14 +30,40 @@ npm install --save-dev @ui-bridge/unplugin
 yarn add -D @ui-bridge/unplugin
 ```
 
-**`vite.config.ts`**
-
 ```ts
+// vite.config.ts
+
 import { defineConfig } from 'vite';
 import { uiBridgeVite } from '@ui-bridge/unplugin';
 
 export default defineConfig({
   plugins: [...uiBridgeVite()],
+});
+```
+
+</details>
+
+<details>
+<summary>Astro</summary>
+
+```sh
+# pnpm
+pnpm add -D @ui-bridge/astro
+# npm
+npm install --save-dev @ui-bridge/astro
+# yarn
+yarn add -D @ui-bridge/astro
+```
+
+
+```js
+// astro.config.mjs
+
+import { defineConfig } from 'astro/config';
+import uiBridge from '@ui-bridge/astro';
+
+export default defineConfig({
+  integrations: [uiBridge()],
 });
 ```
 
@@ -61,9 +81,9 @@ npm install --save-dev @ui-bridge/next
 yarn add -D @ui-bridge/next
 ```
 
-**`next.config.mjs`**
-
 ```js
+// next.config.mjs
+
 import { withUiBridge } from '@ui-bridge/next';
 
 export default withUiBridge({
@@ -85,9 +105,9 @@ npm install --save-dev @ui-bridge/nuxt
 yarn add -D @ui-bridge/nuxt
 ```
 
-**`nuxt.config.ts`**
-
 ```ts
+// nuxt.config.ts
+
 export default defineNuxtConfig({
   modules: ['@ui-bridge/nuxt'],
 });
@@ -95,104 +115,84 @@ export default defineNuxtConfig({
 
 </details>
 
+### 2. Connect your agent
+
+UI Bridge exposes an MCP server — your agent reads your feedback and applies changes through it.
+
 <details>
-<summary>Astro</summary>
+<summary>VS Code</summary>
 
-```sh
-# pnpm
-pnpm add -D @ui-bridge/astro
-# npm
-npm install --save-dev @ui-bridge/astro
-# yarn
-yarn add -D @ui-bridge/astro
-```
+```json
+// vscode/mcp.json
 
-**`astro.config.mjs`**
-
-```js
-import { defineConfig } from 'astro/config';
-import uiBridge from '@ui-bridge/astro';
-
-export default defineConfig({
-  integrations: [uiBridge()],
-});
+{
+  "servers": {
+    "ui-bridge": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["--no", "ui-bridge-mcp"]
+    }
+  }
+}
 ```
 
 </details>
 
-Run your dev server. The panel appears in your browser.
+<details>
+<summary>Claude Code</summary>
 
-<!-- /section:get-started -->
+```json
+// .mcp.json (project root)
+
+{
+  "mcpServers": {
+    "ui-bridge": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["--no", "ui-bridge-mcp"]
+    }
+  }
+}
+```
+
+</details>
+
+<details>
+<summary>Cursor</summary>
+
+```json
+// ~/.cursor/mcp.json
+
+{
+  "mcpServers": {
+    "ui-bridge": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["--no", "ui-bridge-mcp"]
+    }
+  }
+}
+```
+
+</details>
+
+Run your dev server. Alt-click any element to open a comment thread — your agent picks it up through the MCP server.
 
 ---
 
-<!-- section:source-annotation -->
+## Documentation
 
-## Custom source location
-
-Source location is detected automatically. If your stack doesn't support it — or you want to override it — you can read it from HTML comments or data attributes in the rendered markup.
-
-**HTML comments** — use `htmlComments` with a regex pattern. Useful for frameworks like Laravel Blade with [laravel-view-debug](https://github.com/pixelfear/laravel-view-debug) that wrap partials in comments like `<!-- Start view: /path/to/file.blade.php -->`. Set `inspector: false` when code-inspector can't annotate your templates:
-
-**`vite.config.ts`**
-
-```ts
-import { defineConfig } from 'vite';
-import { uiBridgeVite } from '@ui-bridge/unplugin';
-
-export default defineConfig({
-  plugins: [
-    ...uiBridgeVite({
-      inspector: false,
-      sourceAnnotation: {
-        // Each entry is a regex. Capture group 1 is the file path.
-        // List multiple patterns if you mix frameworks — first match wins.
-        htmlComments: [{ pattern: 'Start view: (.+?\\.blade\\.php)' }],
-      },
-    }),
-  ],
-});
-```
-
-**Data attributes** — use `dataAttributes` if your build pipeline stamps location onto elements. Supports a single `file:line:col` attribute or separate file and location attributes:
-
-**`vite.config.ts`**
-
-```ts
-import { defineConfig } from 'vite';
-import { uiBridgeVite } from '@ui-bridge/unplugin';
-
-export default defineConfig({
-  plugins: [
-    ...uiBridgeVite({
-      sourceAnnotation: {
-        // Single attribute encoding "file:line:col"
-        dataAttributes: [{ pathAttr: 'data-source' }],
-        // Or split across two attributes:
-        // dataAttributes: [{ fileAttr: 'data-file', locAttr: 'data-loc' }],
-      },
-    }),
-  ],
-});
-```
-
-<!-- /section:source-annotation -->
-
----
-
-<!-- section:preferences -->
-
-## Preferences
+### Preferences
 
 UI Bridge ships with sensible defaults and lets you override them — either as project-wide plugin config or at runtime through the preferences dialog in the browser.
 
-### Plugin-level defaults
+#### Plugin-level defaults
 
 Pass a `preferences` object to your integration to set defaults for your whole project. These are used as the base layer and can still be overridden by individual users at runtime.
 
-**`vite.config.ts`**
-
 ```ts
+// vite.config.ts
+
 import { defineConfig } from 'vite';
 import { uiBridgeVite } from '@ui-bridge/unplugin';
 
@@ -209,13 +209,13 @@ export default defineConfig({
 });
 ```
 
-The same `preferences` key is available on all integrations (`withUiBridge`, `uiBridge()`, `@ui-bridge/nuxt`).
+> The same `preferences` key is available on all integrations (`withUiBridge`, `uiBridge()`, `@ui-bridge/nuxt`).
 
-### Browser overrides
+#### Browser overrides
 
 Click the gear icon (⚙) in the comment bar to open the preferences dialog. Changes are saved immediately to `.ui-bridge/preferences.json` and broadcast to all connected browser sessions.
 
-### All preference fields
+#### Preferences API
 
 ```ts
 interface UserPreferences {
@@ -233,6 +233,11 @@ interface UserPreferences {
    */
   knobVisibilityBar: 'always' | 'non-approved' | 'never';
 
+  /**
+   * Which comments are shown based on URL matching.
+   * All false shows all comments regardless of URL.
+   * @default { domain: false, path: true, params: false }
+   */
   routeMatching: {
     /**
      * Only show comments whose pageUrl matches the current origin
@@ -262,107 +267,16 @@ interface UserPreferences {
 }
 ```
 
-### Route matching
-
-When `routeMatching.path` is `true` (the default), only comments created on the current page appear in the UI. This keeps the comment bar and panel uncluttered when you have comments across many pages. Disable it if you want to see all comments everywhere.
-
-If no route matching criteria are enabled (all three set to `false`), all comments are shown regardless of URL.
-
-<!-- /section:preferences -->
-
----
-
-<!-- section:connect-agent -->
-
-## Connect your agent
-
-UI Bridge exposes an MCP server so your AI agent can read comments and apply tweaks. Add it to your agent's MCP config and restart the client.
-
-<details>
-<summary>VS Code</summary>
-
-**`.vscode/mcp.json`**
-
-```json
-{
-  "servers": {
-    "ui-bridge": {
-      "type": "stdio",
-      "command": "npx",
-      "args": ["--no", "ui-bridge-mcp"]
-    }
-  }
-}
-```
-
-</details>
-
-<details>
-<summary>Claude Code</summary>
-
-**`.mcp.json`** (project root)
-
-```json
-{
-  "mcpServers": {
-    "ui-bridge": {
-      "type": "stdio",
-      "command": "npx",
-      "args": ["--no", "ui-bridge-mcp"]
-    }
-  }
-}
-```
-
-</details>
-
-<details>
-<summary>Cursor</summary>
-
-**`~/.cursor/mcp.json`**
-
-```json
-{
-  "mcpServers": {
-    "ui-bridge": {
-      "type": "stdio",
-      "command": "npx",
-      "args": ["--no", "ui-bridge-mcp"]
-    }
-  }
-}
-```
-
-</details>
-
-<details>
-<summary>Claude Desktop</summary>
-
-**`~/Library/Application Support/Claude/claude_desktop_config.json`**
-
-```json
-{
-  "mcpServers": {
-    "ui-bridge": {
-      "type": "stdio",
-      "command": "npx",
-      "args": ["--no", "ui-bridge-mcp"]
-    }
-  }
-}
-```
-
-</details>
-
 ### Monorepos and subdirectories
 
 The MCP server finds its data by looking for a `.ui-bridge/` folder, starting from its working directory and walking up. This works automatically when UI Bridge runs at your project root.
 
 If UI Bridge runs in a subdirectory — a `docs/` folder, a monorepo package, etc. — set `cwd` to that directory:
 
-**`.vscode/mcp.json`**
 
 ```json
+// .vscode/mcp.json
+
 {
   "servers": {
     "ui-bridge": {
@@ -375,48 +289,95 @@ If UI Bridge runs in a subdirectory — a `docs/` folder, a monorepo package, et
 }
 ```
 
-<!-- /section:connect-agent -->
+### Custom Source Annotation
 
----
+If possible, UI Bridge automatically detects to which file and even line a comment belongs using [code-inspector](https://github.com/zh-lx/code-inspector). If your stack doesn't support it — or you want to override it — you can read it from HTML comments or data attributes in the rendered markup.
 
-<!-- section:git -->
 
-## Working with Git
+<details>
+<summary>HTML comments</summary>
+
+Use `htmlComments` with a regex pattern. Useful for e.g. Laravel Blade with [laravel-view-debug](https://github.com/pixelfear/laravel-view-debug) that wrap partials in comments like `<!-- Start view: /path/to/file.blade.php -->`. Set `inspector: false` when code-inspector can't annotate your templates:
+
+```ts
+// vite.config.ts
+
+import { defineConfig } from 'vite';
+import { uiBridgeVite } from '@ui-bridge/unplugin';
+
+export default defineConfig({
+  plugins: [
+    ...uiBridgeVite({
+      inspector: false,
+      sourceAnnotation: {
+        // Each entry is a regex. Capture group 1 is the file path.
+        // List multiple patterns if you mix frameworks — first match wins.
+        htmlComments: [{ pattern: 'Start view: (.+?\\.blade\\.php)' }],
+      },
+    }),
+  ],
+});
+```
+</details>
+
+<details>
+<summary>Data attributes</summary>
+
+Use `dataAttributes` if your build pipeline stamps location onto elements. Supports a single `file:line:col` attribute or separate file and location attributes:
+
+```ts
+// vite.config.ts
+
+import { defineConfig } from 'vite';
+import { uiBridgeVite } from '@ui-bridge/unplugin';
+
+export default defineConfig({
+  plugins: [
+    ...uiBridgeVite({
+      sourceAnnotation: {
+        // Single attribute encoding "file:line:col"
+        dataAttributes: [{ pathAttr: 'data-source' }],
+        // Or split across two attributes:
+        // dataAttributes: [{ fileAttr: 'data-file', locAttr: 'data-loc' }],
+      },
+    }),
+  ],
+});
+```
+</details>
+
+### Working with Git
 
 UI Bridge stores everything in a `.ui-bridge/` folder at your project root. Deciding what to commit — and what to ignore — is a team decision.
 
-### What's in `.ui-bridge/`
+#### What's in `.ui-bridge/`
 
 | Path               | Contents                                                       | Commit?                                |
 | ------------------ | -------------------------------------------------------------- | -------------------------------------- |
 | `comments/*.json`  | One file per comment thread (selector, text, replies, knobs)   | **Yes** — this is your shared feedback |
-| `preferences.json` | User-overridden preferences from the browser dialog            | **Team choice** — see below            |
+| `preferences.json` | User-overridden preferences from the browser dialog            | **No** — see below            |
 | `scripts/*.mjs`    | Knob transform scripts (the code that edits your source files) | **Yes** — needed to replay tweaks      |
-| `.port`            | The port the server last bound to                              | **No** — ephemeral                     |
 
-### Recommended `.gitignore`
+#### Preferences
 
-```plaintext
-# UI Bridge — ephemeral runtime file
-.ui-bridge/.port
+There are two ways to share preferences with your team. Usually it's best to set defaults in the plugin config and let individuals adjust as they like through the browser dialog — those changes are local and won't affect anyone else.
+
+The simplest way to keep preferences local is to gitignore the whole file:
+
+```shell
+# .gitignore
+
+.ui-bridge/preferences.json
 ```
 
-That's all you strictly need to ignore. Everything else is worth committing.
-
-### Sharing comments with your team
-
-Comment files in `comments/` are plain JSON. Commit them and every team member sees the same open threads when they run their dev server. The agent reads them through MCP and can pick up where you left off.
-
-### Sharing preferences
-
-There are two ways to share preferences with your team:
-
-**Option A — Plugin config (recommended for team defaults)**
+<details>
+<summary>Option A — Plugin config (recommended for teams)</summary>
 
 Set `preferences` in your plugin config. These are checked into version control as part of your `vite.config.ts` (or equivalent) and apply to everyone:
 
 ```ts
 // vite.config.ts
+
 ...uiBridgeVite({
   preferences: {
     commentBarPosition: 'bottom-right',
@@ -424,35 +385,32 @@ Set `preferences` in your plugin config. These are checked into version control 
   },
 })
 ```
+</details>
 
-**Option B — Commit `preferences.json`**
+<details>
+<summary>Option B — Commit `preferences.json` (not recommended)</summary
 
 If someone adjusts preferences via the browser dialog and you want to share that with the team, commit `.ui-bridge/preferences.json`. It overrides the plugin defaults for all users who pull it.
 
 The two layers merge: plugin config is the base, `preferences.json` overrides it. Individual users can override again via the dialog — but those changes will be overwritten the next time they pull if you're committing the file.
 
-If you want personal overrides to be truly personal, add `preferences.json` to `.gitignore`:
+</details>
 
-```shell
-.ui-bridge/.port
-.ui-bridge/preferences.json
-```
+#### Comments and Knob scripts
 
-### Sharing knob scripts
+Comment files in `comments/` are plain JSON. Commit them and every team member sees the same open threads when they run their dev server. The agent reads them through MCP and can pick up where you left off.
 
 Knob scripts in `scripts/` are the transform functions your agent writes when replying with a live tweak. They're referenced by comment threads, so if you commit comments you should commit their scripts too — otherwise teammates won't be able to replay the tweaks.
 
 If you prefer to keep the `.ui-bridge/` folder entirely local:
 
-```plaintext
+```shell
+# .gitignore
+
 .ui-bridge/
 ```
 
 In that case, comments and tweaks are personal and not shared across the team.
-
-<!-- /section:git -->
-
----
 
 ## License
 
