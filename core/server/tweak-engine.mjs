@@ -38,12 +38,33 @@ function dirs(rootDir) {
 
 // ─── Path guard ───────────────────────────────────────────────────────────────
 
+/**
+ * Resolve a file path to an absolute path that is guaranteed to be inside
+ * rootDir, or throw.
+ *
+ * code-inspector generates source.file paths relative to process.cwd() (the
+ * directory Vite was started from — often a monorepo root that is a parent of
+ * rootDir). Agents copy these paths into action.file, so we must resolve
+ * relative paths from cwd first. If that resolution escapes rootDir, we fall
+ * back to resolving from rootDir itself (the classic root-relative convention).
+ */
 function guardPath(rootDir, filePath) {
-  const abs = isAbsolute(filePath) ? filePath : resolve(rootDir, filePath);
-  if (relative(rootDir, abs).startsWith('..')) {
-    throw new Error(`[ui-bridge] path "${filePath}" is outside project root — blocked`);
+  if (isAbsolute(filePath)) {
+    if (relative(rootDir, filePath).startsWith('..')) {
+      throw new Error(`[ui-bridge] path "${filePath}" is outside project root — blocked`);
+    }
+    return filePath;
   }
-  return abs;
+
+  // Try cwd-relative first (matches code-inspector path format).
+  const fromCwd = resolve(process.cwd(), filePath);
+  if (!relative(rootDir, fromCwd).startsWith('..')) return fromCwd;
+
+  // Fall back to rootDir-relative (clean root-relative paths stored by the server).
+  const fromRoot = resolve(rootDir, filePath);
+  if (!relative(rootDir, fromRoot).startsWith('..')) return fromRoot;
+
+  throw new Error(`[ui-bridge] path "${filePath}" is outside project root — blocked`);
 }
 
 // ─── ID validation ────────────────────────────────────────────────────────────
@@ -106,9 +127,13 @@ async function loadTransformer(scriptsDir, scriptId) {
 // ─── Action execution ─────────────────────────────────────────────────────────
 
 function touchedByAction(rootDir, action) {
-  if (action.type === 'content-edit') return [guardPath(rootDir, action.file)];
-  if (action.type === 'file-create') return [guardPath(rootDir, action.path)];
-  if (action.type === 'file-delete') return [guardPath(rootDir, action.path)];
+  try {
+    if (action.type === 'content-edit') return [guardPath(rootDir, action.file)];
+    if (action.type === 'file-create') return [guardPath(rootDir, action.path)];
+    if (action.type === 'file-delete') return [guardPath(rootDir, action.path)];
+  } catch (e) {
+    console.error(`[ui-bridge] invalid path in action "${action.type}":`, e.message);
+  }
   return [];
 }
 

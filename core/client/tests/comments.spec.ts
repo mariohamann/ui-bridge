@@ -1824,10 +1824,9 @@ test.describe('Comment bar', () => {
     await createOrphanedComment(page, 'Orphaned — bar stays open');
 
     const bar = commentBar(page);
-    const barEl = page.locator('uib-comment-bar');
 
     // Hover to expand the bar, then click the badge to open its panel
-    await barEl.hover();
+    await bar.hover();
     const barBadge = bar.locator('uib-comment uib-button.badge').first();
     await expect(barBadge).toBeVisible();
     await barBadge.click();
@@ -1854,10 +1853,9 @@ test.describe('Comment bar', () => {
     await createOrphanedComment(page, 'Orphaned — bar collapses');
 
     const bar = commentBar(page);
-    const barEl = page.locator('uib-comment-bar');
 
     // Hover and open the panel
-    await barEl.hover();
+    await bar.hover();
     const barBadge = bar.locator('uib-comment uib-button.badge').first();
     await expect(barBadge).toBeVisible();
     await barBadge.click();

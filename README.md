@@ -53,7 +53,6 @@ npm install --save-dev @ui-bridge/astro @ui-bridge/mcp
 yarn add -D @ui-bridge/astro @ui-bridge/mcp
 ```
 
-
 ```js
 // astro.config.mjs
 
@@ -271,7 +270,6 @@ The MCP server finds its data by looking for a `.ui-bridge/` folder, starting fr
 
 If UI Bridge runs in a subdirectory — a `docs/` folder, a monorepo package, etc. — set `cwd` to that directory:
 
-
 ```json
 // .vscode/mcp.json
 
@@ -290,7 +288,6 @@ If UI Bridge runs in a subdirectory — a `docs/` folder, a monorepo package, et
 ### Custom Source Annotation
 
 If possible, UI Bridge automatically detects to which file and even line a comment belongs using [code-inspector](https://github.com/zh-lx/code-inspector). If your stack doesn't support it — or you want to override it — you can read it from HTML comments or data attributes in the rendered markup.
-
 
 <details>
 <summary>HTML comments</summary>
@@ -316,6 +313,7 @@ export default defineConfig({
   ],
 });
 ```
+
 </details>
 
 <details>
@@ -342,6 +340,7 @@ export default defineConfig({
   ],
 });
 ```
+
 </details>
 
 ### Working with Git
@@ -353,7 +352,7 @@ UI Bridge stores everything in a `.ui-bridge/` folder at your project root. Deci
 | Path               | Contents                                                       | Commit?                                |
 | ------------------ | -------------------------------------------------------------- | -------------------------------------- |
 | `comments/*.json`  | One file per comment thread (selector, text, replies, knobs)   | **Yes** — this is your shared feedback |
-| `preferences.json` | User-overridden preferences from the browser dialog            | **No** — see below            |
+| `preferences.json` | User-overridden preferences from the browser dialog            | **No** — see below                     |
 | `scripts/*.mjs`    | Knob transform scripts (the code that edits your source files) | **Yes** — needed to replay tweaks      |
 
 #### Preferences
@@ -383,6 +382,7 @@ Set `preferences` in your plugin config. These are checked into version control 
   },
 })
 ```
+
 </details>
 
 <details>

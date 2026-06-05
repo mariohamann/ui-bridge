@@ -17,6 +17,36 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
 import { createCommentStore, resolveRoot, scriptsDir, commentsDir } from '@ui-bridge/store';
+import { relative, isAbsolute, resolve } from 'node:path';
+
+// ── Path normalization ───────────────────────────────────────────────────────
+
+/**
+ * Normalize an action file path to be relative to rootDir.
+ * Agents sometimes pass repo-root-relative paths (e.g. "demos/vite/src/Foo.vue")
+ * when they should be root-relative (e.g. "src/Foo.vue"). Strip the prefix.
+ */
+function normalizeActionPath(rootDir, filePath) {
+  // Resolve relative paths the same way code-inspector does: from process.cwd(),
+  // which may be the monorepo root rather than the Vite project root.
+  const abs = isAbsolute(filePath) ? filePath : resolve(process.cwd(), filePath);
+  const rel = relative(rootDir, abs);
+  // If the result escapes rootDir, return the original (let the engine error clearly)
+  return rel.startsWith('..') ? filePath : rel;
+}
+
+function normalizeActions(rootDir, actions) {
+  if (!actions) return actions;
+  return actions.map((action) => {
+    if (action.type === 'content-edit') {
+      return { ...action, file: normalizeActionPath(rootDir, action.file) };
+    }
+    if (action.type === 'file-create' || action.type === 'file-delete') {
+      return { ...action, path: normalizeActionPath(rootDir, action.path) };
+    }
+    return action;
+  });
+}
 
 // ── Lazy store ────────────────────────────────────────────────────────────────
 
@@ -76,7 +106,11 @@ export default (content, value) =>
 
 Call \`get_server_info\` → use \`scriptsDir\`. Filename: \`{scriptsDir}/{scriptId}.mjs\` (lowercase kebab-case).
 No registration needed — the server reads scripts from disk on demand.
+## File paths in actions
 
+The \`file\` field in a \`content-edit\` action must be **relative to the project root** returned by \`get_server_info\`.
+Comment elements may carry a \`source.file\` path that is relative to the repo root — do NOT copy it directly.
+Example: if root is \`/projects/demo/demos/vite\` and source.file is \`demos/vite/src/Foo.vue\`, use \`src/Foo.vue\`.
 ## Knob types
 
 | \`type\`         | \`value\` in script      | Extra \`knob\` fields              |
@@ -329,7 +363,7 @@ server.tool(
       .describe('Ordered actions to execute when the knob value changes'),
   },
   async ({ elements, comment, pageUrl, knob, actions }) => {
-    const { store } = await getStore();
+    const { store, root } = await getStore();
     await store.reload();
     const now = Date.now();
     const id = `agent-${now}-${Math.random().toString(36).slice(2, 8)}`;
@@ -350,7 +384,7 @@ server.tool(
             createdAt: now,
             author: 'agent',
             knob,
-            actions: actions ?? [],
+            actions: normalizeActions(root, actions) ?? [],
             tweakStatus: 'pending',
           },
         ]
@@ -403,7 +437,7 @@ server.tool(
       .describe('Ordered actions for the knob — required when knob is provided'),
   },
   async ({ commentId, text, knob, actions }) => {
-    const { store } = await getStore();
+    const { store, root } = await getStore();
     await store.reload();
     const existing = store.get(commentId);
     if (!existing) throw new Error(`Comment not found: ${commentId}`);
@@ -421,7 +455,7 @@ server.tool(
             createdAt: now,
             author: 'agent',
             knob,
-            actions: actions ?? [],
+            actions: normalizeActions(root, actions) ?? [],
             tweakStatus: 'pending',
           },
         ]

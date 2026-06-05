@@ -161,105 +161,109 @@ wss.on('connection', (ws) => {
       return;
     }
 
-    switch (msg.type) {
-      case 'tweak:change':
-        // marker === comment id
-        await tweaks.applyTweakChange(msg.payload.marker, msg.payload.value);
-        broadcast({ type: 'tweak:schema', payload: tweaks.buildSchema() });
-        break;
+    try {
+      switch (msg.type) {
+        case 'tweak:change':
+          // marker === comment id
+          await tweaks.applyTweakChange(msg.payload.marker, msg.payload.value);
+          broadcast({ type: 'tweak:schema', payload: tweaks.buildSchema() });
+          break;
 
-      case 'tweak:reset':
-        await tweaks.resetTweak(msg.payload.marker);
-        broadcast({ type: 'tweak:schema', payload: tweaks.buildSchema() });
-        break;
+        case 'tweak:reset':
+          await tweaks.resetTweak(msg.payload.marker);
+          broadcast({ type: 'tweak:schema', payload: tweaks.buildSchema() });
+          break;
 
-      case 'tweak:reset-all':
-        await tweaks.resetAllTweaks();
-        broadcast({ type: 'tweak:schema', payload: tweaks.buildSchema() });
-        break;
+        case 'tweak:reset-all':
+          await tweaks.resetAllTweaks();
+          broadcast({ type: 'tweak:schema', payload: tweaks.buildSchema() });
+          break;
 
-      case 'tweak:finalize':
-        await tweaks.finalizeAll();
-        broadcast({ type: 'tweak:schema', payload: [] });
-        break;
+        case 'tweak:finalize':
+          await tweaks.finalizeAll();
+          broadcast({ type: 'tweak:schema', payload: [] });
+          break;
 
-      case 'tweak:discard-all':
-        await tweaks.discardAll();
-        broadcast({ type: 'tweak:schema', payload: [] });
-        break;
+        case 'tweak:discard-all':
+          await tweaks.discardAll();
+          broadcast({ type: 'tweak:schema', payload: [] });
+          break;
 
-      case 'tweak:discard': {
-        const { commentId } = msg.payload;
-        await tweaks.discardComment(commentId);
-        const discardedByWs = store.get(commentId);
-        if (discardedByWs) {
-          store.upsert(markActiveTweakStatus(discardedByWs, 'discarded'));
-        }
-        broadcast({ type: 'tweak:schema', payload: tweaks.buildSchema() });
-        broadcast({ type: 'comments:sync', payload: store.all() });
-        break;
-      }
-
-      case 'tweak:accept-comment': {
-        const { commentId } = msg.payload;
-        await tweaks.finalizeForComment(commentId);
-        const accepted = store.get(commentId);
-        if (accepted) {
-          store.upsert(markActiveTweakStatus(accepted, 'accepted'));
-        }
-        broadcast({ type: 'tweak:schema', payload: tweaks.buildSchema() });
-        broadcast({ type: 'comments:sync', payload: store.all() });
-        break;
-      }
-
-      case 'tweak:dismiss': {
-        const { commentId } = msg.payload;
-        await tweaks.discardComment(commentId);
-        const discarded = store.get(commentId);
-        if (discarded) {
-          store.upsert(markActiveTweakStatus(discarded, 'discarded'));
-        }
-        broadcast({ type: 'tweak:schema', payload: tweaks.buildSchema() });
-        broadcast({ type: 'comments:sync', payload: store.all() });
-        break;
-      }
-
-      case 'comment:upsert':
-        console.log('[server] comment:upsert received, id:', msg.payload?.meta?.id);
-        store.upsert(msg.payload);
-        broadcast({ type: 'comments:sync', payload: store.all() });
-        broadcast({ type: 'tweak:schema', payload: tweaks.buildSchema() });
-        break;
-
-      case 'comment:delete':
-        store.del(msg.payload.id);
-        broadcast({ type: 'comments:sync', payload: store.all() });
-        broadcast({ type: 'tweak:schema', payload: tweaks.buildSchema() });
-        break;
-
-      case 'comment:clear':
-        await store.clear();
-        broadcast({ type: 'comments:sync', payload: [] });
-        broadcast({ type: 'tweak:schema', payload: [] });
-        break;
-
-      case 'comment:read': {
-        const thread = store.get(msg.payload.id);
-        if (thread) {
-          // Update in-memory only — lastReadAt is ephemeral UI state.
-          // Writing to disk would cause Vite to reload the page on every panel open
-          // when .ui-bridge/ is inside the watched project root.
-          store.updateInMemory({ ...thread, meta: { ...thread.meta, lastReadAt: Date.now() } });
+        case 'tweak:discard': {
+          const { commentId } = msg.payload;
+          await tweaks.discardComment(commentId);
+          const discardedByWs = store.get(commentId);
+          if (discardedByWs) {
+            store.upsert(markActiveTweakStatus(discardedByWs, 'discarded'));
+          }
+          broadcast({ type: 'tweak:schema', payload: tweaks.buildSchema() });
           broadcast({ type: 'comments:sync', payload: store.all() });
+          break;
         }
-        break;
-      }
 
-      case 'preferences:update': {
-        const updated = await prefsStore.update(msg.payload);
-        broadcast({ type: 'preferences:sync', payload: updated });
-        break;
+        case 'tweak:accept-comment': {
+          const { commentId } = msg.payload;
+          await tweaks.finalizeForComment(commentId);
+          const accepted = store.get(commentId);
+          if (accepted) {
+            store.upsert(markActiveTweakStatus(accepted, 'accepted'));
+          }
+          broadcast({ type: 'tweak:schema', payload: tweaks.buildSchema() });
+          broadcast({ type: 'comments:sync', payload: store.all() });
+          break;
+        }
+
+        case 'tweak:dismiss': {
+          const { commentId } = msg.payload;
+          await tweaks.discardComment(commentId);
+          const discarded = store.get(commentId);
+          if (discarded) {
+            store.upsert(markActiveTweakStatus(discarded, 'discarded'));
+          }
+          broadcast({ type: 'tweak:schema', payload: tweaks.buildSchema() });
+          broadcast({ type: 'comments:sync', payload: store.all() });
+          break;
+        }
+
+        case 'comment:upsert':
+          console.log('[server] comment:upsert received, id:', msg.payload?.meta?.id);
+          store.upsert(msg.payload);
+          broadcast({ type: 'comments:sync', payload: store.all() });
+          broadcast({ type: 'tweak:schema', payload: tweaks.buildSchema() });
+          break;
+
+        case 'comment:delete':
+          store.del(msg.payload.id);
+          broadcast({ type: 'comments:sync', payload: store.all() });
+          broadcast({ type: 'tweak:schema', payload: tweaks.buildSchema() });
+          break;
+
+        case 'comment:clear':
+          await store.clear();
+          broadcast({ type: 'comments:sync', payload: [] });
+          broadcast({ type: 'tweak:schema', payload: [] });
+          break;
+
+        case 'comment:read': {
+          const thread = store.get(msg.payload.id);
+          if (thread) {
+            // Update in-memory only — lastReadAt is ephemeral UI state.
+            // Writing to disk would cause Vite to reload the page on every panel open
+            // when .ui-bridge/ is inside the watched project root.
+            store.updateInMemory({ ...thread, meta: { ...thread.meta, lastReadAt: Date.now() } });
+            broadcast({ type: 'comments:sync', payload: store.all() });
+          }
+          break;
+        }
+
+        case 'preferences:update': {
+          const updated = await prefsStore.update(msg.payload);
+          broadcast({ type: 'preferences:sync', payload: updated });
+          break;
+        }
       }
+    } catch (e) {
+      console.error(`[ui-bridge] error handling WS message "${msg.type}":`, e);
     }
   });
 });

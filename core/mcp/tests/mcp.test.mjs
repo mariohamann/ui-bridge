@@ -713,3 +713,105 @@ describe('list_comments — file-direct (no server required)', () => {
     assert.ok(Array.isArray(body.comments), 'expected comments array');
   });
 });
+
+// ── Path normalization: action file paths ─────────────────────────────────────
+// Agents often copy source.file from comment elements directly into action file
+// paths. source.file is relative to process.cwd() (e.g. the monorepo root), but
+// the tweak engine resolves relative to rootDir (e.g. demos/vite). These tests
+// verify that MCP normalizes both formats to root-relative paths.
+
+describe('create_comment — normalizes action file paths', () => {
+  it('strips a cwd-relative prefix from action file (monorepo case)', async () => {
+    // Simulate: TEST_ROOT = /abs/path/to/.test-root
+    // MCP process cwd = TEST_ROOT (set via spawn cwd option)
+    // A cwd-relative path "src/Foo.vue" (already root-relative) must stay "src/Foo.vue"
+    const responses = await mcpCall('tools/call', {
+      name: 'create_comment',
+      arguments: {
+        elements: [{ minimalSelector: 'h1', tag: 'h1', classes: [] }],
+        comment: 'path normalization test',
+        pageUrl: 'http://localhost:5173/',
+        knob: { label: 'Size', type: 'select', value: 'sm', options: { sm: 'Small', lg: 'Large' } },
+        actions: [{ type: 'content-edit', file: 'src/Foo.vue', scriptId: 'norm-1' }],
+      },
+    });
+    const res = findResponse(responses, 2);
+    assert.ok(!res?.error, `error: ${JSON.stringify(res?.error)}`);
+    const created = JSON.parse(res.result.content[0].text);
+    const tweak = created.comments.find((c) => c.type === 'tweak');
+    const actionFile = tweak?.actions?.[0]?.file;
+    // Already root-relative — must remain unchanged
+    assert.equal(actionFile, 'src/Foo.vue', `expected src/Foo.vue, got ${actionFile}`);
+    await fetch(`${BASE_URL}/api/comments/${created.meta.id}`, { method: 'DELETE' });
+  });
+
+  it('normalizes an absolute action file path to root-relative', async () => {
+    const absoluteFile = resolve(TEST_ROOT, 'src', 'Absolute.vue');
+    const responses = await mcpCall('tools/call', {
+      name: 'create_comment',
+      arguments: {
+        elements: [{ minimalSelector: 'h2', tag: 'h2', classes: [] }],
+        comment: 'absolute path normalization test',
+        pageUrl: 'http://localhost:5173/',
+        knob: { label: 'Color', type: 'color', value: '#ff0000' },
+        actions: [{ type: 'content-edit', file: absoluteFile, scriptId: 'norm-abs' }],
+      },
+    });
+    const res = findResponse(responses, 2);
+    assert.ok(!res?.error, `error: ${JSON.stringify(res?.error)}`);
+    const created = JSON.parse(res.result.content[0].text);
+    const tweak = created.comments.find((c) => c.type === 'tweak');
+    const actionFile = tweak?.actions?.[0]?.file;
+    // Absolute path must be converted to root-relative
+    assert.equal(actionFile, 'src/Absolute.vue', `expected src/Absolute.vue, got ${actionFile}`);
+    await fetch(`${BASE_URL}/api/comments/${created.meta.id}`, { method: 'DELETE' });
+  });
+});
+
+describe('reply_to_comment — normalizes action file paths', () => {
+  let parentId;
+
+  before(async () => {
+    const now = Date.now();
+    parentId = `norm-reply-parent-${now}`;
+    await fetch(`${BASE_URL}/api/comments`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        meta: { id: parentId, pageUrl: 'http://localhost:5173/', timestamp: now, createdAt: now },
+        elements: [{ minimalSelector: 'p', tag: 'p', classes: [] }],
+        comments: [
+          { id: `${parentId}-root`, type: 'comment', text: 'base', createdAt: now, author: 'user' },
+        ],
+      }),
+    });
+  });
+
+  after(async () => {
+    if (parentId) await fetch(`${BASE_URL}/api/comments/${parentId}`, { method: 'DELETE' });
+  });
+
+  it('normalizes an absolute file path in a tweak reply to root-relative', async () => {
+    const absoluteFile = resolve(TEST_ROOT, 'src', 'Button.vue');
+    const responses = await mcpCall('tools/call', {
+      name: 'reply_to_comment',
+      arguments: {
+        commentId: parentId,
+        text: 'Try this tweak.',
+        knob: {
+          label: 'Variant',
+          type: 'radio',
+          value: 'primary',
+          options: { primary: 'Primary', secondary: 'Secondary' },
+        },
+        actions: [{ type: 'content-edit', file: absoluteFile, scriptId: 'norm-reply-abs' }],
+      },
+    });
+    const res = findResponse(responses, 2);
+    assert.ok(!res?.error, `error: ${JSON.stringify(res?.error)}`);
+    const updated = JSON.parse(res.result.content[0].text);
+    const tweak = updated.comments.find((c) => c.type === 'tweak');
+    const actionFile = tweak?.actions?.[0]?.file;
+    assert.equal(actionFile, 'src/Button.vue', `expected src/Button.vue, got ${actionFile}`);
+  });
+});
