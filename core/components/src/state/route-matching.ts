@@ -1,21 +1,21 @@
-import type { RouteMatchingConfig } from '@ui-bridge/protocol';
+import type { VisibilityRouteConfig } from '@ui-bridge/protocol';
 
 /**
  * Determines whether a comment's `pageUrl` matches the current page's URL
- * based on the user's route matching preferences.
+ * based on the resolved route config for a specific context.
  *
  * Returns `true` (show the comment) when:
- *   - No matching criteria are enabled (all flags false) — shows everything
+ *   - No matching criteria are enabled (all flags false/undefined) — shows everything
  *   - All enabled criteria match
  *
  * @param commentUrl - The URL stored on the comment thread (meta.pageUrl)
  * @param currentUrl - The current window location URL
- * @param config     - Which URL parts to match against
+ * @param config     - Which URL parts to match against (already resolved to concrete booleans)
  */
 export function matchesCurrentRoute(
   commentUrl: string,
   currentUrl: string,
-  config: RouteMatchingConfig,
+  config: Required<VisibilityRouteConfig>,
 ): boolean {
   // If no criteria are enabled, show all comments regardless of URL
   if (!config.domain && !config.path && !config.params) return true;

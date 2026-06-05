@@ -928,12 +928,10 @@ test.describe('Preferences', () => {
       | { type: string; payload: Record<string, unknown> }
       | undefined;
     expect(prefsMsg).toBeDefined();
-    expect(prefsMsg?.payload).toMatchObject({
-      knobVisibilityUI: 'non-approved',
-      knobVisibilityBar: 'non-approved',
-      commentBarPosition: 'top-left',
-      routeMatching: { domain: false, path: true, params: false },
-    });
+    // With no plugin prefs and no persisted file, the server returns an empty
+    // preferences object — effective defaults are resolved on the client side.
+    expect(prefsMsg?.payload).toBeDefined();
+    expect(typeof prefsMsg?.payload).toBe('object');
   });
 
   test('preferences:update persists to .ui-bridge/preferences.json and broadcasts sync', async () => {
@@ -941,61 +939,60 @@ test.describe('Preferences', () => {
       WS_URL,
       {
         type: 'preferences:update',
-        payload: { commentBarPosition: 'bottom-right' },
+        payload: { commentBar: { position: 'bottom-right' } },
       },
       400,
     );
 
     // At least one preferences:sync broadcast should come back
     const syncMsg = replies.find((m) => (m as { type: string }).type === 'preferences:sync') as
-      | { type: string; payload: { commentBarPosition: string } }
+      | { type: string; payload: { commentBar?: { position?: string } } }
       | undefined;
     expect(syncMsg).toBeDefined();
-    expect(syncMsg?.payload.commentBarPosition).toBe('bottom-right');
+    expect(syncMsg?.payload.commentBar?.position).toBe('bottom-right');
 
     // Verify persisted to disk
     const raw = await readFile(PREFS_FILE, 'utf-8');
-    const persisted = JSON.parse(raw) as { commentBarPosition: string };
-    expect(persisted.commentBarPosition).toBe('bottom-right');
+    const persisted = JSON.parse(raw) as { commentBar?: { position?: string } };
+    expect(persisted.commentBar?.position).toBe('bottom-right');
   });
 
-  test('preferences:update deeply merges routeMatching without overwriting other fields', async () => {
-    // First update: set domain: true
+  test('preferences:update deeply merges nested visibility.route without overwriting other fields', async () => {
+    // First update: set domain: true in visibility.route
     await wsSend(
       WS_URL,
-      { type: 'preferences:update', payload: { routeMatching: { domain: true } } },
+      { type: 'preferences:update', payload: { visibility: { route: { domain: true } } } },
       400,
     );
-    // Second update: set params: true — path and domain should survive
+    // Second update: set params: true — domain should survive
     const replies = await wsSend(
       WS_URL,
-      { type: 'preferences:update', payload: { routeMatching: { params: true } } },
+      { type: 'preferences:update', payload: { visibility: { route: { params: true } } } },
       400,
     );
 
     const syncMsg = replies.find((m) => (m as { type: string }).type === 'preferences:sync') as
-      | { type: string; payload: { routeMatching: Record<string, boolean> } }
+      | { type: string; payload: { visibility?: { route?: Record<string, boolean> } } }
       | undefined;
     expect(syncMsg).toBeDefined();
-    expect(syncMsg?.payload.routeMatching.domain).toBe(true);
-    expect(syncMsg?.payload.routeMatching.path).toBe(true);
-    expect(syncMsg?.payload.routeMatching.params).toBe(true);
+    expect(syncMsg?.payload.visibility?.route?.domain).toBe(true);
+    expect(syncMsg?.payload.visibility?.route?.params).toBe(true);
   });
 
   test('preferences persist across reconnects', async () => {
     // Write a preferences update
     await wsSend(
       WS_URL,
-      { type: 'preferences:update', payload: { knobVisibilityUI: 'always' } },
+      { type: 'preferences:update', payload: { visibility: { status: 'always' } } },
       400,
     );
 
     // Reconnect and check the initial sync carries the saved value
     const msgs = await wsMessages(WS_URL, 400);
     const prefsMsg = msgs.find((m) => (m as { type: string }).type === 'preferences:sync') as
-      | { type: string; payload: { knobVisibilityUI: string } }
+      | { type: string; payload: { visibility?: { status?: string } } }
       | undefined;
-    expect(prefsMsg?.payload.knobVisibilityUI).toBe('always');
+    expect(prefsMsg?.payload.visibility?.status).toBe('always');
   });
 });
 

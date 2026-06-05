@@ -34,7 +34,7 @@ export interface UiBridgeOptions {
    * overridden by the user at runtime via the preferences dialog in the browser.
    * The runtime overrides are persisted in `.ui-bridge/preferences.json`.
    */
-  preferences?: Partial<UserPreferences>;
+  preferences?: UserPreferences;
 }
 
 /**
@@ -61,7 +61,7 @@ async function getServerPort(port: number, expectedRoot: string): Promise<number
 function spawnServer(
   rootDir: string,
   preferredPort: number,
-  preferences?: Partial<UserPreferences>,
+  preferences?: UserPreferences,
 ): { child: ChildProcess; ready: Promise<number> } {
   const serverEntry = _require.resolve('@ui-bridge/server');
   const child = spawn(process.execPath, [serverEntry, '--root', rootDir], {

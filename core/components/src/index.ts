@@ -10,7 +10,11 @@ export {
   markOrphaned,
   markUnorphaned,
 } from './state/comments-store.js';
-export { preferencesSignal, updatePreferences } from './state/preferences-store.js';
+export {
+  preferencesSignal,
+  updatePreferences,
+  getEffectivePreferences,
+} from './state/preferences-store.js';
 export { matchesCurrentRoute } from './state/route-matching.js';
 
 // ── Intent bus ────────────────────────────────────────────────────────────────

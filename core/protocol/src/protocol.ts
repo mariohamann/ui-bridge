@@ -187,35 +187,131 @@ export type CommentThread = z.infer<typeof CommentThreadSchema>;
 
 // ─── User Preferences ────────────────────────────────────────────────────────
 
-export type KnobVisibility = 'always' | 'non-approved' | 'never';
+export type VisibilityStatus = 'always' | 'non-approved' | 'never';
 export type CommentBarPosition = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
 
-export interface RouteMatchingConfig {
-  /** Match against the origin (protocol + hostname + port). Default: false. */
-  domain: boolean;
-  /** Match against the pathname. Default: true. */
-  path: boolean;
-  /** Match against query parameters. Default: false. */
-  params: boolean;
+export interface VisibilityRouteConfig {
+  /**
+   * Only show comments whose pageUrl matches the current origin
+   * (protocol + host + port).
+   * @default false
+   */
+  domain?: boolean;
+  /**
+   * Only show comments whose pageUrl pathname matches the current page.
+   * Bar default: false (show all routes). Panel default: true.
+   */
+  path?: boolean;
+  /**
+   * Only show comments whose pageUrl query string matches the current page.
+   * @default false
+   */
+  params?: boolean;
+}
+
+export interface VisibilityConfig {
+  /**
+   * Which comments/knobs are visible.
+   * 'non-approved' hides threads whose tweaks are all accepted or discarded.
+   * @default 'non-approved'
+   */
+  status?: VisibilityStatus;
+  /**
+   * URL-based filter. When a key is unset, the context-specific default applies.
+   * Bar: all false (show across all routes for navigation).
+   * Panel: { path: true } (show only current page).
+   */
+  route?: VisibilityRouteConfig;
 }
 
 export interface UserPreferences {
-  /** Controls which knobs are rendered inside the floating comment UI. */
-  knobVisibilityUI: KnobVisibility;
-  /** Controls which knobs/comments are visible in the comment-bar. */
-  knobVisibilityBar: KnobVisibility;
-  /** Controls how the current URL is compared against a comment's pageUrl. */
-  routeMatching: RouteMatchingConfig;
-  /** Position of the comment-bar on screen. */
-  commentBarPosition: CommentBarPosition;
+  /**
+   * Shared visibility defaults for both the comment bar and the comment panel.
+   * Each context can override individually via `commentBar.visibility` and `ui.visibility`.
+   */
+  visibility?: VisibilityConfig;
+
+  commentBar?: {
+    /**
+     * Where the comment bar is pinned on screen.
+     * @default 'top-left'
+     */
+    position?: CommentBarPosition;
+    /**
+     * Visibility overrides for the comment bar.
+     * Merged on top of `visibility`. Bar-specific route default: all false
+     * (show comments from all routes so users can click to navigate).
+     */
+    visibility?: VisibilityConfig;
+  };
+
+  ui?: {
+    /**
+     * Visibility overrides for the floating comment panel.
+     * Merged on top of `visibility`. Panel-specific route default: { path: true }
+     * (show only comments matching the current pathname).
+     */
+    visibility?: VisibilityConfig;
+  };
 }
 
-export const DEFAULT_PREFERENCES: UserPreferences = {
-  knobVisibilityUI: 'non-approved',
-  knobVisibilityBar: 'non-approved',
-  routeMatching: { domain: false, path: true, params: false },
-  commentBarPosition: 'top-left',
+/** Resolved preferences for a specific context (bar or panel). */
+export interface ResolvedVisibility {
+  status: VisibilityStatus;
+  route: Required<VisibilityRouteConfig>;
+}
+
+/** Fully resolved, flat preferences used at runtime by UI components. */
+export interface EffectivePreferences {
+  bar: ResolvedVisibility & { position: CommentBarPosition };
+  panel: ResolvedVisibility;
+}
+
+const BAR_ROUTE_DEFAULTS: Required<VisibilityRouteConfig> = {
+  domain: false,
+  path: false,
+  params: false,
 };
+const PANEL_ROUTE_DEFAULTS: Required<VisibilityRouteConfig> = {
+  domain: false,
+  path: true,
+  params: false,
+};
+
+/**
+ * Resolves a `UserPreferences` object (all fields optional) into a fully
+ * concrete `EffectivePreferences` object suitable for runtime use.
+ *
+ * Merge order (later wins):
+ *   context-specific hardcoded default → global `visibility` → context `visibility`
+ */
+export function resolveEffectivePreferences(prefs: UserPreferences): EffectivePreferences {
+  const globalStatus = prefs.visibility?.status ?? 'non-approved';
+  const globalRoute = prefs.visibility?.route ?? {};
+
+  const barRoute: Required<VisibilityRouteConfig> = {
+    ...BAR_ROUTE_DEFAULTS,
+    ...globalRoute,
+    ...prefs.commentBar?.visibility?.route,
+  };
+  const panelRoute: Required<VisibilityRouteConfig> = {
+    ...PANEL_ROUTE_DEFAULTS,
+    ...globalRoute,
+    ...prefs.ui?.visibility?.route,
+  };
+
+  return {
+    bar: {
+      status: prefs.commentBar?.visibility?.status ?? globalStatus,
+      route: barRoute,
+      position: prefs.commentBar?.position ?? 'top-left',
+    },
+    panel: {
+      status: prefs.ui?.visibility?.status ?? globalStatus,
+      route: panelRoute,
+    },
+  };
+}
 
 // ─── Browser → Server ────────────────────────────────────────────────────────
 

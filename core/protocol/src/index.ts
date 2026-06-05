@@ -32,9 +32,12 @@ export type {
   InspectPickMsg,
   SourceAnnotationConfig,
   UserPreferences,
-  KnobVisibility,
+  VisibilityConfig,
+  VisibilityRouteConfig,
+  VisibilityStatus,
   CommentBarPosition,
-  RouteMatchingConfig,
+  EffectivePreferences,
+  ResolvedVisibility,
   PreferencesUpdateMsg,
   PreferencesSyncMsg,
 } from './protocol.js';
@@ -48,7 +51,7 @@ export {
   TweakCommentEntrySchema,
   TweakActionSchema,
   TweakKnobDefSchema,
-  DEFAULT_PREFERENCES,
+  resolveEffectivePreferences,
 } from './protocol.js';
 
 // ─── Custom element tag names ─────────────────────────────────────────────────

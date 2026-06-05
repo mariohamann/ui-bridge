@@ -199,9 +199,8 @@ export default defineConfig({
   plugins: [
     ...uiBridgeVite({
       preferences: {
-        commentBarPosition: 'bottom-right',
-        knobVisibilityUI: 'always',
-        routeMatching: { path: true },
+        commentBar: { position: 'bottom-right' },
+        visibility: { status: 'always' },
       },
     }),
   ],
@@ -217,52 +216,72 @@ Click the gear icon (⚙) in the comment bar to open the preferences dialog. Cha
 #### Preferences API
 
 ```ts
-interface UserPreferences {
+interface VisibilityConfig {
   /**
-   * Which knobs appear inside the floating comment panel.
-   * 'non-approved' hides tweaks that have already been accepted or discarded.
+   * Which comments/knobs are visible.
+   * 'non-approved' hides threads whose tweaks are all accepted or discarded.
    * @default 'non-approved'
    */
-  knobVisibilityUI: 'always' | 'non-approved' | 'never';
+  status?: 'always' | 'non-approved' | 'never';
 
   /**
-   * Which comment threads appear in the comment bar.
-   * Same semantics as knobVisibilityUI.
-   * @default 'non-approved'
+   * URL-based filter. All false/unset means show all comments regardless of URL.
+   * Bar default: all false (show across all routes — click to navigate).
+   * Panel default: { path: true } (current page only).
    */
-  knobVisibilityBar: 'always' | 'non-approved' | 'never';
-
-  /**
-   * Which comments are shown based on URL matching.
-   * All false shows all comments regardless of URL.
-   * @default { domain: false, path: true, params: false }
-   */
-  routeMatching: {
+  route?: {
     /**
      * Only show comments whose pageUrl matches the current origin
      * (protocol + host + port).
      * @default false
      */
-    domain: boolean;
+    domain?: boolean;
 
     /**
      * Only show comments whose pageUrl pathname matches the current page.
-     * @default true
+     * Bar default: false. Panel default: true.
      */
-    path: boolean;
+    path?: boolean;
 
     /**
      * Only show comments whose pageUrl query string matches the current page.
      * @default false
      */
-    params: boolean;
+    params?: boolean;
+  };
+}
+
+interface UserPreferences {
+  /**
+   * Shared visibility defaults for both the comment bar and the comment panel.
+   * Each context can override individually.
+   */
+  visibility?: VisibilityConfig;
+
+  commentBar?: {
+    /**
+     * Where the comment bar is pinned on screen.
+     * @default 'top-left'
+     */
+    position?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
+
+    /**
+     * Visibility overrides for the comment bar.
+     * Merged on top of `visibility`.
+     * Bar-specific route default: all false (show comments from all routes
+     * so users can click a badge to navigate to a different page).
+     */
+    visibility?: VisibilityConfig;
   };
 
-  /**
-   * Where the comment bar is pinned on screen.
-   * @default 'top-left'
-   */
-  commentBarPosition: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
+  ui?: {
+    /**
+     * Visibility overrides for the floating comment panel.
+     * Merged on top of `visibility`.
+     * Panel-specific route default: { path: true } (current page only).
+     */
+    visibility?: VisibilityConfig;
+  };
 }
 ```
 
@@ -379,8 +398,8 @@ Set `preferences` in your plugin config. These are checked into version control 
 
 ...uiBridgeVite({
   preferences: {
-    commentBarPosition: 'bottom-right',
-    routeMatching: { path: true },
+    commentBar: { position: 'bottom-right' },
+    visibility: { route: { path: true } },
   },
 })
 ```

@@ -1,13 +1,16 @@
 import '@awesome.me/webawesome/dist/components/button/button.js';
+import '@awesome.me/webawesome/dist/components/details/details.js';
 import '@awesome.me/webawesome/dist/components/dialog/dialog.js';
 import '@awesome.me/webawesome/dist/components/divider/divider.js';
-import '@awesome.me/webawesome/dist/components/radio/radio.js';
-import '@awesome.me/webawesome/dist/components/radio-group/radio-group.js';
-import '@awesome.me/webawesome/dist/components/switch/switch.js';
 import { LitElement, html, css, type TemplateResult } from 'lit';
 import { customElement, query, state } from 'lit/decorators.js';
 import { SignalWatcher } from '@lit-labs/signals';
-import type { UserPreferences, KnobVisibility, CommentBarPosition } from '@ui-bridge/protocol';
+import type {
+  UserPreferences,
+  VisibilityStatus,
+  CommentBarPosition,
+  VisibilityRouteConfig,
+} from '@ui-bridge/protocol';
 import { preferencesSignal } from '../state/preferences-store.js';
 import { dispatchIntent } from '../state/intents.js';
 
@@ -27,43 +30,78 @@ export class UibPreferencesDialog extends _UibPreferencesDialogBase {
       max-width: 480px;
     }
 
-    .section-title {
-      font: 600 13px / 1.4 var(--wa-font-family-body, sans-serif);
-      color: var(--wa-color-neutral-700, #444);
-      margin: 0 0 10px 0;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      font-size: 11px;
+    /* ── Section heading ─────────────────────────────────────────────── */
+    .section-heading {
+      font-size: var(--wa-font-size-s);
+      font-weight: var(--wa-font-weight-semibold);
+      color: var(--wa-color-text-normal);
+      margin: 0 0 var(--wa-space-s) 0;
     }
 
-    .field-group {
+    /* ── Native fieldsets ────────────────────────────────────────────── */
+    fieldset {
+      border: none;
+      padding: 0;
+      margin: 0;
+    }
+
+    legend {
+      font-size: var(--wa-font-size-xs);
+      font-weight: var(--wa-font-weight-semibold);
+      color: var(--wa-color-text-quiet);
+      padding: 0;
+      margin-bottom: var(--wa-space-xs);
+    }
+
+    /* wa-stack equivalent: vertical flex with gap */
+    .stack {
       display: flex;
       flex-direction: column;
-      gap: 12px;
-      margin-bottom: 20px;
+      gap: var(--wa-space-xs);
     }
 
-    .route-matching {
+    /* wa-cluster equivalent: horizontal flex with wrapping */
+    .cluster {
       display: flex;
-      gap: 16px;
-      align-items: center;
       flex-wrap: wrap;
+      gap: var(--wa-space-s);
     }
 
-    .route-matching-label {
-      font: 500 13px / 1 var(--wa-font-family-body, sans-serif);
-      color: var(--wa-color-neutral-600, #666);
-      min-width: 120px;
+    fieldset + fieldset {
+      margin-top: var(--wa-space-m);
+    }
+
+    label {
+      display: flex;
+      align-items: center;
+      gap: var(--wa-space-xs);
+      font-size: var(--wa-font-size-s);
+      color: var(--wa-color-text-normal);
+      cursor: pointer;
+    }
+
+    input[type='radio'],
+    input[type='checkbox'] {
+      accent-color: var(--wa-color-brand-600);
+      width: 14px;
+      height: 14px;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    /* ── Spacing between top-level sections in the dialog ─────────────── */
+    wa-details {
+      margin-top: var(--wa-space-m);
     }
 
     wa-divider {
-      margin: 16px 0;
+      margin: var(--wa-space-m) 0;
     }
 
     .dialog-footer {
       display: flex;
       justify-content: flex-end;
-      gap: 8px;
+      gap: var(--wa-space-s);
     }
   `;
 
@@ -73,10 +111,8 @@ export class UibPreferencesDialog extends _UibPreferencesDialogBase {
   @state() private _draft: UserPreferences | null = null;
 
   open(): void {
-    this._draft = {
-      ...preferencesSignal.get(),
-      routeMatching: { ...preferencesSignal.get().routeMatching },
-    };
+    const p = preferencesSignal.get();
+    this._draft = JSON.parse(JSON.stringify(p)) as UserPreferences;
     this._dialog?.show();
   }
 
@@ -90,104 +126,272 @@ export class UibPreferencesDialog extends _UibPreferencesDialogBase {
     this._dialog?.requestClose();
   }
 
-  private _setKnobVisibilityUI(v: KnobVisibility): void {
+  // ── draft helpers ─────────────────────────────────────────────────────────
+
+  private _setGlobalStatus(v: VisibilityStatus): void {
     if (!this._draft) return;
-    this._draft = { ...this._draft, knobVisibilityUI: v };
+    this._draft = {
+      ...this._draft,
+      visibility: { ...this._draft.visibility, status: v },
+    };
   }
 
-  private _setKnobVisibilityBar(v: KnobVisibility): void {
+  private _setGlobalRoute(field: keyof VisibilityRouteConfig, checked: boolean): void {
     if (!this._draft) return;
-    this._draft = { ...this._draft, knobVisibilityBar: v };
+    this._draft = {
+      ...this._draft,
+      visibility: {
+        ...this._draft.visibility,
+        route: { ...this._draft.visibility?.route, [field]: checked },
+      },
+    };
   }
 
   private _setPosition(v: CommentBarPosition): void {
     if (!this._draft) return;
-    this._draft = { ...this._draft, commentBarPosition: v };
-  }
-
-  private _setRouteMatching(field: 'domain' | 'path' | 'params', checked: boolean): void {
-    if (!this._draft) return;
     this._draft = {
       ...this._draft,
-      routeMatching: { ...this._draft.routeMatching, [field]: checked },
+      commentBar: { ...this._draft.commentBar, position: v },
     };
   }
 
-  private _renderVisibilityGroup(
-    label: string,
-    current: KnobVisibility,
-    onChange: (v: KnobVisibility) => void,
+  private _setBarStatus(v: VisibilityStatus): void {
+    if (!this._draft) return;
+    this._draft = {
+      ...this._draft,
+      commentBar: {
+        ...this._draft.commentBar,
+        visibility: { ...this._draft.commentBar?.visibility, status: v },
+      },
+    };
+  }
+
+  private _setBarRoute(field: keyof VisibilityRouteConfig, checked: boolean): void {
+    if (!this._draft) return;
+    this._draft = {
+      ...this._draft,
+      commentBar: {
+        ...this._draft.commentBar,
+        visibility: {
+          ...this._draft.commentBar?.visibility,
+          route: { ...this._draft.commentBar?.visibility?.route, [field]: checked },
+        },
+      },
+    };
+  }
+
+  private _setPanelStatus(v: VisibilityStatus): void {
+    if (!this._draft) return;
+    this._draft = {
+      ...this._draft,
+      ui: {
+        ...this._draft.ui,
+        visibility: { ...this._draft.ui?.visibility, status: v },
+      },
+    };
+  }
+
+  private _setPanelRoute(field: keyof VisibilityRouteConfig, checked: boolean): void {
+    if (!this._draft) return;
+    this._draft = {
+      ...this._draft,
+      ui: {
+        ...this._draft.ui,
+        visibility: {
+          ...this._draft.ui?.visibility,
+          route: { ...this._draft.ui?.visibility?.route, [field]: checked },
+        },
+      },
+    };
+  }
+
+  // ── render helpers ─────────────────────────────────────────────────────────
+
+  private _renderStatusFieldset(
+    name: string,
+    current: VisibilityStatus | undefined,
+    defaultLabel: string,
+    onChange: (v: VisibilityStatus) => void,
+  ): TemplateResult {
+    const val = current ?? 'non-approved';
+    return html`
+      <fieldset class="stack">
+        <legend>Status</legend>
+        <label>
+          <input
+            type="radio"
+            name=${name}
+            value="always"
+            .checked=${val === 'always'}
+            @change=${() => onChange('always')}
+          />
+          Always
+        </label>
+        <label>
+          <input
+            type="radio"
+            name=${name}
+            value="non-approved"
+            .checked=${val === 'non-approved'}
+            @change=${() => onChange('non-approved')}
+          />
+          ${defaultLabel}
+        </label>
+        <label>
+          <input
+            type="radio"
+            name=${name}
+            value="never"
+            .checked=${val === 'never'}
+            @change=${() => onChange('never')}
+          />
+          Never
+        </label>
+      </fieldset>
+    `;
+  }
+
+  private _renderRouteFieldset(
+    route: VisibilityRouteConfig | undefined,
+    onChange: (field: keyof VisibilityRouteConfig, checked: boolean) => void,
   ): TemplateResult {
     return html`
-      <div>
-        <p class="section-title">${label}</p>
-        <wa-radio-group
-          value=${current}
-          @change=${(e: CustomEvent) =>
-            onChange((e.target as HTMLInputElement).value as KnobVisibility)}
-        >
-          <wa-radio value="always">Always</wa-radio>
-          <wa-radio value="non-approved">Only Non-Approved (default)</wa-radio>
-          <wa-radio value="never">Never</wa-radio>
-        </wa-radio-group>
-      </div>
+      <fieldset class="cluster">
+        <legend>Route matching</legend>
+        <label>
+          <input
+            type="checkbox"
+            .checked=${route?.domain ?? false}
+            @change=${(e: Event) => onChange('domain', (e.target as HTMLInputElement).checked)}
+          />
+          Domain
+        </label>
+        <label>
+          <input
+            type="checkbox"
+            .checked=${route?.path ?? false}
+            @change=${(e: Event) => onChange('path', (e.target as HTMLInputElement).checked)}
+          />
+          Path
+        </label>
+        <label>
+          <input
+            type="checkbox"
+            .checked=${route?.params ?? false}
+            @change=${(e: Event) => onChange('params', (e.target as HTMLInputElement).checked)}
+          />
+          Query Params
+        </label>
+      </fieldset>
+    `;
+  }
+
+  private _renderPositionFieldset(
+    current: CommentBarPosition | undefined,
+    onChange: (v: CommentBarPosition) => void,
+  ): TemplateResult {
+    const val = current ?? 'top-left';
+    return html`
+      <fieldset class="stack">
+        <legend>Position</legend>
+        <label>
+          <input
+            type="radio"
+            name="bar-position"
+            value="top-left"
+            .checked=${val === 'top-left'}
+            @change=${() => onChange('top-left')}
+          />
+          Top Left
+        </label>
+        <label>
+          <input
+            type="radio"
+            name="bar-position"
+            value="top-right"
+            .checked=${val === 'top-right'}
+            @change=${() => onChange('top-right')}
+          />
+          Top Right
+        </label>
+        <label>
+          <input
+            type="radio"
+            name="bar-position"
+            value="bottom-left"
+            .checked=${val === 'bottom-left'}
+            @change=${() => onChange('bottom-left')}
+          />
+          Bottom Left
+        </label>
+        <label>
+          <input
+            type="radio"
+            name="bar-position"
+            value="bottom-right"
+            .checked=${val === 'bottom-right'}
+            @change=${() => onChange('bottom-right')}
+          />
+          Bottom Right
+        </label>
+      </fieldset>
     `;
   }
 
   render(): TemplateResult {
     const draft = this._draft ?? preferencesSignal.get();
+    const barHasOverride =
+      draft.commentBar?.visibility?.status !== undefined ||
+      draft.commentBar?.visibility?.route !== undefined;
+    const panelHasOverride =
+      draft.ui?.visibility?.status !== undefined || draft.ui?.visibility?.route !== undefined;
 
     return html`
       <wa-dialog label="Preferences">
-        ${this._renderVisibilityGroup('Knob Visibility in UI', draft.knobVisibilityUI, (v) =>
-          this._setKnobVisibilityUI(v),
+        <!-- ── Visibility (global defaults) ──────────────────────────── -->
+        <p class="section-heading">Visibility</p>
+        ${this._renderStatusFieldset(
+          'global-status',
+          draft.visibility?.status,
+          'Only Non-Approved (default)',
+          (v) => this._setGlobalStatus(v),
         )}
-
-        <div class="field-group route-matching">
-          <span class="route-matching-label">Route matching</span>
-          <wa-switch
-            ?checked=${draft.routeMatching.domain}
-            @change=${(e: Event) =>
-              this._setRouteMatching('domain', (e.target as HTMLInputElement).checked)}
-            >Domain</wa-switch
-          >
-          <wa-switch
-            ?checked=${draft.routeMatching.path}
-            @change=${(e: Event) =>
-              this._setRouteMatching('path', (e.target as HTMLInputElement).checked)}
-            >Path</wa-switch
-          >
-          <wa-switch
-            ?checked=${draft.routeMatching.params}
-            @change=${(e: Event) =>
-              this._setRouteMatching('params', (e.target as HTMLInputElement).checked)}
-            >Query Params</wa-switch
-          >
-        </div>
+        ${this._renderRouteFieldset(draft.visibility?.route, (f, c) => this._setGlobalRoute(f, c))}
 
         <wa-divider></wa-divider>
 
-        ${this._renderVisibilityGroup(
-          'Knob Visibility in Comment Bar',
-          draft.knobVisibilityBar,
-          (v) => this._setKnobVisibilityBar(v),
-        )}
+        <!-- ── Comment Bar ────────────────────────────────────────────── -->
+        <p class="section-heading">Comment Bar</p>
+        ${this._renderPositionFieldset(draft.commentBar?.position, (v) => this._setPosition(v))}
+
+        <wa-details summary="Custom visibility" ?open=${barHasOverride}>
+          ${this._renderStatusFieldset(
+            'bar-status',
+            draft.commentBar?.visibility?.status,
+            'Only Non-Approved',
+            (v) => this._setBarStatus(v),
+          )}
+          ${this._renderRouteFieldset(draft.commentBar?.visibility?.route, (f, c) =>
+            this._setBarRoute(f, c),
+          )}
+        </wa-details>
 
         <wa-divider></wa-divider>
 
-        <div>
-          <p class="section-title">Comment Bar Position</p>
-          <wa-radio-group
-            value=${draft.commentBarPosition}
-            @change=${(e: CustomEvent) =>
-              this._setPosition((e.target as HTMLInputElement).value as CommentBarPosition)}
-          >
-            <wa-radio value="top-left">Top Left (default)</wa-radio>
-            <wa-radio value="top-right">Top Right</wa-radio>
-            <wa-radio value="bottom-left">Bottom Left</wa-radio>
-            <wa-radio value="bottom-right">Bottom Right</wa-radio>
-          </wa-radio-group>
-        </div>
+        <!-- ── Comment Panel ──────────────────────────────────────────── -->
+        <p class="section-heading">Comment Panel</p>
+
+        <wa-details summary="Custom visibility" ?open=${panelHasOverride}>
+          ${this._renderStatusFieldset(
+            'panel-status',
+            draft.ui?.visibility?.status,
+            'Only Non-Approved',
+            (v) => this._setPanelStatus(v),
+          )}
+          ${this._renderRouteFieldset(draft.ui?.visibility?.route, (f, c) =>
+            this._setPanelRoute(f, c),
+          )}
+        </wa-details>
 
         <div slot="footer" class="dialog-footer">
           <wa-button variant="neutral" @click=${this._cancel}>Cancel</wa-button>
@@ -195,11 +399,5 @@ export class UibPreferencesDialog extends _UibPreferencesDialogBase {
         </div>
       </wa-dialog>
     `;
-  }
-}
-
-declare global {
-  interface HTMLElementTagNameMap {
-    'uib-preferences-dialog': UibPreferencesDialog;
   }
 }

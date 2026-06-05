@@ -420,11 +420,7 @@ test.describe('Preferences dialog', () => {
     await expect(prefsDialogInner(page)).toBeVisible();
 
     // Switch position to "bottom-right"
-    await prefsDialogContent(page)
-      .locator('uib-radio-group')
-      .last()
-      .locator('uib-radio[value="bottom-right"]')
-      .click();
+    await prefsDialogContent(page).locator('input[type="radio"][value="bottom-right"]').click();
 
     await prefsDialogContent(page).locator('uib-button').filter({ hasText: 'Save' }).click();
     await expect(prefsDialogInner(page)).not.toBeVisible();

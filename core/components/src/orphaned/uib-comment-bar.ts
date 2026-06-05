@@ -7,7 +7,7 @@ import { customElement, query, state } from 'lit/decorators.js';
 import { SignalWatcher } from '@lit-labs/signals';
 import type { CommentThread } from '@ui-bridge/protocol';
 import { commentsSignal, orphanedIdsSignal } from '../state/comments-store.js';
-import { preferencesSignal } from '../state/preferences-store.js';
+import { getEffectivePreferences } from '../state/preferences-store.js';
 import { matchesCurrentRoute } from '../state/route-matching.js';
 import { dbCommentBarStyles } from './uib-comment-bar.styles.js';
 import type { UibPreferencesDialog } from '../comment/uib-preferences-dialog.js';
@@ -51,20 +51,19 @@ export class UibCommentBar extends _UibCommentBarBase {
   render(): TemplateResult {
     const allThreads = commentsSignal.get();
     const orphanedIds = orphanedIdsSignal.get();
-    const prefs = preferencesSignal.get();
+    const eff = getEffectivePreferences();
 
     const currentUrl = typeof window !== 'undefined' ? window.location.href : '';
 
-    // Filter by route matching
+    // Filter by route matching (bar default: all false — show comments from all routes)
     const routeFiltered = allThreads.filter(
-      (t) =>
-        !t.meta.resolvedAt && matchesCurrentRoute(t.meta.pageUrl, currentUrl, prefs.routeMatching),
+      (t) => !t.meta.resolvedAt && matchesCurrentRoute(t.meta.pageUrl, currentUrl, eff.bar.route),
     );
 
-    // Apply knob visibility filter for comment bar
+    // Apply visibility status filter for comment bar
     const open = routeFiltered.filter((t) => {
-      if (prefs.knobVisibilityBar === 'always') return true;
-      if (prefs.knobVisibilityBar === 'never') return false;
+      if (eff.bar.status === 'always') return true;
+      if (eff.bar.status === 'never') return false;
       // 'non-approved': show threads that have no accepted-tweak-only entries, i.e. have pending tweaks or plain comments
       const hasPendingTweak = t.comments.some(
         (c) => c.type === 'tweak' && c.tweakStatus === 'pending',
@@ -84,7 +83,7 @@ export class UibCommentBar extends _UibCommentBarBase {
 
     return html`
       <uib-preferences-dialog></uib-preferences-dialog>
-      <div class="bar bar--${prefs.commentBarPosition}">
+      <div class="bar bar--${eff.bar.position}">
         <div class="bar__comments">
           ${visible.map((thread, i) => {
             const isOrphaned = orphanedIds.has(thread.meta.id);

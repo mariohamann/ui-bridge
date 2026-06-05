@@ -12,12 +12,7 @@ import { readFile, writeFile, rename, mkdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
 /** @type {import('@ui-bridge/protocol').UserPreferences} */
-const DEFAULTS = {
-  knobVisibilityUI: 'non-approved',
-  knobVisibilityBar: 'non-approved',
-  routeMatching: { domain: false, path: true, params: false },
-  commentBarPosition: 'top-left',
-};
+const DEFAULTS = {};
 
 /**
  * @param {string} rootDir
@@ -67,6 +62,8 @@ export function createPreferencesStore(rootDir, pluginPrefs = {}) {
 /**
  * Deep merge b into a (non-destructive — returns new object).
  * Only plain objects are merged recursively; primitives are overwritten.
+ * When b[key] is a plain object but a[key] is undefined/non-object, b[key] is
+ * shallow-merged into an empty object so nested keys are preserved.
  * @param {object} a
  * @param {object} b
  * @returns {object}
@@ -74,16 +71,12 @@ export function createPreferencesStore(rootDir, pluginPrefs = {}) {
 function deepMerge(a, b) {
   const result = { ...a };
   for (const key of Object.keys(b)) {
-    if (
-      b[key] !== null &&
-      typeof b[key] === 'object' &&
-      !Array.isArray(b[key]) &&
-      typeof a[key] === 'object' &&
-      a[key] !== null
-    ) {
-      result[key] = deepMerge(a[key], b[key]);
-    } else if (b[key] !== undefined) {
-      result[key] = b[key];
+    const bVal = b[key];
+    const aVal = a[key];
+    if (bVal !== null && typeof bVal === 'object' && !Array.isArray(bVal)) {
+      result[key] = deepMerge(aVal !== null && typeof aVal === 'object' ? aVal : {}, bVal);
+    } else if (bVal !== undefined) {
+      result[key] = bVal;
     }
   }
   return result;
