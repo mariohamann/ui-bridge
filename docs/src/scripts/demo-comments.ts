@@ -10,7 +10,7 @@
  *   dc-number     — number   — hero section padding
  *   dc-string     — string   — CTA button label
  *   dc-textarea   — textarea — setup section description
- *   dc-boolean    — boolean  — show/hide the subtitle
+ *   dc-boolean    — boolean  — video speed control visibility
  *   dc-select     — select   — "How it works" heading size
  *   dc-radio — radio — hero text alignment
  *
@@ -116,7 +116,7 @@ const THREAD_PLAIN = makeThread(
 );
 
 // 2. Color knob — pending
-const THREAD_COLOR = makeThread('dc-color', 'p.text-wa-text-quiet', 'p', [
+const THREAD_COLOR = makeThread('dc-color', '.hero-content p', 'p', [
   makeText(
     'dc-color-1',
     'The subtitle feels a bit low-contrast on dark backgrounds. Can we punch it up?',
@@ -137,7 +137,7 @@ const THREAD_COLOR = makeThread('dc-color', 'p.text-wa-text-quiet', 'p', [
 ]);
 
 // 3. Number knob — accepted (resolved tweak with follow-up)
-const THREAD_NUMBER = makeThread('dc-number', '#hero', 'section', [
+const THREAD_NUMBER = makeThread('dc-number', 'header.hero', 'header', [
   makeText(
     'dc-number-1',
     'Hero section feels cramped on smaller viewports. Can we reduce the vertical padding?',
@@ -172,41 +172,36 @@ const THREAD_NUMBER = makeThread('dc-number', '#hero', 'section', [
 ]);
 
 // 4. String knob — pending
-const THREAD_STRING = makeThread(
-  'dc-string',
-  '#hero-content wa-button[appearance="accent"]',
-  'wa-button',
-  [
-    makeText(
-      'dc-string-1',
-      '"Get Started ↓" is fine but feels a bit passive. Can we test something more action-oriented?',
-      'user',
-      180_000,
-    ),
-    makeText(
-      'dc-string-2',
-      'Sure — use the text knob to try different labels live. I\'d suggest something like "Start in 2 minutes".',
-      'agent',
-      120_000,
-    ),
-    makeTweak('dc-string-tweak', 'Tweak CTA label', {
-      label: 'Button label',
-      type: 'select',
-      value: 'Get Started ↓',
-      options: {
-        'Get Started ↓': 'Get Started ↓',
-        'Start in 2 minutes': 'Start in 2 minutes',
-        'Try it free': 'Try it free',
-        'See it in action': 'See it in action',
-        'Install now': 'Install now',
-        'Get up and running': 'Get up and running',
-      },
-    }),
-  ],
-);
+const THREAD_STRING = makeThread('dc-string', '.hero-cta a.wa-accent', 'a', [
+  makeText(
+    'dc-string-1',
+    '"Get Started ↓" is fine but feels a bit passive. Can we test something more action-oriented?',
+    'user',
+    180_000,
+  ),
+  makeText(
+    'dc-string-2',
+    'Sure — use the text knob to try different labels live. I\'d suggest something like "Start in 2 minutes".',
+    'agent',
+    120_000,
+  ),
+  makeTweak('dc-string-tweak', 'Tweak CTA label', {
+    label: 'Button label',
+    type: 'select',
+    value: 'Get Started ↓',
+    options: {
+      'Get Started ↓': 'Get Started ↓',
+      'Start in 2 minutes': 'Start in 2 minutes',
+      'Try it free': 'Try it free',
+      'See it in action': 'See it in action',
+      'Install now': 'Install now',
+      'Get up and running': 'Get up and running',
+    },
+  }),
+]);
 
 // 5. Textarea knob — pending
-const THREAD_TEXTAREA = makeThread('dc-textarea', '#get-started p', 'p', [
+const THREAD_TEXTAREA = makeThread('dc-textarea', '.setup-inner p', 'p', [
   makeText(
     'dc-textarea-1',
     'The setup intro is a bit terse. Could we expand it to set expectations better?',
@@ -228,42 +223,47 @@ const THREAD_TEXTAREA = makeThread('dc-textarea', '#get-started p', 'p', [
 ]);
 
 // 6. Boolean knob — discarded + follow-up with new pending tweak
-const THREAD_BOOLEAN = makeThread('dc-boolean', 'p.text-wa-text-quiet', 'p', [
+const THREAD_BOOLEAN = makeThread('dc-boolean', 'select[aria-label="Playback speed"]', 'select', [
   makeText(
     'dc-boolean-1',
-    'What if we hide the subtitle entirely and let the headline carry the full weight?',
+    'The speed control on the video player looks a bit out of place. Do most users actually need it?',
     'user',
     5_400_000,
   ),
-  makeText('dc-boolean-2', "Let's try it — toggle the boolean below.", 'agent', 5_300_000),
+  makeText(
+    'dc-boolean-2',
+    "Probably not — here's a toggle to hide it entirely. Try flipping it off.",
+    'agent',
+    5_300_000,
+  ),
   makeTweak(
     'dc-boolean-tweak-1',
-    'Toggle subtitle visibility',
-    { label: 'Show subtitle', type: 'boolean', value: true },
+    'Toggle speed control visibility',
+    { label: 'Show speed control', type: 'boolean', value: true },
     'discarded',
     5_200_000,
   ),
   makeText(
     'dc-boolean-3',
-    'Hiding it felt too bare. But maybe we just reduce its opacity instead?',
+    'Hiding it looks cleaner, but feels a bit abrupt. What if we just dim it instead?',
     'user',
     5_100_000,
   ),
   makeText(
     'dc-boolean-4',
-    "Good idea — here's another knob: toggle dimmed mode (50% opacity).",
+    "Good call — here's an opacity toggle so it stays but fades into the background.",
     'agent',
     5_000_000,
   ),
-  makeTweak('dc-boolean-tweak-2', 'Toggle dimmed mode', {
-    label: 'Dimmed subtitle',
+  makeTweak('dc-boolean-tweak-2', 'Dim speed control', {
+    label: 'Dim speed control',
     type: 'boolean',
     value: false,
   }),
 ]);
 
 // 7. Select knob — pending
-const THREAD_SELECT = makeThread('dc-select', '#how-it-works h2', 'h2', [
+const THREAD_SELECT = makeThread('dc-select', '.how-it-works-band h2', 'h2', [
   makeText(
     'dc-select-1',
     '"How it works" heading feels a bit large relative to the body text. Can we try a smaller size?',
@@ -291,7 +291,7 @@ const THREAD_SELECT = makeThread('dc-select', '#how-it-works h2', 'h2', [
 ]);
 
 // 8. Radio knob — pending
-const THREAD_RADIO = makeThread('dc-radio', '#hero-content', 'div', [
+const THREAD_RADIO = makeThread('dc-radio', '.hero-content', 'div', [
   makeText(
     'dc-bg-1',
     'Hero text is always centered — but on wide screens a left-aligned layout might feel more editorial.',
@@ -313,7 +313,7 @@ const THREAD_RADIO = makeThread('dc-radio', '#hero-content', 'div', [
 ]);
 
 // 9. Follow-up thread — discarded tweak already in history, new pending tweak
-const THREAD_FOLLOWUP = makeThread(M_FOLLOWUP, '#get-started h2', 'h2', [
+const THREAD_FOLLOWUP = makeThread(M_FOLLOWUP, '#setup h2', 'h2', [
   makeText('dc-fu-1', 'Can we rename "Setup" to something more inviting?', 'user', 2_700_000),
   makeText(
     'dc-fu-2',
@@ -364,13 +364,13 @@ function extractPendingKnobs(threads: unknown[]): unknown[] {
 
 function applyKnobChange(marker: string, value: unknown): void {
   if (marker === M_COLOR) {
-    const el = document.querySelector<HTMLElement>('p.text-wa-text-quiet');
+    const el = document.querySelector<HTMLElement>('.hero-content p');
     if (el) el.style.color = String(value);
     return;
   }
 
   if (marker === M_NUMBER) {
-    const el = document.querySelector<HTMLElement>('#hero');
+    const el = document.querySelector<HTMLElement>('header.hero');
     if (el) {
       el.style.paddingTop = `${value}px`;
       el.style.paddingBottom = `${value}px`;
@@ -379,25 +379,25 @@ function applyKnobChange(marker: string, value: unknown): void {
   }
 
   if (marker === M_STRING) {
-    const el = document.querySelector<HTMLElement>('#hero-content wa-button[appearance="accent"]');
+    const el = document.querySelector<HTMLElement>('.hero-cta a.wa-accent');
     if (el) el.textContent = String(value);
     return;
   }
 
   if (marker === M_TEXTAREA) {
-    const el = document.querySelector<HTMLElement>('#get-started p');
+    const el = document.querySelector<HTMLElement>('.setup-inner p');
     if (el) el.textContent = String(value);
     return;
   }
 
   if (marker === M_BOOLEAN) {
-    const el = document.querySelector<HTMLElement>('p.text-wa-text-quiet');
+    const el = document.querySelector<HTMLElement>('select[aria-label="Playback speed"]');
     if (el) el.style.opacity = value === true || value === 'true' ? '0.5' : '';
     return;
   }
 
   if (marker === M_SELECT) {
-    for (const selector of ['#how-it-works h2', '#get-started h2']) {
+    for (const selector of ['.how-it-works-band h2', '#setup h2']) {
       const el = document.querySelector<HTMLElement>(selector);
       if (el) el.style.fontSize = String(value);
     }
@@ -405,7 +405,7 @@ function applyKnobChange(marker: string, value: unknown): void {
   }
 
   if (marker === M_RADIO) {
-    const el = document.querySelector<HTMLElement>('#hero-content');
+    const el = document.querySelector<HTMLElement>('.hero-content');
     if (el) {
       const map: Record<string, string> = {
         left: 'items-start text-left',
@@ -427,7 +427,7 @@ function applyKnobChange(marker: string, value: unknown): void {
   }
 
   if (marker === M_FOLLOWUP) {
-    const el = document.querySelector<HTMLElement>('#get-started h2');
+    const el = document.querySelector<HTMLElement>('#setup h2');
     if (el) {
       el.style.fontWeight =
         value === 'normal'
@@ -447,35 +447,35 @@ function revertKnob(marker: string): void {
     const el = document.querySelector<HTMLElement>('p.text-wa-text-quiet');
     if (el) el.style.color = '';
   } else if (marker === M_NUMBER) {
-    const el = document.querySelector<HTMLElement>('#hero');
+    const el = document.querySelector<HTMLElement>('header.hero');
     if (el) {
       el.style.paddingTop = '';
       el.style.paddingBottom = '';
     }
   } else if (marker === M_STRING) {
-    const el = document.querySelector<HTMLElement>('#hero-content wa-button[appearance="accent"]');
-    if (el) el.textContent = 'Get Started ↓';
+    const el = document.querySelector<HTMLElement>('.hero-cta a.wa-accent');
+    if (el) el.textContent = 'Get started ↓';
   } else if (marker === M_TEXTAREA) {
-    const el = document.querySelector<HTMLElement>('#get-started p');
+    const el = document.querySelector<HTMLElement>('.setup-inner p');
     if (el)
       el.textContent =
         'Install the package for your framework, add it to your config, and run your dev server.';
   } else if (marker === M_BOOLEAN) {
-    const el = document.querySelector<HTMLElement>('p.text-wa-text-quiet');
+    const el = document.querySelector<HTMLElement>('select[aria-label="Playback speed"]');
     if (el) el.style.opacity = '';
   } else if (marker === M_SELECT) {
-    for (const selector of ['#how-it-works h2', '#get-started h2']) {
+    for (const selector of ['.how-it-works-band h2', '#setup h2']) {
       const el = document.querySelector<HTMLElement>(selector);
       if (el) el.style.fontSize = '';
     }
   } else if (marker === M_RADIO) {
-    const el = document.querySelector<HTMLElement>('#hero-content');
+    const el = document.querySelector<HTMLElement>('.hero-content');
     if (el) {
       el.classList.remove('items-start', 'text-left', 'items-end', 'text-right');
       el.classList.add('items-center', 'text-center');
     }
   } else if (marker === M_FOLLOWUP) {
-    const el = document.querySelector<HTMLElement>('#get-started h2');
+    const el = document.querySelector<HTMLElement>('#setup h2');
     if (el) el.style.fontWeight = '';
   }
 }
@@ -518,6 +518,16 @@ waitForDb().then((db) => {
   // Seed pending knobs — derived from threads, no separate list to maintain
   db.updateKnobs([...(db.knobsSignal.get() as unknown[]), ...extractPendingKnobs(ALL_THREADS)]);
 
+  // Re-apply and resolve tweaks that were accepted in this browser session
+  const accepted = JSON.parse(sessionStorage.getItem('uib-demo-accepted') ?? '{}') as Record<
+    string,
+    unknown
+  >;
+  for (const [marker, value] of Object.entries(accepted)) {
+    applyKnobChange(marker, value);
+    resolveKnob(marker, 'accepted');
+  }
+
   type KnobLike = { marker: string; value: unknown };
 
   function updateKnobValue(marker: string, value: unknown): void {
@@ -530,20 +540,17 @@ waitForDb().then((db) => {
       meta: { id: string };
       comments: { type: string; tweakStatus?: string }[];
     }[];
-    db.updateComments(
-      threads.map((t) =>
-        t.meta.id === commentId
-          ? {
-              ...t,
-              comments: t.comments.map((c) =>
-                c.type === 'tweak' && (c as { tweakStatus?: string }).tweakStatus === 'pending'
-                  ? { ...c, tweakStatus: status }
-                  : c,
-              ),
-            }
-          : t,
-      ),
-    );
+    const thread = threads.find((t) => t.meta.id === commentId);
+    if (thread) {
+      db.upsertComment({
+        ...thread,
+        comments: thread.comments.map((c) =>
+          c.type === 'tweak' && (c as { tweakStatus?: string }).tweakStatus === 'pending'
+            ? { ...c, tweakStatus: status }
+            : c,
+        ),
+      });
+    }
     const knobs = db.knobsSignal.get() as KnobLike[];
     db.updateKnobs(knobs.filter((k) => k.marker !== commentId));
   }
@@ -562,7 +569,25 @@ waitForDb().then((db) => {
       return;
     }
 
+    if (type === 'comment:read' && intent['id'] && DEMO_IDS.has(intent['id'] as string)) {
+      const id = intent['id'] as string;
+      const threads = db.commentsSignal.get() as { meta: { id: string } }[];
+      const thread = threads.find((t) => t.meta.id === id);
+      if (thread) db.upsertComment({ ...thread, meta: { ...thread.meta, lastReadAt: Date.now() } });
+      return;
+    }
+
     if (type === 'tweak:accept-comment' && commentId && DEMO_IDS.has(commentId)) {
+      const knobs = db.knobsSignal.get() as KnobLike[];
+      const knob = knobs.find((k) => k.marker === commentId);
+      if (knob) {
+        const accepted = JSON.parse(sessionStorage.getItem('uib-demo-accepted') ?? '{}') as Record<
+          string,
+          unknown
+        >;
+        accepted[commentId] = knob.value;
+        sessionStorage.setItem('uib-demo-accepted', JSON.stringify(accepted));
+      }
       resolveKnob(commentId, 'accepted');
       return;
     }
