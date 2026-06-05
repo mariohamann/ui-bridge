@@ -45,8 +45,8 @@ jobs:
           # when changesets exist  → opens/updates a "Version Packages" PR
           # when no changesets left → builds and publishes all changed packages
           publish: pnpm release
-          title: "chore: version packages"
-          commit: "chore: version packages"
+          title: 'chore: version packages'
+          commit: 'chore: version packages'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # no NPM_TOKEN needed — authentication is handled by npm OIDC trusted publishing

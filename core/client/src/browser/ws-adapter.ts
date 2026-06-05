@@ -24,7 +24,7 @@ import {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function isDemoThread(commentId: string): boolean {
-  const threads = commentsSignal.get() as { meta: { id: string; demo?: boolean; }; }[];
+  const threads = commentsSignal.get() as { meta: { id: string; demo?: boolean } }[];
   return threads.some((t) => t.meta.id === commentId && t.meta.demo === true);
 }
 

@@ -105,7 +105,7 @@ export class UibPreferencesDialog extends _UibPreferencesDialogBase {
     }
   `;
 
-  @query('wa-dialog') private _dialog!: HTMLElement & { show(): void; requestClose(): void; };
+  @query('wa-dialog') private _dialog!: HTMLElement & { show(): void; requestClose(): void };
 
   /** Local draft — edited in the dialog, committed on save */
   @state() private _draft: UserPreferences | null = null;
@@ -351,11 +351,11 @@ export class UibPreferencesDialog extends _UibPreferencesDialogBase {
         <!-- ── Visibility (global defaults) ──────────────────────────── -->
         <p class="section-heading">Visibility</p>
         ${this._renderStatusFieldset(
-      'global-status',
-      draft.visibility?.status,
-      'Only Non-Approved (default)',
-      (v) => this._setGlobalStatus(v),
-    )}
+          'global-status',
+          draft.visibility?.status,
+          'Only Non-Approved (default)',
+          (v) => this._setGlobalStatus(v),
+        )}
         ${this._renderRouteFieldset(draft.visibility?.route, (f, c) => this._setGlobalRoute(f, c))}
 
         <wa-divider></wa-divider>
@@ -366,14 +366,14 @@ export class UibPreferencesDialog extends _UibPreferencesDialogBase {
 
         <wa-details summary="Custom visibility" ?open=${barHasOverride}>
           ${this._renderStatusFieldset(
-      'bar-status',
-      draft.commentBar?.visibility?.status,
-      'Only Non-Approved',
-      (v) => this._setBarStatus(v),
-    )}
+            'bar-status',
+            draft.commentBar?.visibility?.status,
+            'Only Non-Approved',
+            (v) => this._setBarStatus(v),
+          )}
           ${this._renderRouteFieldset(draft.commentBar?.visibility?.route, (f, c) =>
-      this._setBarRoute(f, c),
-    )}
+            this._setBarRoute(f, c),
+          )}
         </wa-details>
 
         <wa-divider></wa-divider>
@@ -383,14 +383,14 @@ export class UibPreferencesDialog extends _UibPreferencesDialogBase {
 
         <wa-details summary="Custom visibility" ?open=${panelHasOverride}>
           ${this._renderStatusFieldset(
-      'panel-status',
-      draft.ui?.visibility?.status,
-      'Only Non-Approved',
-      (v) => this._setPanelStatus(v),
-    )}
+            'panel-status',
+            draft.ui?.visibility?.status,
+            'Only Non-Approved',
+            (v) => this._setPanelStatus(v),
+          )}
           ${this._renderRouteFieldset(draft.ui?.visibility?.route, (f, c) =>
-      this._setPanelRoute(f, c),
-    )}
+            this._setPanelRoute(f, c),
+          )}
         </wa-details>
 
         <div slot="footer" class="dialog-footer">
