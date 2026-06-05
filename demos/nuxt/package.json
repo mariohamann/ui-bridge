@@ -32,6 +32,7 @@
     "vue": "^3.5.0"
   },
   "devDependencies": {
+    "@ui-bridge/mcp": "workspace:*",
     "@ui-bridge/nuxt": "workspace:*"
   }
 }

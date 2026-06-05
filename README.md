@@ -2,8 +2,6 @@
 
 Annotate in the browser. Your agent turns comments into code.
 
-
-
 ---
 
 ## How it works
@@ -23,11 +21,11 @@ Annotate in the browser. Your agent turns comments into code.
 
 ```sh
 # pnpm
-pnpm add -D @ui-bridge/unplugin
+pnpm add -D @ui-bridge/unplugin @ui-bridge/mcp
 # npm
-npm install --save-dev @ui-bridge/unplugin
+npm install --save-dev @ui-bridge/unplugin @ui-bridge/mcp
 # yarn
-yarn add -D @ui-bridge/unplugin
+yarn add -D @ui-bridge/unplugin @ui-bridge/mcp
 ```
 
 ```ts
@@ -48,11 +46,11 @@ export default defineConfig({
 
 ```sh
 # pnpm
-pnpm add -D @ui-bridge/astro
+pnpm add -D @ui-bridge/astro @ui-bridge/mcp
 # npm
-npm install --save-dev @ui-bridge/astro
+npm install --save-dev @ui-bridge/astro @ui-bridge/mcp
 # yarn
-yarn add -D @ui-bridge/astro
+yarn add -D @ui-bridge/astro @ui-bridge/mcp
 ```
 
 
@@ -74,11 +72,11 @@ export default defineConfig({
 
 ```sh
 # pnpm
-pnpm add -D @ui-bridge/next
+pnpm add -D @ui-bridge/next @ui-bridge/mcp
 # npm
-npm install --save-dev @ui-bridge/next
+npm install --save-dev @ui-bridge/next @ui-bridge/mcp
 # yarn
-yarn add -D @ui-bridge/next
+yarn add -D @ui-bridge/next @ui-bridge/mcp
 ```
 
 ```js
@@ -98,11 +96,11 @@ export default withUiBridge({
 
 ```sh
 # pnpm
-pnpm add -D @ui-bridge/nuxt
+pnpm add -D @ui-bridge/nuxt @ui-bridge/mcp
 # npm
-npm install --save-dev @ui-bridge/nuxt
+npm install --save-dev @ui-bridge/nuxt @ui-bridge/mcp
 # yarn
-yarn add -D @ui-bridge/nuxt
+yarn add -D @ui-bridge/nuxt @ui-bridge/mcp
 ```
 
 ```ts
@@ -388,7 +386,7 @@ Set `preferences` in your plugin config. These are checked into version control 
 </details>
 
 <details>
-<summary>Option B — Commit `preferences.json` (not recommended)</summary
+<summary>Option B — Commit `preferences.json` (not recommended)</summary>
 
 If someone adjusts preferences via the browser dialog and you want to share that with the team, commit `.ui-bridge/preferences.json`. It overrides the plugin defaults for all users who pull it.
 

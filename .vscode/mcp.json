@@ -5,6 +5,12 @@
       "command": "npx",
       "args": ["--no", "ui-bridge-mcp"],
       "cwd": "${workspaceFolder}/docs"
+    },
+    "ui-bridge": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["--no", "ui-bridge-mcp"],
+      "cwd": "${workspaceFolder}/demos/vite"
     }
   }
 }

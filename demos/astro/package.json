@@ -34,6 +34,7 @@
     "astro": "^6.3.1"
   },
   "devDependencies": {
-    "@ui-bridge/astro": "workspace:*"
+    "@ui-bridge/astro": "workspace:*",
+    "@ui-bridge/mcp": "workspace:*"
   }
 }
