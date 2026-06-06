@@ -1,6 +1,6 @@
 {
   "name": "@ui-bridge/nuxt",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "description": "Nuxt 3 module for UI Bridge",
   "license": "MIT",
   "homepage": "https://ui-bridge.mariohamann.com",
