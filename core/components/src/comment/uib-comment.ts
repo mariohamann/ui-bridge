@@ -309,8 +309,16 @@ export class UibComment extends LitElement {
       return;
     }
     if (this.comment?.meta.id) markUnorphaned(this.comment.meta.id);
-    this._badgeTop = rect.top - 10;
-    this._badgeLeft = rect.right - 8;
+
+    const BADGE_SIZE = 28;
+    const outsideTop = rect.top - 10;
+    const outsideLeft = rect.right - 8;
+
+    const clipsRight = outsideLeft + BADGE_SIZE > window.innerWidth;
+    const clipsTop = outsideTop < 0;
+
+    this._badgeTop = clipsTop ? rect.top + 4 : outsideTop;
+    this._badgeLeft = clipsRight ? rect.right - BADGE_SIZE - 4 : outsideLeft;
   };
 
   private _startPanelAutoUpdate(): void {

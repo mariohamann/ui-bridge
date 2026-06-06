@@ -88,6 +88,44 @@ test.describe('Comments', () => {
     await expect(page.locator('#uib-items uib-comment uib-button.badge')).toBeVisible();
   });
 
+  test('badge stays within viewport when target element fills full width', async ({ page }) => {
+    await page.setViewportSize({ width: 400, height: 800 });
+
+    // Inject a full-width element spanning the entire viewport so rect.right === viewportWidth
+    await page.evaluate(() => {
+      const el = document.createElement('div');
+      el.id = 'full-width-target';
+      el.textContent = 'Full width';
+      el.style.cssText =
+        'position:fixed;top:60px;left:0;width:100vw;height:60px;background:red;z-index:1;';
+      document.body.appendChild(el);
+    });
+
+    await page.locator('#full-width-target').click({ modifiers: ['Alt', 'Shift'] });
+    const panel = commentPanel(page);
+    const waInput = panel.locator('uib-textarea[data-role="composer"]');
+    await expect(waInput).toBeVisible();
+    await innerTA(waInput).fill('Full-width element test');
+    await innerTA(waInput).press('Enter');
+    await expect(commentPanel(page)).toHaveCount(0);
+
+    const badge = page.locator('#uib-items uib-comment uib-button.badge').first();
+    await expect(badge).toBeVisible();
+
+    // Read the actual left style value — boundingBox() clips at viewport so can't detect overflow
+    const badgeLeft = await page.evaluate(() => {
+      const el = document
+        .querySelector('#uib-items uib-comment')
+        ?.shadowRoot?.querySelector<HTMLElement>('.badge');
+      return el ? parseFloat(el.style.left) : null;
+    });
+    expect(badgeLeft).not.toBeNull();
+
+    // Badge must be placed inside the viewport (not to the right of it)
+    // Assumes badge width ≈ 28px; 400 - 28 = 372
+    expect(badgeLeft!).toBeLessThanOrEqual(400 - 28);
+  });
+
   test('badge reappears on the correct element after reload', async ({ page }) => {
     await createComment(page, 'h1', 'Pinned to h1');
 
