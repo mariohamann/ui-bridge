@@ -69,7 +69,7 @@ const GUIDE_WORKFLOW = `# When to Tweak vs. Direct Edit
 ## Conversation flow
 
 1. User marks an element (Alt+click) and writes a comment.
-2. LLM reads the thread via \`list_comments\` / \`get_comment\` and responds with a text reply, a text + tweak reply, or a new comment on a different element.
+2. LLM reads the thread via \`get_comments\` / \`get_comment\` and responds with a text reply, a text + tweak reply, or a new comment on a different element.
 3. User tries the live knob and accepts (permanent) or discards (restored) from the panel.
 
 ## Use a tweak when
@@ -206,7 +206,7 @@ Resolving, accepting, discarding, and deleting is the **user's job** — never d
 
 ## Response modes
 
-Call \`list_comments\` at session start, then for each open thread pick one mode:
+Call \`get_comments\` at session start, then for each open thread pick one mode:
 
 - **Mode A — Direct edit** (default): intent is decided ("fix", "change X to Y", "it's wrong") → edit code, then \`reply_to_comment\` with text. No knob.
 - **Mode B — Live tweak**: intent is exploratory ("try", "I'm not sure", "let me see options") → call \`get_write_scripts_guide\`, write script, then \`reply_to_comment\` with knob.
@@ -215,7 +215,7 @@ When in doubt, use Mode A.
 
 ## Tools
 
-- \`list_comments\` / \`get_comment\` — read threads
+- \`get_comments\` / \`get_comment\` — read threads
 - \`create_comment\` — start a new agent thread
 - \`reply_to_comment\` — add text or text + tweak reply
 
@@ -277,8 +277,8 @@ server.tool(
 );
 
 server.tool(
-  'list_comments',
-  `List all comments stored in UI Bridge.
+  'get_comments',
+  `List all comment threads stored in UI Bridge (full thread data).
   Call this proactively at the start of a session to discover pending design feedback and active
   tweaks. Each comment may carry a \`knob\` (live tweak), an \`actions\` array, and a \`replies\`
   thread. Comments without a \`resolvedAt\` field are still open.
@@ -300,14 +300,24 @@ server.tool(
 
 server.tool(
   'get_comment',
-  `Get a single comment by id — includes full knob definition, actions, and reply thread.
-  Use this to inspect the details of a specific tweak before accepting or discarding it.`,
-  { id: z.string().describe('Comment id') },
-  async ({ id }) => {
+  `Get a single comment thread by display number or id — includes full knob definition, actions, and reply thread.
+  Prefer \`number\` (e.g. 3) over \`id\` when you know the display number.`,
+  {
+    number: z.number().optional().describe('Comment display number (stable, e.g. 3)'),
+    id: z.string().optional().describe('Comment UUID (fallback if display number is unknown)'),
+  },
+  async ({ number, id }) => {
     const { store } = await getStore();
     await store.reload();
-    const comment = store.get(id);
-    if (!comment) throw new Error(`Comment not found: ${id}`);
+    let comment;
+    if (number !== undefined) {
+      comment = store.getByDisplayNumber(number);
+    } else if (id) {
+      comment = store.get(id);
+    } else {
+      throw new Error('Provide either number or id');
+    }
+    if (!comment) throw new Error(`Comment not found: ${number !== undefined ? `#${number}` : id}`);
     return { content: [{ type: 'text', text: JSON.stringify(comment, null, 2) }] };
   },
 );
@@ -367,6 +377,7 @@ server.tool(
     await store.reload();
     const now = Date.now();
     const id = `agent-${now}-${Math.random().toString(36).slice(2, 8)}`;
+    const displayNumber = store.nextDisplayNumber();
     const rootEntry = {
       id: `${id}-root`,
       type: 'comment',
@@ -390,7 +401,7 @@ server.tool(
         ]
       : [rootEntry];
     const payload = {
-      meta: { id, pageUrl, timestamp: now, createdAt: now },
+      meta: { id, displayNumber, pageUrl, timestamp: now, createdAt: now },
       elements,
       comments,
     };

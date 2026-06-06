@@ -107,6 +107,22 @@ export function createCommentStore(rootDir) {
     return comments.get(id);
   }
 
+  function getByDisplayNumber(n) {
+    for (const c of comments.values()) {
+      if (c.meta?.displayNumber === n) return c;
+    }
+    return undefined;
+  }
+
+  function nextDisplayNumber() {
+    let max = 0;
+    for (const c of comments.values()) {
+      const n = c.meta?.displayNumber;
+      if (typeof n === 'number' && n > max) max = n;
+    }
+    return max + 1;
+  }
+
   function has(id) {
     return comments.has(id);
   }
@@ -158,6 +174,8 @@ export function createCommentStore(rootDir) {
     clear,
     all,
     get,
+    getByDisplayNumber,
+    nextDisplayNumber,
     has,
     consumeSelfWrite,
   };

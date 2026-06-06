@@ -21,7 +21,7 @@ function stableRanks(threads: CommentThread[]): Map<string, number> {
   const open = [...threads]
     .filter((t) => !t.meta.resolvedAt)
     .sort((a, b) => (a.meta.createdAt || 0) - (b.meta.createdAt || 0));
-  return new Map(open.map((t, i) => [t.meta.id, i + 1]));
+  return new Map(open.map((t, i) => [t.meta.id, t.meta.displayNumber ?? i + 1]));
 }
 
 /**

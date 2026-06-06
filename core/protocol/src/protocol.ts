@@ -141,6 +141,7 @@ export type CommentElement = z.infer<typeof CommentElementSchema>;
 
 export const CommentMetaSchema = z.object({
   id: z.string(),
+  displayNumber: z.number().optional(),
   pageUrl: z.string(),
   timestamp: z.number(),
   createdAt: z.number(),

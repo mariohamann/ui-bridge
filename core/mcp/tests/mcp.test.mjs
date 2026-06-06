@@ -167,7 +167,7 @@ describe('MCP tools/list', () => {
     const names = res.result.tools.map((t) => t.name);
     const expected = [
       'get_write_scripts_guide',
-      'list_comments',
+      'get_comments',
       'get_comment',
       'create_comment',
       'reply_to_comment',
@@ -225,10 +225,10 @@ describe('MCP resources/read', () => {
   });
 });
 
-describe('MCP tools/call — list_comments', () => {
+describe('MCP tools/call — get_comments', () => {
   it('returns an array', async () => {
     const responses = await mcpCall('tools/call', {
-      name: 'list_comments',
+      name: 'get_comments',
       arguments: {},
     });
     const res = findResponse(responses, 2);
@@ -294,6 +294,117 @@ describe('MCP tools/call — create_comment', () => {
     assert.ok(tweakEntry.knob, 'knob missing');
 
     await fetch(`${BASE_URL}/api/comments/${created.meta.id}`, { method: 'DELETE' });
+  });
+});
+
+describe('MCP tools/call — displayNumber', () => {
+  const ids = [];
+
+  after(async () => {
+    for (const id of ids) await fetch(`${BASE_URL}/api/comments/${id}`, { method: 'DELETE' });
+  });
+
+  it('assigns displayNumber to a newly created comment', async () => {
+    const responses = await mcpCall('tools/call', {
+      name: 'create_comment',
+      arguments: {
+        elements: [{ minimalSelector: 'h1', tag: 'h1', classes: [] }],
+        comment: 'First comment',
+        pageUrl: 'http://localhost:5173/',
+      },
+    });
+    const res = findResponse(responses, 2);
+    const created = JSON.parse(res.result.content[0].text);
+    ids.push(created.meta.id);
+    assert.ok(typeof created.meta.displayNumber === 'number', 'displayNumber should be a number');
+    assert.ok(created.meta.displayNumber >= 1, 'displayNumber should be >= 1');
+  });
+
+  it('assigns sequential displayNumbers to successive comments', async () => {
+    const make = async (comment) => {
+      const responses = await mcpCall('tools/call', {
+        name: 'create_comment',
+        arguments: {
+          elements: [{ minimalSelector: 'p', tag: 'p', classes: [] }],
+          comment,
+          pageUrl: 'http://localhost:5173/',
+        },
+      });
+      const res = findResponse(responses, 2);
+      const created = JSON.parse(res.result.content[0].text);
+      ids.push(created.meta.id);
+      return created.meta.displayNumber;
+    };
+    const n1 = await make('Sequential A');
+    const n2 = await make('Sequential B');
+    assert.equal(n2, n1 + 1, 'second comment should have displayNumber one higher than first');
+  });
+
+  it('get_comment resolves a thread by display number', async () => {
+    const createRes = findResponse(
+      await mcpCall('tools/call', {
+        name: 'create_comment',
+        arguments: {
+          elements: [{ minimalSelector: 'span', tag: 'span', classes: [] }],
+          comment: 'Lookup by number',
+          pageUrl: 'http://localhost:5173/',
+        },
+      }),
+      2,
+    );
+    const created = JSON.parse(createRes.result.content[0].text);
+    ids.push(created.meta.id);
+    const { displayNumber } = created.meta;
+
+    const getResponses = await mcpCall('tools/call', {
+      name: 'get_comment',
+      arguments: { number: displayNumber },
+    });
+    const getRes = findResponse(getResponses, 2);
+    assert.ok(!getRes?.error, `get_comment error: ${JSON.stringify(getRes?.error)}`);
+    const fetched = JSON.parse(getRes.result.content[0].text);
+    assert.equal(fetched.meta.id, created.meta.id, 'should return the correct thread');
+    assert.equal(fetched.meta.displayNumber, displayNumber);
+  });
+
+  it('displayNumber of earlier comment is unaffected when a later comment is deleted', async () => {
+    const makeComment = async (text) => {
+      const res = findResponse(
+        await mcpCall('tools/call', {
+          name: 'create_comment',
+          arguments: {
+            elements: [{ minimalSelector: 'div', tag: 'div', classes: [] }],
+            comment: text,
+            pageUrl: 'http://localhost:5173/',
+          },
+        }),
+        2,
+      );
+      return JSON.parse(res.result.content[0].text);
+    };
+
+    const first = await makeComment('Stable comment');
+    ids.push(first.meta.id);
+    const second = await makeComment('To be deleted');
+    // delete the second immediately
+    await fetch(`${BASE_URL}/api/comments/${second.meta.id}`, { method: 'DELETE' });
+
+    // Re-fetch first by its display number — must still resolve
+    const getRes = findResponse(
+      await mcpCall('tools/call', {
+        name: 'get_comment',
+        arguments: { number: first.meta.displayNumber },
+      }),
+      2,
+    );
+    assert.ok(!getRes?.error);
+    const fetched = JSON.parse(getRes.result.content[0].text);
+    assert.equal(fetched.meta.id, first.meta.id, 'first comment id should be unchanged');
+    assert.equal(
+      fetched.meta.displayNumber,
+      first.meta.displayNumber,
+      'displayNumber of first comment should be unchanged',
+    );
   });
 });
 
@@ -517,10 +628,10 @@ function createMcpSession() {
 
 // ── Staleness regression tests ────────────────────────────────────────────────
 // These tests send MULTIPLE calls within the same MCP process to verify that
-// list_comments / reply_to_comment always reflects the current disk state, not
+// get_comments / reply_to_comment always reflects the current disk state, not
 // the snapshot from the initial load().
 
-describe('list_comments — reflects disk changes within the same MCP session', () => {
+describe('get_comments — reflects disk changes within the same MCP session', () => {
   it('sees a comment created externally after the session started', async () => {
     const session = createMcpSession();
     await session.initPromise;
@@ -529,7 +640,7 @@ describe('list_comments — reflects disk changes within the same MCP session', 
 
     // First call — comment does not exist yet
     const before = await session.call('tools/call', {
-      name: 'list_comments',
+      name: 'get_comments',
       arguments: {},
     });
     const beforeBody = JSON.parse(before.result.content[0].text);
@@ -557,7 +668,7 @@ describe('list_comments — reflects disk changes within the same MCP session', 
 
     // Second call on the SAME session — must see the new comment
     const after = await session.call('tools/call', {
-      name: 'list_comments',
+      name: 'get_comments',
       arguments: {},
     });
     session.close();
@@ -566,7 +677,7 @@ describe('list_comments — reflects disk changes within the same MCP session', 
     const afterBody = JSON.parse(after.result.content[0].text);
     assert.ok(
       afterBody.comments.find((c) => c.meta?.id === id),
-      'newly created comment must be visible on second list_comments call',
+      'newly created comment must be visible on second get_comments call',
     );
   });
 
@@ -598,7 +709,7 @@ describe('list_comments — reflects disk changes within the same MCP session', 
 
     // First call — comment exists
     const before = await session.call('tools/call', {
-      name: 'list_comments',
+      name: 'get_comments',
       arguments: {},
     });
     const beforeBody = JSON.parse(before.result.content[0].text);
@@ -612,7 +723,7 @@ describe('list_comments — reflects disk changes within the same MCP session', 
 
     // Second call on the SAME session — must NOT return the deleted comment
     const after = await session.call('tools/call', {
-      name: 'list_comments',
+      name: 'get_comments',
       arguments: {},
     });
     session.close();
@@ -620,7 +731,7 @@ describe('list_comments — reflects disk changes within the same MCP session', 
     const afterBody = JSON.parse(after.result.content[0].text);
     assert.ok(
       !afterBody.comments.find((c) => c.meta?.id === id),
-      'deleted comment must not appear on second list_comments call',
+      'deleted comment must not appear on second get_comments call',
     );
   });
 });
@@ -698,13 +809,13 @@ describe('reply_to_comment — reads up-to-date thread from disk', () => {
   });
 });
 
-// ── Integration: list_comments works file-direct ─────────────────────────────
+// ── Integration: get_comments works file-direct ─────────────────────────────
 
-describe('list_comments — file-direct (no server required)', () => {
+describe('get_comments — file-direct (no server required)', () => {
   it('returns comments from disk', async () => {
     // no HTTP call to the server is made.
     const responses = await mcpCall('tools/call', {
-      name: 'list_comments',
+      name: 'get_comments',
       arguments: {},
     });
     const res = findResponse(responses, 2);
