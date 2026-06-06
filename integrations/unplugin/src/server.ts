@@ -27,9 +27,12 @@ export async function getServerPort(port: number): Promise<number | null> {
 export function spawnServer(
   rootDir: string,
   preferredPort: number,
+  allowOutsideRoot?: boolean,
 ): { child: ChildProcess; ready: Promise<number> } {
   const serverEntry = _require.resolve('@ui-bridge/server');
-  const child = spawn(process.execPath, [serverEntry, '--root', rootDir], {
+  const serverArgs = [serverEntry, '--root', rootDir];
+  if (allowOutsideRoot) serverArgs.push('--allow-outside-root');
+  const child = spawn(process.execPath, serverArgs, {
     stdio: ['ignore', 'pipe', 'pipe'],
     env: { ...process.env, UI_BRIDGE_PORT: String(preferredPort) },
   });
@@ -65,13 +68,14 @@ export function spawnServer(
 export async function ensureServer(
   rootDir: string,
   preferredPort: number,
+  allowOutsideRoot?: boolean,
 ): Promise<{ port: number; child: ChildProcess | null }> {
   const existingPort = await getServerPort(preferredPort);
   if (existingPort !== null) {
     console.log(`[ui-bridge] using existing server at http://localhost:${existingPort}`);
     return { port: existingPort, child: null };
   }
-  const { child, ready } = spawnServer(rootDir, preferredPort);
+  const { child, ready } = spawnServer(rootDir, preferredPort, allowOutsideRoot);
   const port = await ready;
   return { port, child };
 }

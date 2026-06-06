@@ -46,6 +46,11 @@ export interface UiBridgeOptions {
    * `staticMode` is `true`.
    */
   staticComments?: CommentThread[];
+  /**
+   * Allow tweaks to modify files outside the project root directory.
+   * Useful in monorepo setups where tweaks target sibling packages.
+   */
+  allowOutsideRoot?: boolean;
 }
 
 /**
@@ -73,9 +78,12 @@ function spawnServer(
   rootDir: string,
   preferredPort: number,
   preferences?: UserPreferences,
+  allowOutsideRoot?: boolean,
 ): { child: ChildProcess; ready: Promise<number> } {
   const serverEntry = _require.resolve('@ui-bridge/server');
-  const child = spawn(process.execPath, [serverEntry, '--root', rootDir], {
+  const serverArgs = [serverEntry, '--root', rootDir];
+  if (allowOutsideRoot) serverArgs.push('--allow-outside-root');
+  const child = spawn(process.execPath, serverArgs, {
     stdio: ['ignore', 'pipe', 'pipe'],
     env: {
       ...process.env,
@@ -147,7 +155,12 @@ const unpluginFactory = createUnplugin((options: UiBridgeOptions = {}) => {
       resolvedPort = existingPort;
       console.log(`[ui-bridge] using existing server at http://localhost:${resolvedPort}`);
     } else {
-      const { child: c, ready } = spawnServer(rootDir, preferredPort, preferences);
+      const { child: c, ready } = spawnServer(
+        rootDir,
+        preferredPort,
+        preferences,
+        options.allowOutsideRoot,
+      );
       child = c;
       resolvedPort = await ready;
     }

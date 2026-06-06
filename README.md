@@ -366,6 +366,26 @@ If UI Bridge runs in a subdirectory — a `docs/` folder, a monorepo package, et
 }
 ```
 
+#### Allow tweaks outside the project root
+
+By default, tweaks can only modify files within the Vite/framework project root (the directory containing your `vite.config.ts`, or your app's working directory in Next.js). In monorepo setups where tweaks need to target files in sibling packages, enable `allowOutsideRoot`:
+
+```ts
+// vite.config.ts
+
+...uiBridgeVite({
+  allowOutsideRoot: true,
+})
+```
+
+The same option is available on all integrations (`withUiBridge`, `uiBridge()`, `@ui-bridge/nuxt`).
+
+When using the standalone server directly, pass the `--allow-outside-root` CLI flag:
+
+```sh
+node node_modules/@ui-bridge/server/index.mjs --root ./packages/my-app --allow-outside-root
+```
+
 ### Working with Git
 
 UI Bridge stores everything in a `.ui-bridge/` folder at your project root. Deciding what to commit — and what to ignore — is a team decision.

@@ -33,6 +33,7 @@ const CLIENT_BUNDLE_PATH = _require.resolve('@ui-bridge/client');
 const args = process.argv.slice(2);
 const rootIdx = args.indexOf('--root');
 const ROOT = rootIdx >= 0 ? resolve(args[rootIdx + 1]) : process.cwd();
+const ALLOW_OUTSIDE_ROOT = args.includes('--allow-outside-root');
 const PREFERRED_PORT = parseInt(process.env.UI_BRIDGE_PORT ?? process.env.UIB_PORT ?? '7378', 10);
 let actualPort = PREFERRED_PORT;
 
@@ -84,7 +85,7 @@ try {
 
 const store = createCommentStore(ROOT);
 // Engine receives a callback so it always reads the latest comment list.
-const tweaks = createTweakEngine(ROOT, () => store.all());
+const tweaks = createTweakEngine(ROOT, () => store.all(), { allowOutsideRoot: ALLOW_OUTSIDE_ROOT });
 const prefsStore = createPreferencesStore(ROOT, pluginPrefs);
 await prefsStore.load();
 

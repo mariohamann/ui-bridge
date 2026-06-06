@@ -11,6 +11,10 @@ export interface UiBridgeNextOptions {
    * Resolution order: this option → UI_BRIDGE_PORT env var → UIB_PORT env var (legacy) → 7378.
    */
   port?: number;
+  /**
+   * Allow tweaks to modify files outside the project root directory.
+   */
+  allowOutsideRoot?: boolean;
 }
 
 /**
@@ -66,9 +70,12 @@ async function getServerPort(port: number, expectedRoot: string): Promise<number
 function spawnServer(
   rootDir: string,
   preferredPort: number,
+  allowOutsideRoot?: boolean,
 ): { child: ChildProcess; ready: Promise<number> } {
   const serverEntry = _require.resolve('@ui-bridge/server');
-  const child = spawn(process.execPath, [serverEntry, '--root', rootDir], {
+  const serverArgs = [serverEntry, '--root', rootDir];
+  if (allowOutsideRoot) serverArgs.push('--allow-outside-root');
+  const child = spawn(process.execPath, serverArgs, {
     stdio: ['ignore', 'pipe', 'pipe'],
     env: { ...process.env, UI_BRIDGE_PORT: String(preferredPort) },
   });
@@ -120,7 +127,7 @@ export function withUiBridge(
         console.log(`[ui-bridge] using existing server at http://localhost:${existing}`);
         return;
       }
-      spawnServer(process.cwd(), preferredPort);
+      spawnServer(process.cwd(), preferredPort, options.allowOutsideRoot);
     });
   }
 

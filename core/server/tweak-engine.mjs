@@ -48,9 +48,9 @@ function dirs(rootDir) {
  * relative paths from cwd first. If that resolution escapes rootDir, we fall
  * back to resolving from rootDir itself (the classic root-relative convention).
  */
-function guardPath(rootDir, filePath) {
+function guardPath(rootDir, filePath, allowOutsideRoot = false) {
   if (isAbsolute(filePath)) {
-    if (relative(rootDir, filePath).startsWith('..')) {
+    if (!allowOutsideRoot && relative(rootDir, filePath).startsWith('..')) {
       throw new Error(`[ui-bridge] path "${filePath}" is outside project root — blocked`);
     }
     return filePath;
@@ -63,6 +63,8 @@ function guardPath(rootDir, filePath) {
   // Fall back to rootDir-relative (clean root-relative paths stored by the server).
   const fromRoot = resolve(rootDir, filePath);
   if (!relative(rootDir, fromRoot).startsWith('..')) return fromRoot;
+
+  if (allowOutsideRoot) return fromCwd;
 
   throw new Error(`[ui-bridge] path "${filePath}" is outside project root — blocked`);
 }
@@ -126,20 +128,20 @@ async function loadTransformer(scriptsDir, scriptId) {
 
 // ─── Action execution ─────────────────────────────────────────────────────────
 
-function touchedByAction(rootDir, action) {
+function touchedByAction(rootDir, action, allowOutsideRoot) {
   try {
-    if (action.type === 'content-edit') return [guardPath(rootDir, action.file)];
-    if (action.type === 'file-create') return [guardPath(rootDir, action.path)];
-    if (action.type === 'file-delete') return [guardPath(rootDir, action.path)];
+    if (action.type === 'content-edit') return [guardPath(rootDir, action.file, allowOutsideRoot)];
+    if (action.type === 'file-create') return [guardPath(rootDir, action.path, allowOutsideRoot)];
+    if (action.type === 'file-delete') return [guardPath(rootDir, action.path, allowOutsideRoot)];
   } catch (e) {
     console.error(`[ui-bridge] invalid path in action "${action.type}":`, e.message);
   }
   return [];
 }
 
-async function executeAction(rootDir, { scripts, files, cache }, action, value) {
+async function executeAction(rootDir, { scripts, files, cache }, action, value, allowOutsideRoot) {
   if (action.type === 'content-edit') {
-    const abs = guardPath(rootDir, action.file);
+    const abs = guardPath(rootDir, action.file, allowOutsideRoot);
     await ensureSnapshot(cache, abs);
     let transformer;
     try {
@@ -161,7 +163,7 @@ async function executeAction(rootDir, { scripts, files, cache }, action, value) 
   }
 
   if (action.type === 'file-create') {
-    const abs = guardPath(rootDir, action.path);
+    const abs = guardPath(rootDir, action.path, allowOutsideRoot);
     await ensureSnapshot(cache, abs);
     const assetPath = resolve(files, action.fileId);
     const content = await readFile(assetPath, 'utf-8');
@@ -170,7 +172,7 @@ async function executeAction(rootDir, { scripts, files, cache }, action, value) 
   }
 
   if (action.type === 'file-delete') {
-    const abs = guardPath(rootDir, action.path);
+    const abs = guardPath(rootDir, action.path, allowOutsideRoot);
     await ensureSnapshot(cache, abs);
     await rm(abs, { force: true });
   }
@@ -181,8 +183,9 @@ async function executeAction(rootDir, { scripts, files, cache }, action, value) 
 /**
  * @param {string} rootDir
  * @param {() => object[]} getComments  — returns current comment list from the store
+ * @param {{ allowOutsideRoot?: boolean }} [opts]
  */
-export function createTweakEngine(rootDir, getComments) {
+export function createTweakEngine(rootDir, getComments, { allowOutsideRoot = false } = {}) {
   const { scripts: SCRIPTS_DIR, files: FILES_DIR, cache: CACHE_DIR } = dirs(rootDir);
 
   /**
@@ -233,7 +236,7 @@ export function createTweakEngine(rootDir, getComments) {
     const set = new Set();
     for (const ann of comments) {
       for (const action of ann.actions ?? []) {
-        for (const f of touchedByAction(rootDir, action)) set.add(f);
+        for (const f of touchedByAction(rootDir, action, allowOutsideRoot)) set.add(f);
       }
     }
     return set;
@@ -283,6 +286,7 @@ export function createTweakEngine(rootDir, getComments) {
             { scripts: SCRIPTS_DIR, files: FILES_DIR, cache: CACHE_DIR },
             action,
             value,
+            allowOutsideRoot,
           );
         } catch (e) {
           console.error(`[ui-bridge] error executing action for comment "${ann.id}":`, e);
@@ -336,6 +340,7 @@ export function createTweakEngine(rootDir, getComments) {
             { scripts: SCRIPTS_DIR, files: FILES_DIR, cache: CACHE_DIR },
             action,
             value,
+            allowOutsideRoot,
           );
         } catch (e) {
           console.error(`[ui-bridge] finalize error for comment "${ann.id}":`, e);

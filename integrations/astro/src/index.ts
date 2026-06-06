@@ -19,6 +19,10 @@ export interface UiBridgeOptions {
    * `staticMode` is `true`.
    */
   staticComments?: CommentThread[];
+  /**
+   * Allow tweaks to modify files outside the project root directory.
+   */
+  allowOutsideRoot?: boolean;
 }
 
 /**
