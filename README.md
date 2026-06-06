@@ -1,6 +1,6 @@
 # UI Bridge
 
-Annotate in the browser. Your agent turns comments into code.
+Annotate in the browser. Your agent turns comments into live code changes.
 
 ---
 
@@ -114,6 +114,8 @@ export default defineNuxtConfig({
 
 </details>
 
+> Using a stack without automatic source annotation? See [Custom Source Annotation](#custom-source-annotation) to configure it manually.
+
 ### 2. Connect your agent
 
 UI Bridge exposes an MCP server — your agent reads your feedback and applies changes through it.
@@ -122,7 +124,7 @@ UI Bridge exposes an MCP server — your agent reads your feedback and applies c
 <summary>VS Code</summary>
 
 ```json
-// vscode/mcp.json
+// .vscode/mcp.json
 
 {
   "servers": {
@@ -175,7 +177,9 @@ UI Bridge exposes an MCP server — your agent reads your feedback and applies c
 
 </details>
 
-Run your dev server. Alt-click any element to open a comment thread — your agent picks it up through the MCP server.
+Run your dev server. `Alt-Shift`-click any element to open a comment thread — your agent picks it up through the MCP server and creates Tweaks on demand.
+
+> Working in a monorepo or a subdirectory? See [Monorepos and subdirectories](#monorepos-and-subdirectories) to configure a custom working directory.
 
 ---
 
@@ -183,9 +187,7 @@ Run your dev server. Alt-click any element to open a comment thread — your age
 
 ### Preferences
 
-UI Bridge ships with sensible defaults and lets you override them — either as project-wide plugin config or at runtime through the preferences dialog in the browser.
-
-#### Plugin-level defaults
+#### Plugin-level
 
 Pass a `preferences` object to your integration to set defaults for your whole project. These are used as the base layer and can still be overridden by individual users at runtime.
 
@@ -213,7 +215,7 @@ export default defineConfig({
 
 Click the gear icon (⚙) in the comment bar to open the preferences dialog. Changes are saved immediately to `.ui-bridge/preferences.json` and broadcast to all connected browser sessions.
 
-#### Preferences API
+#### API
 
 ```ts
 interface VisibilityConfig {
@@ -285,27 +287,6 @@ interface UserPreferences {
 }
 ```
 
-### Monorepos and subdirectories
-
-The MCP server finds its data by looking for a `.ui-bridge/` folder, starting from its working directory and walking up. This works automatically when UI Bridge runs at your project root.
-
-If UI Bridge runs in a subdirectory — a `docs/` folder, a monorepo package, etc. — set `cwd` to that directory:
-
-```json
-// .vscode/mcp.json
-
-{
-  "servers": {
-    "ui-bridge": {
-      "type": "stdio",
-      "command": "npx",
-      "args": ["--no", "ui-bridge-mcp"],
-      "cwd": "${workspaceFolder}/packages/my-app"
-    }
-  }
-}
-```
-
 ### Custom Source Annotation
 
 If possible, UI Bridge automatically detects to which file and even line a comment belongs using [code-inspector](https://github.com/zh-lx/code-inspector). If your stack doesn't support it — or you want to override it — you can read it from HTML comments or data attributes in the rendered markup.
@@ -363,6 +344,27 @@ export default defineConfig({
 ```
 
 </details>
+
+### Monorepos and subdirectories
+
+The MCP server finds its data by looking for a `.ui-bridge/` folder, starting from its working directory and walking up. This works automatically when UI Bridge runs at your project root.
+
+If UI Bridge runs in a subdirectory — a `docs/` folder, a monorepo package, etc. — set `cwd` to that directory:
+
+```json
+// .vscode/mcp.json
+
+{
+  "servers": {
+    "ui-bridge": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["--no", "ui-bridge-mcp"],
+      "cwd": "${workspaceFolder}/packages/my-app"
+    }
+  }
+}
+```
 
 ### Working with Git
 
