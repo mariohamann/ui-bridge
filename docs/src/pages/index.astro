@@ -5,10 +5,12 @@ import * as readme from '../../../README.md';
 const html = await readme.compiledContent();
 // Split on <hr> — each `---` in the README becomes a zone boundary.
 // zones[0] = hero (h1 + tagline)
-// zones[1] = how it works
-// zones[2] = setup (install + connect agent)
-// zones[3] = documentation (config reference + license)
-const [heroSection, howItWorksSection, setupSection, configSection] = html.split(/<hr\s*\/?>/);
+// zones[1] = why UI Bridge (3 feature highlights)
+// zones[2] = how it works
+// zones[3] = setup (install + connect agent)
+// zones[4] = documentation (config reference + license)
+const [heroSection, whySection, howItWorksSection, setupSection, configSection] =
+  html.split(/<hr\s*\/?>/);
 ---
 
 <Base>
@@ -29,6 +31,12 @@ const [heroSection, howItWorksSection, setupSection, configSection] = html.split
       </div>
     </div>
   </header>
+
+  <section class="why-band">
+    <div class="why-inner">
+      <Fragment set:html={whySection} />
+    </div>
+  </section>
 
   <section class="how-it-works-band">
     <div class="band-inner">

@@ -4,6 +4,20 @@ The missing link between your browser and your agent.
 
 ---
 
+- **Work visually.**
+
+  Point directly at multiple elements on screen at once. No written descriptions — just click and annotate, exactly like leaving comments in a design tool.
+
+- **Auto-located.**
+
+  Every annotation carries the precise CSS selector, (and if supported) file path, and line number. No more token-heavy searches — the agent lands directly on the right spot.
+
+- **Try variants.**
+
+  The agent can attach live Tweaks to comments: change a value, see it reflected instantly, then bake the winning variant into code with the click of a button.
+
+---
+
 ## How it works
 
 1. **Pick any element** – hold `Alt-Shift` and click anything on your page to open a comment thread.

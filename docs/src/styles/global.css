@@ -241,6 +241,81 @@ body {
   gap: 1rem;
 }
 
+/* ── Why UI Bridge band ────────────────────────────────── */
+.why-band {
+  padding: clamp(3rem, 6vw, 5rem) 1.5rem;
+}
+
+.why-inner {
+  max-width: 52rem;
+  margin: 0 auto;
+}
+
+.why-inner h2 {
+  text-align: center;
+  font-size: clamp(1.25rem, 3vw, 1.75rem);
+  font-weight: var(--wa-font-weight-semibold);
+  margin-bottom: clamp(2rem, 4vw, 3rem);
+  letter-spacing: -0.01em;
+}
+
+.why-inner ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--wa-space-l);
+}
+
+@media (max-width: 640px) {
+  .why-inner ul {
+    grid-template-columns: 1fr;
+  }
+}
+
+.why-inner li {
+  background: var(--wa-color-surface-raised);
+  border: 1px solid var(--wa-color-surface-border);
+  border-radius: var(--wa-border-radius-l);
+  padding: var(--wa-space-xl) var(--wa-space-l);
+  display: flex;
+  flex-direction: column;
+  gap: var(--wa-space-s);
+  counter-increment: why-step;
+}
+
+.why-inner li::before {
+  content: '0' counter(why-step);
+  display: block;
+  font-size: var(--wa-font-size-xs);
+  font-weight: var(--wa-font-weight-semibold);
+  letter-spacing: 0.08em;
+  color: var(--wa-color-brand-fill-loud);
+  font-family: var(--wa-font-family-code);
+  margin-bottom: var(--wa-space-2xs);
+}
+
+.why-inner ul {
+  counter-reset: why-step;
+}
+
+.why-inner li strong {
+  display: block;
+  font-size: var(--wa-font-size-m);
+  font-weight: var(--wa-font-weight-semibold);
+  line-height: var(--wa-line-height-dense);
+  color: var(--wa-color-text-normal);
+  margin-bottom: var(--wa-space-2xs);
+}
+
+.why-inner li p {
+  font-size: var(--wa-font-size-s);
+  color: var(--wa-color-text-quiet);
+  line-height: var(--wa-line-height-expanded);
+  margin: 0;
+}
+
 /* ── How it works band ─────────────────────────────────── */
 .how-it-works-band {
   background: var(--wa-color-surface-lowered);
