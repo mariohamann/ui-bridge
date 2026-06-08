@@ -466,6 +466,16 @@ body {
   margin: 0 auto;
 }
 
+/* ── FAQ band ──────────────────────────────────────────── */
+.faq-band {
+  padding: clamp(3rem, 6vw, 5rem) 1.5rem;
+}
+
+.faq-inner {
+  max-width: 52rem;
+  margin: 0 auto;
+}
+
 :root {
   --wa-content-spacing: clamp(1.5rem, 4vw, 1.75rem);
 }

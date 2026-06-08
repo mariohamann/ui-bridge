@@ -9,7 +9,7 @@ const html = await readme.compiledContent();
 // zones[2] = how it works
 // zones[3] = setup (install + connect agent)
 // zones[4] = documentation (config reference + license)
-const [heroSection, whySection, howItWorksSection, setupSection, configSection] =
+const [heroSection, whySection, howItWorksSection, setupSection, configSection, faqSection] =
   html.split(/<hr\s*\/?>/);
 ---
 
@@ -56,6 +56,12 @@ const [heroSection, whySection, howItWorksSection, setupSection, configSection] 
   <section class="config-reference-band">
     <div class="config-inner">
       <Fragment set:html={configSection} />
+    </div>
+  </section>
+
+  <section class="faq-band">
+    <div class="faq-inner">
+      <Fragment set:html={faqSection} />
     </div>
   </section>
 </Base>

@@ -6,15 +6,15 @@ The missing link between your browser and your agent.
 
 - **Work visually.**
 
-  Point directly at multiple elements on screen at once. No written descriptions — just click and annotate, exactly like leaving comments in a design tool.
+  Click and annotate elements directly on screen — just like commenting in a design tool.
 
-- **Auto-located.**
+- **Automatically located.**
 
-  Every annotation carries the precise CSS selector, (and if supported) file path, and line number. No more token-heavy searches — the agent lands directly on the right spot.
+  Every annotation carries the exact CSS selector, file path, and line number. The agent lands right where it needs to.
 
 - **Try variants.**
 
-  The agent can attach live Tweaks to comments: change a value, see it reflected instantly, then bake the winning variant into code with the click of a button.
+  Attach live Tweaks to comments, adjust a value, see it instantly — then bake the winner into code.
 
 ---
 
@@ -466,6 +466,70 @@ If you prefer to keep the `.ui-bridge/` folder entirely local:
 ```
 
 In that case, comments and tweaks are personal and not shared across the team.
+
+---
+
+## FAQ
+
+<details>
+<summary>Do I still need something like Claude Design now?</summary>
+
+If you want to create design systems from scratch, don't work primarily in existing codebases, or prefer a fully visual environment — maybe. For iterating on real UI in a real codebase, probably not.
+
+</details>
+
+<details>
+<summary>Does this only work in the browser?</summary>
+
+The browser is where you annotate — it shows your running app. The codebase must target the web, but the agent operates directly on your source files. UI Bridge is just the link between what you see in the browser and the code behind it.
+
+</details>
+
+<details>
+<summary>How does UI Bridge know which file and line an element comes from?</summary>
+
+For supported frameworks (Vite, Next.js, Nuxt), UI Bridge uses [Code Inspector](https://inspector.fe-dev.cn/en/) under the hood. It instruments your build so that every DOM element carries metadata pointing back to the exact source file and line. When you click an element, that location is attached to the comment automatically — no manual wiring needed.
+
+For stacks that Code Inspector doesn't support, you can provide the same information via HTML comments or data attributes. See [Custom Source Annotation](#custom-source-annotation) for details.
+
+</details>
+
+<details>
+<summary>How much can actually be changed — just font sizes, or also layout?</summary>
+
+Whatever you ask for. Small, targeted changes are more precise; larger structural changes are possible but can be less predictable. Support for larger refactors is planned.
+
+</details>
+
+<details>
+<summary>What does a typical workflow look like?</summary>
+
+There are several valid workflows: an agent scaffolds a first draft and you refine it visually; a developer builds something and a designer reviews and tweaks it directly; or you just vibe-code and iterate from there. UI Bridge fits wherever you need a fast loop between browser feedback and code changes.
+
+</details>
+
+<details>
+<summary>How do Tweaks actually work?</summary>
+
+Tweaks are string replacements in your source files — written by the agent as transform scripts. Nothing is runtime-only: you always see the real code change, not a patch applied in memory.
+
+</details>
+
+<details>
+<summary>How are changes saved?</summary>
+
+Accepting a Tweak writes the change to the source file permanently. From there, your normal workflow takes over — commit with Git or whatever fits your process.
+
+</details>
+
+<details>
+<summary>Why is this open source?</summary>
+
+Because in times of Coding Agents someone else would build it anyway. Open sourcing it means everyone can use it, learn from it, and build on top of it — whether that's contributing to the core project, building integrations for other frameworks, or just using it as a reference for how to connect browser feedback to code changes.
+
+</details>
+
+---
 
 ## License
 
