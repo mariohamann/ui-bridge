@@ -1,5 +1,5 @@
 {
-  "name": "@ui-bridge/demo-styles",
+  "name": "ui-bridge-demo-styles",
   "version": "0.0.1",
   "private": true,
   "dependencies": {

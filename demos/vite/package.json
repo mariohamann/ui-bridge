@@ -27,7 +27,7 @@
     }
   },
   "dependencies": {
-    "@ui-bridge/demo-styles": "workspace:*",
+    "ui-bridge-demo-styles": "workspace:*",
     "vue": "^3.5.0"
   },
   "devDependencies": {

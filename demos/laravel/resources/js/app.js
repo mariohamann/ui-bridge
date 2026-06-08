@@ -1,2 +1,2 @@
-import '@ui-bridge/demo-styles/base.css';
+import 'ui-bridge-demo-styles/base.css';
 import 'virtual:ui-bridge';

@@ -106,6 +106,8 @@ importers:
         specifier: ^3.24.0
         version: 3.25.76
 
+  core/mcp-stub: {}
+
   core/protocol:
     dependencies:
       zod:
@@ -148,12 +150,12 @@ importers:
 
   demos/astro:
     dependencies:
-      '@ui-bridge/demo-styles':
-        specifier: workspace:*
-        version: link:../styles
       astro:
         specifier: ^6.3.1
         version: 6.3.1(@types/node@25.6.2)(db0@0.3.4)(ioredis@5.10.1)(jiti@2.7.0)(lightningcss@1.32.0)(rollup@4.60.3)(terser@5.47.1)(yaml@2.9.0)
+      ui-bridge-demo-styles:
+        specifier: workspace:*
+        version: link:../styles
     devDependencies:
       '@ui-bridge/astro':
         specifier: workspace:*
@@ -164,7 +166,7 @@ importers:
 
   demos/laravel:
     dependencies:
-      '@ui-bridge/demo-styles':
+      ui-bridge-demo-styles:
         specifier: workspace:*
         version: link:../styles
     devDependencies:
@@ -242,7 +244,7 @@ importers:
 
   demos/vite:
     dependencies:
-      '@ui-bridge/demo-styles':
+      ui-bridge-demo-styles:
         specifier: workspace:*
         version: link:../styles
       vue:

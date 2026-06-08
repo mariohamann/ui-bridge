@@ -20,5 +20,13 @@
   "access": "public",
   "baseBranch": "main",
   "updateInternalDependencies": "patch",
-  "ignore": []
+  "ignore": [
+    "ui-bridge-mcp",
+    "ui-bridge-docs",
+    "ui-bridge-demo-astro",
+    "ui-bridge-demo-next",
+    "ui-bridge-demo-laravel",
+    "ui-bridge-demo-nuxt",
+    "ui-bridge-demo-styles"
+  ]
 }
