@@ -1,6 +1,6 @@
 # UI Bridge
 
-Annotate in the browser. Your agent turns comments into live code changes.
+The missing link between your browser and your agent.
 
 ---
 
