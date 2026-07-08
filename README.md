@@ -55,6 +55,15 @@ export default defineConfig({
 });
 ```
 
+> **Frameworks that serve HTML server-side** (e.g. Laravel/Inertia, Django, Rails): Vite's `transformIndexHtml` hook only fires when Vite itself serves the HTML. If your server-side framework owns the HTML response, the client script is never injected automatically. Fix this by importing the virtual module in your JS entry file:
+>
+> ```js
+> // e.g. resources/js/app.js or resources/js/app.tsx
+> import 'virtual:ui-bridge';
+> ```
+>
+> This module is a no-op in production builds and injects the UI Bridge client at runtime during development.
+
 </details>
 
 <details>
