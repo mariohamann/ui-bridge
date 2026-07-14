@@ -241,27 +241,40 @@ const unpluginFactory = createUnplugin((options: UiBridgeOptions = {}) => {
       // JS entry file (e.g. resources/js/app.js). Resolves to an IIFE that
       // injects the WS URL global and loads the client bundle in dev mode; in
       // production builds Vite tree-shakes it to an empty module.
-      resolveId(id: string) {
-        if (id === 'virtual:ui-bridge') return '\0virtual:ui-bridge';
+      //
+      // `filter` lets Rollup/Rolldown pre-match the id natively and skip
+      // calling into JS for every other module in the graph. Without it,
+      // resolveId/load are invoked (and cross the JS boundary) once per
+      // module in the whole project on every build, which is what showed up
+      // disproportionately large in Rolldown's PLUGIN_TIMINGS output even
+      // though the hooks are effectively no-ops outside of dev.
+      resolveId: {
+        filter: { id: /^virtual:ui-bridge$/ },
+        handler(id: string) {
+          if (id === 'virtual:ui-bridge') return '\0virtual:ui-bridge';
+        },
       },
 
-      load(id: string) {
-        if (id !== '\0virtual:ui-bridge') return;
-        if (!isDevServer) return 'export {};';
-        const wsUrl = `ws://localhost:${preferredPort}/ui-bridge`;
-        const clientUrl = `http://localhost:${preferredPort}/ui-bridge/client.js`;
-        const sourceConfigInit = options.sourceAnnotation
-          ? `window.__UIB_SOURCE_CONFIG__=${JSON.stringify(options.sourceAnnotation)};`
-          : '';
-        return (
-          `if(typeof window!=='undefined'&&!window.__UIB_WS_URL__){` +
-          `window.__UIB_WS_URL__=${JSON.stringify(wsUrl)};` +
-          sourceConfigInit +
-          `var s=document.createElement('script');` +
-          `s.src=${JSON.stringify(clientUrl)};` +
-          `document.head.appendChild(s);}` +
-          `export {};`
-        );
+      load: {
+        filter: { id: /^\0virtual:ui-bridge$/ },
+        handler(id: string) {
+          if (id !== '\0virtual:ui-bridge') return;
+          if (!isDevServer) return 'export {};';
+          const wsUrl = `ws://localhost:${preferredPort}/ui-bridge`;
+          const clientUrl = `http://localhost:${preferredPort}/ui-bridge/client.js`;
+          const sourceConfigInit = options.sourceAnnotation
+            ? `window.__UIB_SOURCE_CONFIG__=${JSON.stringify(options.sourceAnnotation)};`
+            : '';
+          return (
+            `if(typeof window!=='undefined'&&!window.__UIB_WS_URL__){` +
+            `window.__UIB_WS_URL__=${JSON.stringify(wsUrl)};` +
+            sourceConfigInit +
+            `var s=document.createElement('script');` +
+            `s.src=${JSON.stringify(clientUrl)};` +
+            `document.head.appendChild(s);}` +
+            `export {};`
+          );
+        },
       },
 
       generateBundle() {
