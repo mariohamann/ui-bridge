@@ -1,6 +1,6 @@
 {
   "name": "@ui-bridge/mcp",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "UI Bridge MCP server — exposes comment and tweak actions to AI agents",
   "license": "MIT",
   "homepage": "https://ui-bridge.mariohamann.com",
