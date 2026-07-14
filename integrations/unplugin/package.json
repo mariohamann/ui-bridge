@@ -1,6 +1,6 @@
 {
   "name": "@ui-bridge/unplugin",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Universal Vite/webpack/rspack/rollup plugin to integrate UI Bridge into any project",
   "license": "MIT",
   "homepage": "https://ui-bridge.mariohamann.com",

@@ -1,6 +1,6 @@
 {
   "name": "@ui-bridge/client",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Self-contained browser bundle that powers the UI Bridge panel",
   "license": "MIT",
   "homepage": "https://ui-bridge.mariohamann.com",

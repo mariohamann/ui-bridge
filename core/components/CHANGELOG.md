@@ -1,5 +1,11 @@
 # @ui-bridge/components
 
+## 1.0.1
+
+### Patch Changes
+
+- @ui-bridge/protocol@1.0.1
+
 ## 1.0.0
 
 ### Major Changes

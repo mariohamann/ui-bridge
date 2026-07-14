@@ -1,5 +1,14 @@
 # @ui-bridge/astro
 
+## 1.0.1
+
+### Patch Changes
+
+- Updated dependencies [f21c074]
+  - @ui-bridge/unplugin@1.0.1
+  - @ui-bridge/protocol@1.0.1
+  - @ui-bridge/mcp@1.0.1
+
 ## 1.0.0
 
 ### Major Changes
