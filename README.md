@@ -55,15 +55,6 @@ export default defineConfig({
 });
 ```
 
-> **Frameworks that serve HTML server-side** (e.g. Laravel/Inertia, Django, Rails): Vite's `transformIndexHtml` hook only fires when Vite itself serves the HTML. If your server-side framework owns the HTML response, the client script is never injected automatically. Fix this by importing the virtual module in your JS entry file:
->
-> ```js
-> // e.g. resources/js/app.js or resources/js/app.tsx
-> import 'virtual:ui-bridge';
-> ```
->
-> This module is a no-op in production builds and injects the UI Bridge client at runtime during development.
-
 </details>
 
 <details>
@@ -138,6 +129,8 @@ export default defineNuxtConfig({
 </details>
 
 > Using a stack without automatic source annotation? See [Custom Source Annotation](#custom-source-annotation) to configure it manually.
+
+> Using Laravel/Inertia, Storybook, or other technologies? See [Custom Integrations](#custom-integrations) for worked examples.
 
 ### 2. Connect your agent
 
@@ -365,6 +358,70 @@ export default defineConfig({
   ],
 });
 ```
+
+</details>
+
+### Custom Integrations
+
+<details>
+<summary>Laravel / Inertia.js</summary>
+
+Laravel serves the HTML response from the backend, so the client script is never injected automatically. Add `import 'virtual:ui-bridge'` to your JS entry file (it's a no-op in production) and register the plugin:
+
+```ts
+// vite.config.ts
+
+import { defineConfig } from 'vite';
+import inertia from '@inertiajs/vite';
+import laravel from 'laravel-vite-plugin';
+import { uiBridgeVite } from '@ui-bridge/unplugin';
+
+export default defineConfig(({ command }) => ({
+  plugins: [
+    laravel({ input: ['resources/css/app.css', 'resources/js/app.tsx'] }),
+    inertia({ ssr: false }),
+    // Dev-only tooling: its production build hooks are no-ops but still get
+    // invoked for every module in the graph, adding needless build time.
+    ...(command === 'serve' ? uiBridgeVite() : []),
+  ],
+}));
+```
+
+```tsx
+// resources/js/app.tsx
+
+import 'virtual:ui-bridge';
+```
+
+No `sourceAnnotation` config is needed for Inertia pages/components — Code Inspector instruments `.tsx`/`.jsx` files like any other Vite/React project. Only reach for `sourceAnnotation.htmlComments` if you also render raw Blade views alongside Inertia (see [Custom Source Annotation](#custom-source-annotation)).
+
+</details>
+
+<details>
+<summary>Storybook</summary>
+
+Storybook's Vite builder (`@storybook/builder-vite`) already loads and merges your project's root `vite.config.ts` before running its own `viteFinal` — so a `uiBridgeVite()` registered there is automatically picked up for Storybook's preview build too. No extra plugin registration needed in `.storybook/main.ts`:
+
+```ts
+// .storybook/main.ts
+
+import type { StorybookConfig } from '@storybook/react-vite';
+
+const config: StorybookConfig = {
+  framework: '@storybook/react-vite',
+  viteFinal: async (config) => {
+    // uiBridgeVite() from the root vite.config.ts is already merged in here —
+    // do NOT add it again. Registering it twice injects the client script
+    // (and opens the WebSocket connection) twice, giving you two floating
+    // panels.
+    return config;
+  },
+};
+
+export default config;
+```
+
+**Never load the client into `.storybook/manager.tsx`.** Storybook renders two separate documents sharing one browser tab: the _manager_ (sidebar/toolbar chrome) and the _preview_ (your actual story, inside `<iframe id="storybook-preview-iframe">`). `viteFinal`/`webpackFinal` only ever affect the preview build — which is exactly where `Alt-Shift`-click picking needs to run, in the same document as the story markup. If the client is loaded into the manager's document instead, picking can only ever "see" the `<iframe>` element as an opaque leaf — it can't reach across into the iframe's separate document, so every click just selects the iframe.
 
 </details>
 
