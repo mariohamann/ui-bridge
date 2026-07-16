@@ -1,6 +1,6 @@
 {
   "name": "@ui-bridge/store",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "Shared comment store and path conventions for UI Bridge server and MCP",
   "license": "MIT",
   "homepage": "https://ui-bridge.mariohamann.com",
