@@ -164,6 +164,16 @@ const unpluginFactory = createUnplugin((options: UiBridgeOptions = {}) => {
       child = c;
       resolvedPort = await ready;
     }
+    if (resolvedPort !== preferredPort) {
+      // The Vite dev-server proxy below is wired to `preferredPort` (the only
+      // port known at config() time). If the ui-bridge server had to fall
+      // back to a different port (preferredPort was occupied by something
+      // else), the proxy will miss and the WebSocket connection will fail.
+      console.warn(
+        `[ui-bridge] server bound to port ${resolvedPort} instead of the configured ` +
+          `${preferredPort} — free up port ${preferredPort} or set a different \`port\` option.`,
+      );
+    }
     serverReady = true;
   }
 
@@ -173,10 +183,28 @@ const unpluginFactory = createUnplugin((options: UiBridgeOptions = {}) => {
     // ── vite-specific hooks ─────────────────────────────────────────────────
     vite: {
       config() {
-        // Ignore all UI Bridge internal files — comments, scripts, file assets,
-        // and the cache — so Vite never treats them as app source changes and
-        // triggers spurious HMR updates or full page reloads.
-        return { server: { watch: { ignored: ['**/.ui-bridge/**'] } } };
+        return {
+          server: {
+            // Ignore all UI Bridge internal files — comments, scripts, file
+            // assets, and the cache — so Vite never treats them as app source
+            // changes and triggers spurious HMR updates or full page reloads.
+            watch: { ignored: ['**/.ui-bridge/**'] },
+            proxy: {
+              // The standalone ui-bridge server only ever speaks plain ws/http
+              // — it has no TLS story of its own. Proxying it through Vite's
+              // own dev server keeps the WebSocket same-origin, so it
+              // automatically inherits wss:// whenever Vite itself is served
+              // over https (e.g. via Herd/Valet/mkcert). Without this, the
+              // browser blocks a direct ws://localhost:<port> connection as
+              // mixed content on an https page.
+              '/ui-bridge': {
+                target: `http://localhost:${preferredPort}`,
+                ws: true,
+                changeOrigin: true,
+              },
+            },
+          },
+        };
       },
 
       async configResolved(config: { root: string; command: string }) {
@@ -260,17 +288,26 @@ const unpluginFactory = createUnplugin((options: UiBridgeOptions = {}) => {
         handler(id: string) {
           if (id !== '\0virtual:ui-bridge') return;
           if (!isDevServer) return 'export {};';
-          const wsUrl = `ws://localhost:${preferredPort}/ui-bridge`;
-          const clientUrl = `http://localhost:${preferredPort}/ui-bridge/client.js`;
           const sourceConfigInit = options.sourceAnnotation
             ? `window.__UIB_SOURCE_CONFIG__=${JSON.stringify(options.sourceAnnotation)};`
             : '';
+          // Frameworks that own the HTML response (Laravel, Django, Rails…)
+          // still load this JS entry file directly from the Vite dev server,
+          // so `import.meta.url` resolves to that dev server's own origin —
+          // even though the page itself is served by a different backend on
+          // a different origin/port. Deriving the WS/client URLs from that
+          // origin (rather than a hardcoded `http://localhost:<port>`) means
+          // they automatically match whatever protocol the Vite dev server
+          // actually runs (http or https, e.g. via Herd/Valet/mkcert), and
+          // the WebSocket rides the same-origin `/ui-bridge` proxy registered
+          // in the plugin's `config()` hook instead of connecting directly.
           return (
             `if(typeof window!=='undefined'&&!window.__UIB_WS_URL__){` +
-            `window.__UIB_WS_URL__=${JSON.stringify(wsUrl)};` +
+            `var o=new URL(import.meta.url).origin;` +
+            `window.__UIB_WS_URL__=(o.startsWith('https:')?'wss':'ws')+'://'+new URL(o).host+'/ui-bridge';` +
             sourceConfigInit +
             `var s=document.createElement('script');` +
-            `s.src=${JSON.stringify(clientUrl)};` +
+            `s.src=o+'/__ui-bridge/client.js';` +
             `document.head.appendChild(s);}` +
             `export {};`
           );
@@ -317,12 +354,19 @@ const unpluginFactory = createUnplugin((options: UiBridgeOptions = {}) => {
               injectTo: 'head',
             });
           } else {
-            const wsUrl = `ws://localhost:${resolvedPort}/ui-bridge`;
             const CLIENT_URL = '/__ui-bridge/client.js';
+            // Same-origin as the page (Vite serves this HTML directly), so
+            // deriving protocol/host from `location` here — rather than a
+            // hardcoded `ws://localhost:<port>` — automatically produces
+            // wss:// when Vite itself runs over https (e.g. Herd/Valet/mkcert)
+            // and rides the `/ui-bridge` proxy registered in `config()`.
+            const wsUrlScript =
+              `(function(){var p=location.protocol==='https:'?'wss':'ws';` +
+              `window.__UIB_WS_URL__=p+'://'+location.host+'/ui-bridge';})();`;
             tags.push({
               tag: 'script',
               attrs: { type: 'text/javascript' },
-              children: `window.__UIB_WS_URL__=${JSON.stringify(wsUrl)};`,
+              children: wsUrlScript,
               injectTo: 'head-prepend',
             });
             if (options.sourceAnnotation) {
