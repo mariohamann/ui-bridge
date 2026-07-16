@@ -1,5 +1,21 @@
 # @ui-bridge/unplugin
 
+## 1.1.0
+
+### Minor Changes
+
+- 67d7909: Add WSS support via Vite proxy
+
+  Registers a `/ui-bridge` proxy in Vite's dev server so the WebSocket rides the same origin as Vite and automatically upgrades to `wss://` when Vite runs over HTTPS (e.g. Herd/Valet/mkcert). WS and client URLs are now derived from the current origin instead of a hardcoded `ws://localhost:<port>`, fixing mixed-content issues and non-Vite backends (Laravel, etc.). Adds a warning when the server falls back to a different port than configured.
+
+### Patch Changes
+
+- Updated dependencies [f51d27e]
+  - @ui-bridge/client@1.1.0
+  - @ui-bridge/server@1.1.0
+  - @ui-bridge/protocol@1.1.0
+  - @ui-bridge/mcp@1.1.0
+
 ## 1.0.1
 
 ### Patch Changes

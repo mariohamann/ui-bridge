@@ -1,6 +1,6 @@
 {
   "name": "@ui-bridge/components",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "Lit web components for the UI Bridge browser panel",
   "license": "MIT",
   "homepage": "https://ui-bridge.mariohamann.com",

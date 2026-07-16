@@ -1,5 +1,11 @@
 # @ui-bridge/client
 
+## 1.1.0
+
+### Patch Changes
+
+- f51d27e: Update README
+
 ## 1.0.1
 
 ### Patch Changes
