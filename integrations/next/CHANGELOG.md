@@ -1,5 +1,12 @@
 # @ui-bridge/next
 
+## 1.1.1
+
+### Patch Changes
+
+- @ui-bridge/server@1.1.1
+- @ui-bridge/mcp@1.1.1
+
 ## 1.1.0
 
 ### Patch Changes

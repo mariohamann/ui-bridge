@@ -1,5 +1,15 @@
 # @ui-bridge/unplugin
 
+## 1.1.1
+
+### Patch Changes
+
+- 8f2e9c9: Fix bug where the middleware mode was not being set correctly in the WebSocket plugin.
+  - @ui-bridge/protocol@1.1.1
+  - @ui-bridge/client@1.1.1
+  - @ui-bridge/server@1.1.1
+  - @ui-bridge/mcp@1.1.1
+
 ## 1.1.0
 
 ### Minor Changes
