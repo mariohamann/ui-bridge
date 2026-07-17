@@ -295,16 +295,24 @@ const unpluginFactory = createUnplugin((options: UiBridgeOptions = {}) => {
           // still load this JS entry file directly from the Vite dev server,
           // so `import.meta.url` resolves to that dev server's own origin —
           // even though the page itself is served by a different backend on
-          // a different origin/port. Deriving the WS/client URLs from that
-          // origin (rather than a hardcoded `http://localhost:<port>`) means
-          // they automatically match whatever protocol the Vite dev server
-          // actually runs (http or https, e.g. via Herd/Valet/mkcert), and
-          // the WebSocket rides the same-origin `/ui-bridge` proxy registered
-          // in the plugin's `config()` hook instead of connecting directly.
+          // a different origin/port.
+          //
+          // Only route the WebSocket through the same-origin `/ui-bridge`
+          // proxy (registered in `config()`) when that origin is https —
+          // that's the one case where connecting directly to the standalone
+          // server (a different origin/port, plain ws://) gets blocked as
+          // mixed content. Everywhere else, connect directly: Vite's proxy
+          // middleware only wires up the WebSocket `upgrade` event when Vite
+          // owns its own `httpServer`, which isn't true when Vite runs in
+          // middleware mode (e.g. Storybook's Vite builder) — there the proxy
+          // entry never receives the upgrade at all and the socket just hangs
+          // in CONNECTING forever, silently dropping every comment.
           return (
             `if(typeof window!=='undefined'&&!window.__UIB_WS_URL__){` +
             `var o=new URL(import.meta.url).origin;` +
-            `window.__UIB_WS_URL__=(o.startsWith('https:')?'wss':'ws')+'://'+new URL(o).host+'/ui-bridge';` +
+            `window.__UIB_WS_URL__=o.startsWith('https:')` +
+            `?('wss://'+new URL(o).host+'/ui-bridge')` +
+            `:${JSON.stringify(`ws://localhost:${resolvedPort}/ui-bridge`)};` +
             sourceConfigInit +
             `var s=document.createElement('script');` +
             `s.src=o+'/__ui-bridge/client.js';` +
@@ -355,14 +363,22 @@ const unpluginFactory = createUnplugin((options: UiBridgeOptions = {}) => {
             });
           } else {
             const CLIENT_URL = '/__ui-bridge/client.js';
-            // Same-origin as the page (Vite serves this HTML directly), so
-            // deriving protocol/host from `location` here — rather than a
-            // hardcoded `ws://localhost:<port>` — automatically produces
-            // wss:// when Vite itself runs over https (e.g. Herd/Valet/mkcert)
-            // and rides the `/ui-bridge` proxy registered in `config()`.
+            // Same-origin as the page (Vite serves this HTML directly). Only
+            // route through the `/ui-bridge` proxy (registered in `config()`)
+            // when the page is https — the one case where a direct plain
+            // `ws://localhost:<port>` connection gets blocked as mixed
+            // content. Everywhere else, connect directly to the standalone
+            // server: the proxy's WebSocket `upgrade` handling only works
+            // when Vite owns its own `httpServer`, which isn't true when Vite
+            // runs in middleware mode (e.g. Storybook's Vite builder) — there
+            // the proxy never receives the upgrade and the socket just hangs
+            // in CONNECTING forever, silently dropping every comment.
             const wsUrlScript =
-              `(function(){var p=location.protocol==='https:'?'wss':'ws';` +
-              `window.__UIB_WS_URL__=p+'://'+location.host+'/ui-bridge';})();`;
+              `(function(){if(location.protocol==='https:'){` +
+              `window.__UIB_WS_URL__='wss://'+location.host+'/ui-bridge';` +
+              `}else{` +
+              `window.__UIB_WS_URL__=${JSON.stringify(`ws://localhost:${resolvedPort}/ui-bridge`)};` +
+              `}})();`;
             tags.push({
               tag: 'script',
               attrs: { type: 'text/javascript' },
