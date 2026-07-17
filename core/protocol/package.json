@@ -1,6 +1,6 @@
 {
   "name": "@ui-bridge/protocol",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Shared TypeScript types and WebSocket protocol definitions for UI Bridge",
   "license": "MIT",
   "homepage": "https://ui-bridge.mariohamann.com",
