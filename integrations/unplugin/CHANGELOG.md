@@ -1,5 +1,15 @@
 # @ui-bridge/unplugin
 
+## 1.1.2
+
+### Patch Changes
+
+- Updated dependencies [36e1692]
+  - @ui-bridge/client@1.1.2
+  - @ui-bridge/server@1.1.2
+  - @ui-bridge/mcp@1.1.2
+  - @ui-bridge/protocol@1.1.2
+
 ## 1.1.1
 
 ### Patch Changes
