@@ -160,7 +160,7 @@ describe('MCP initialize', () => {
 });
 
 describe('MCP tools/list', () => {
-  it('returns all 6 tools', async () => {
+  it('returns all 7 tools', async () => {
     const responses = await mcpCall('tools/list', {});
     const res = findResponse(responses, 2);
     assert.ok(res?.result?.tools, 'tools missing');
@@ -171,12 +171,13 @@ describe('MCP tools/list', () => {
       'get_comment',
       'create_comment',
       'reply_to_comment',
+      'update_comment_selectors',
       'get_server_info',
     ];
     for (const name of expected) {
       assert.ok(names.includes(name), `tool "${name}" missing`);
     }
-    assert.equal(names.length, 6);
+    assert.equal(names.length, 7);
   });
 });
 
@@ -485,6 +486,79 @@ describe('MCP tools/call — reply_to_comment', () => {
     assert.equal(tweakEntry?.tweakStatus, 'pending', 'tweakStatus should be pending');
     assert.ok(tweakEntry?.knob, 'knob should be set');
     assert.equal(tweakEntry?.knob.label, 'Color');
+  });
+});
+
+describe('MCP tools/call — update_comment_selectors', () => {
+  let parentId;
+
+  before(async () => {
+    const now = Date.now();
+    parentId = `mcp-selector-parent-${now}`;
+    const ann = {
+      meta: { id: parentId, pageUrl: 'http://localhost:5173/', timestamp: now, createdAt: now },
+      elements: [{ minimalSelector: '.legacy-target', tag: 'div', classes: ['legacy-target'] }],
+      comments: [
+        {
+          id: `${parentId}-root`,
+          type: 'comment',
+          text: 'Needs a more precise selector after edits',
+          createdAt: now,
+          author: 'user',
+        },
+      ],
+    };
+    await fetch(`${BASE_URL}/api/comments`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(ann),
+    });
+  });
+
+  after(async () => {
+    if (parentId) await fetch(`${BASE_URL}/api/comments/${parentId}`, { method: 'DELETE' });
+  });
+
+  it('appends precise selectors and preserves thread history', async () => {
+    const responses = await mcpCall('tools/call', {
+      name: 'update_comment_selectors',
+      arguments: {
+        commentId: parentId,
+        elements: [
+          { minimalSelector: '.legacy-target', tag: 'div', classes: ['legacy-target'] },
+          {
+            minimalSelector: 'section.hero h1.title.primary',
+            tag: 'h1',
+            classes: ['title', 'primary'],
+          },
+        ],
+      },
+    });
+    const res = findResponse(responses, 2);
+    assert.ok(!res?.error, `error: ${JSON.stringify(res?.error)}`);
+
+    const updated = JSON.parse(res.result.content[0].text);
+    assert.equal(updated.meta.id, parentId);
+    assert.ok(updated.elements.length >= 2, 'expected appended selector');
+    assert.equal(updated.comments[0].text, 'Needs a more precise selector after edits');
+    assert.equal(updated.comments.length, 1, 'should not add reply entries');
+  });
+
+  it('returns an error for unknown comment id', async () => {
+    const responses = await mcpCall('tools/call', {
+      name: 'update_comment_selectors',
+      arguments: {
+        commentId: 'missing-comment-id',
+        elements: [{ minimalSelector: 'h1', tag: 'h1', classes: [] }],
+      },
+    });
+    const res = findResponse(responses, 2);
+    const errorText = res?.result?.content?.[0]?.text ?? '';
+    assert.ok(
+      res?.error || res?.result?.isError === true,
+      'expected tool call to fail for missing id',
+    );
+    assert.match(errorText, /Comment not found|missing-comment-id/);
   });
 });
 

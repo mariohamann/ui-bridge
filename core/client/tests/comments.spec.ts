@@ -1921,6 +1921,27 @@ test.describe('Comment bar', () => {
     );
   }
 
+  async function createOrphanedCommentWithId(page: Page, id: string, text: string): Promise<void> {
+    await page.request.post(`${API_BASE}/comments`, {
+      data: {
+        meta: { id, createdAt: Date.now(), timestamp: Date.now(), pageUrl: page.url() },
+        elements: [{ minimalSelector: '#__uib-orphaned-before-selector-update' }],
+        comments: [
+          { id: `entry-${id}`, type: 'comment', text, author: 'user', createdAt: Date.now() },
+        ],
+      },
+    });
+
+    await page.waitForFunction(
+      (commentId) =>
+        !!Array.from(
+          document.querySelector('uib-comment-bar')?.shadowRoot?.querySelectorAll('uib-comment') ??
+            [],
+        ).find((el) => (el as any).comment?.meta?.id === commentId),
+      id,
+    );
+  }
+
   test('comment bar stays expanded when an orphaned panel is open after hover leaves', async ({
     page,
   }) => {
@@ -2002,5 +2023,37 @@ test.describe('Comment bar', () => {
         ),
       )
       .toBe(false);
+  });
+
+  test('selector updates can recover an orphaned comment back to anchored rendering', async ({
+    page,
+  }) => {
+    const id = `test-orphan-recover-${Date.now()}`;
+    await createOrphanedCommentWithId(page, id, 'Needs selector recovery');
+
+    const patchRes = await page.request.fetch(`${API_BASE}/comments/${id}`, {
+      method: 'PATCH',
+      data: {
+        elements: [
+          { minimalSelector: '#__uib-orphaned-before-selector-update', tag: 'div', classes: [] },
+          { minimalSelector: 'h1', tag: 'h1', classes: [] },
+        ],
+      },
+    });
+    expect(patchRes.status()).toBe(200);
+
+    await page.evaluate(() => window.dispatchEvent(new Event('scroll')));
+
+    await expect
+      .poll(() =>
+        page.evaluate(
+          (commentId) =>
+            !!Array.from(document.querySelectorAll('#uib-items uib-comment')).find(
+              (el) => (el as any).comment?.meta?.id === commentId,
+            ),
+          id,
+        ),
+      )
+      .toBe(true);
   });
 });

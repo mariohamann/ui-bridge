@@ -302,6 +302,84 @@ test.describe('DELETE /api/comments/:id', () => {
   });
 });
 
+test.describe('PATCH /api/comments/:id', () => {
+  test('updates selectors while preserving existing comments', async ({ request }) => {
+    const now = Date.now();
+    await request.post(`${API}/comments`, {
+      data: {
+        meta: {
+          id: 'patch-selectors',
+          pageUrl: 'http://localhost:5173/',
+          timestamp: now,
+          createdAt: now,
+        },
+        elements: [{ minimalSelector: '.old-selector', tag: 'div', classes: ['old-selector'] }],
+        comments: [
+          {
+            id: 'patch-selectors-root',
+            type: 'comment',
+            text: 'Keep thread history',
+            createdAt: now,
+            author: 'user',
+          },
+        ],
+      },
+    });
+
+    const patchRes = await request.fetch(`${API}/comments/patch-selectors`, {
+      method: 'PATCH',
+      data: {
+        elements: [
+          { minimalSelector: '.old-selector', tag: 'div', classes: ['old-selector'] },
+          { minimalSelector: 'h1.hero.title', tag: 'h1', classes: ['hero', 'title'] },
+        ],
+      },
+    });
+    expect(patchRes.status()).toBe(200);
+
+    const getRes = await request.get(`${API}/comments/patch-selectors`);
+    expect(getRes.status()).toBe(200);
+    const body = (await getRes.json()) as {
+      meta: { timestamp: number };
+      elements: { minimalSelector: string }[];
+      comments: { text: string }[];
+    };
+    expect(body.elements.map((el) => el.minimalSelector)).toEqual([
+      '.old-selector',
+      'h1.hero.title',
+    ]);
+    expect(body.comments[0].text).toBe('Keep thread history');
+    expect(body.meta.timestamp).toBeGreaterThanOrEqual(now);
+  });
+
+  test('returns 404 for unknown comment id', async ({ request }) => {
+    const patchRes = await request.fetch(`${API}/comments/does-not-exist`, {
+      method: 'PATCH',
+      data: { elements: [{ minimalSelector: 'h1', tag: 'h1', classes: [] }] },
+    });
+    expect(patchRes.status()).toBe(404);
+  });
+
+  test('broadcasts comments:sync after a selector patch', async ({ request }) => {
+    await request.post(`${API}/comments`, { data: makeComment({ id: 'patch-broadcast' }) });
+
+    const repliesPromise = wsMessages(WS_URL, 700);
+    await request.fetch(`${API}/comments/patch-broadcast`, {
+      method: 'PATCH',
+      data: {
+        elements: [
+          { minimalSelector: 'h1', tag: 'h1', classes: [] },
+          { minimalSelector: 'main > h1', tag: 'h1', classes: [] },
+        ],
+      },
+    });
+    const replies = (await repliesPromise) as { type: string; payload: unknown }[];
+
+    const sync = replies.find((m) => m.type === 'comments:sync');
+    expect(sync).toBeDefined();
+  });
+});
+
 test.describe('POST /api/comments/:id/accept', () => {
   test('keeps the comment after accepting (no active tweaks) with tweakStatus=accepted', async ({
     request,

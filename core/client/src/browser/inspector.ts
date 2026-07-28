@@ -18,6 +18,7 @@ import {
   getSourceInfo,
   UIB_HIGHLIGHT_COLOR,
   orphanedIdsSignal,
+  markOrphaned,
 } from '@ui-bridge/components';
 
 // ─── Selector helper ──────────────────────────────────────────────────────────
@@ -135,6 +136,45 @@ export function getItemById(id: string): UibComment | undefined {
   return itemEls.get(id);
 }
 
+function getCommentTarget(id: string): Element | null {
+  const ann = comments.get(id);
+  if (!ann) return null;
+  for (const element of ann.elements) {
+    try {
+      const domEl = document.querySelector(element.minimalSelector);
+      if (domEl) return domEl;
+    } catch {
+      /* noop */
+    }
+  }
+  return null;
+}
+
+function closeBarPanels(): void {
+  const barItems = orphanedBar?.shadowRoot?.querySelectorAll('uib-comment') ?? [];
+  for (const badge of barItems) {
+    (badge as unknown as UibComment).closePanel();
+  }
+}
+
+function openPanelInBar(id: string): boolean {
+  if (!orphanedBar) orphanedBar = document.querySelector('uib-comment-bar');
+  if (!orphanedBar) return false;
+
+  closeAllPanels();
+  closeBarPanels();
+  const barBadges = orphanedBar.shadowRoot?.querySelectorAll('uib-comment') ?? [];
+  for (const badge of barBadges) {
+    const item = badge as unknown as UibComment;
+    if (item.comment?.meta.id === id) {
+      item.openPanel();
+      persistOpenPanel(id);
+      return true;
+    }
+  }
+  return false;
+}
+
 /** Close all open saved panels (does not affect draft). */
 function closeAllPanels(): void {
   for (const item of itemEls.values()) {
@@ -168,7 +208,7 @@ export function getOpenItem(): UibComment | null {
  */
 export function focusComment(id: string): boolean {
   const target = itemEls.get(id);
-  if (!target) return false;
+  if (!target) return openPanelInBar(id);
 
   const currentOpen = getOpenItem();
 
@@ -197,31 +237,24 @@ export function focusComment(id: string): boolean {
   }
 
   pendingFocusId = null;
+  const domEl = getCommentTarget(id);
+  if (!domEl) {
+    markOrphaned(id);
+    reconcileOrphans();
+    return openPanelInBar(id);
+  }
+
   target.openPanel();
   persistOpenPanel(id);
 
-  // Scroll the annotated DOM element into view only when it isn't already visible.
-  const ann = comments.get(id);
-  if (ann) {
-    for (const el of ann.elements) {
-      try {
-        const domEl = document.querySelector(el.minimalSelector);
-        if (domEl) {
-          const rect = domEl.getBoundingClientRect();
-          const inViewport =
-            rect.top >= 0 &&
-            rect.left >= 0 &&
-            rect.bottom <= window.innerHeight &&
-            rect.right <= window.innerWidth;
-          if (!inViewport) {
-            domEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-          }
-          break;
-        }
-      } catch {
-        /* noop */
-      }
-    }
+  const rect = domEl.getBoundingClientRect();
+  const inViewport =
+    rect.top >= 0 &&
+    rect.left >= 0 &&
+    rect.bottom <= window.innerHeight &&
+    rect.right <= window.innerWidth;
+  if (!inViewport) {
+    domEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
 
   return true;
@@ -473,39 +506,14 @@ export function initInspector(config?: SourceAnnotationConfig): void {
     } else if (intent.type === 'comment:badge-click') {
       focusComment(intent.id);
     } else if (intent.type === 'comment:bar-click') {
-      const ann = comments.get(intent.id);
-      // Try to find the element in the DOM
-      let found = false;
-      if (ann) {
-        for (const el of ann.elements) {
-          try {
-            const domEl = document.querySelector(el.minimalSelector);
-            if (domEl) {
-              domEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-              found = true;
-              break;
-            }
-          } catch {
-            /* noop */
-          }
-        }
-      }
-      if (found) {
-        // Open the real anchored panel in #uib-items
-        focusComment(intent.id);
+      const domEl = getCommentTarget(intent.id);
+      if (domEl) {
+        domEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        if (!focusComment(intent.id)) openPanelInBar(intent.id);
       } else {
-        // Orphaned: open the bar badge's own panel
-        const barEl = document.querySelector('uib-comment-bar');
-        if (barEl) {
-          const barBadges = barEl.shadowRoot?.querySelectorAll('uib-comment') ?? [];
-          for (const badge of barBadges) {
-            const b = badge as unknown as UibComment;
-            if (b.comment?.meta.id === intent.id) {
-              b.openPanel();
-              break;
-            }
-          }
-        }
+        markOrphaned(intent.id);
+        reconcileOrphans();
+        openPanelInBar(intent.id);
       }
     }
   });

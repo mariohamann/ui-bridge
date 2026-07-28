@@ -72,6 +72,15 @@ const GUIDE_WORKFLOW = `# When to Tweak vs. Direct Edit
 2. LLM reads the thread via \`get_comments\` / \`get_comment\` and responds with a text reply, a text + tweak reply, or a new comment on a different element.
 3. User tries the live knob and accepts (permanent) or discards (restored) from the panel.
 
+## After element-changing edits
+
+If you changed code in a way that can affect the commented element's tag, id, classes, or structure,
+update selectors proactively using \`update_comment_selectors\`.
+Prefer precise selectors that include the element tag plus stable id/classes and structural context.
+
+Selector format: provide a valid CSS selector string for \`minimalSelector\`
+(for example: \`button#save.primary\` or \`main .hero h1.title\`).
+
 ## Use a tweak when
 
 The comment signals exploration: "try", "compare", "I'm not sure", "let me see options".
@@ -85,6 +94,11 @@ Bug fixes, structural refactors, single correct outcome.
 ## Multiple tweaks
 
 Each comment holds one knob. For independent tweaks on the same thread, add sibling \`reply_to_comment\` calls — the replay engine composes them in creation order as long as they touch different code.
+
+## Selector maintenance
+
+When a comment may no longer point at the right DOM element after your edits, append updated selectors with
+\`update_comment_selectors\` so the thread remains anchored.
 `;
 
 const GUIDE_WRITE_SCRIPTS = `# How to Write UI Bridge Transform Scripts
@@ -213,11 +227,18 @@ Call \`get_comments\` at session start, then for each open thread pick one mode:
 
 When in doubt, use Mode A.
 
+## Selector reliability after edits
+
+When you edit code that can change a commented element (tag, id, classes, or structure),
+update thread selectors automatically with \`update_comment_selectors\`.
+Prefer precise selectors and keep existing ones as fallback.
+
 ## Tools
 
 - \`get_comments\` / \`get_comment\` — read threads
 - \`create_comment\` — start a new agent thread
 - \`reply_to_comment\` — add text or text + tweak reply
+- \`update_comment_selectors\` — append precise replacement selectors when anchors may have changed
 
 - \`get_server_info\` — root, scriptsDir, commentsDir
 - \`get_write_scripts_guide\` — full script reference (call before writing any .mjs tweak)
@@ -475,6 +496,65 @@ server.tool(
       ...existing,
       meta: { ...existing.meta, timestamp: now },
       comments: newComments,
+    };
+    await store.upsert(updated);
+    return { content: [{ type: 'text', text: JSON.stringify(updated, null, 2) }] };
+  },
+);
+
+server.tool(
+  'update_comment_selectors',
+  `Append new precise selectors to an existing comment thread.
+  Use this after agent-made UI/code edits that may invalidate existing selectors.
+  Prefer precise selectors (tag + id + classes + structure) and update proactively.`,
+  {
+    commentId: z.string().describe('ID of the existing comment thread to update'),
+    elements: z
+      .array(
+        z.object({
+          minimalSelector: z
+            .string()
+            .describe(
+              'Valid CSS selector for this element (e.g. "button#save.primary" or "main .hero h1.title")',
+            ),
+          tag: z.string().describe('HTML tag name (lowercase)'),
+          id: z.string().optional().describe('Element id attribute'),
+          classes: z.array(z.string()).describe('CSS classes on the element'),
+          source: z
+            .object({ file: z.string(), line: z.number(), column: z.number() })
+            .optional()
+            .describe('Source file location'),
+        }),
+      )
+      .min(1)
+      .describe('New selector entries to append (or merge by selector) into the thread'),
+  },
+  async ({ commentId, elements }) => {
+    const { store } = await getStore();
+    await store.reload();
+    const existing = store.get(commentId);
+    if (!existing) throw new Error(`Comment not found: ${commentId}`);
+
+    const bySelector = new Map(
+      (existing.elements ?? []).map((element) => [element.minimalSelector, { ...element }]),
+    );
+    for (const element of elements) {
+      const prev = bySelector.get(element.minimalSelector);
+      if (!prev) {
+        bySelector.set(element.minimalSelector, element);
+        continue;
+      }
+      bySelector.set(element.minimalSelector, {
+        ...prev,
+        ...element,
+        source: element.source ?? prev.source,
+      });
+    }
+
+    const updated = {
+      ...existing,
+      meta: { ...existing.meta, timestamp: Date.now() },
+      elements: [...bySelector.values()],
     };
     await store.upsert(updated);
     return { content: [{ type: 'text', text: JSON.stringify(updated, null, 2) }] };

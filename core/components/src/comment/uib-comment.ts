@@ -300,8 +300,14 @@ export class UibComment extends LitElement {
   }
 
   private _repositionBadge = (): void => {
-    if (this.docked) return;
     const rect = this._anchorRect();
+    if (this.docked) {
+      if (this.comment?.meta.id) {
+        if (rect) markUnorphaned(this.comment.meta.id);
+        else markOrphaned(this.comment.meta.id);
+      }
+      return;
+    }
     if (!rect) {
       this._badgeTop = -9999;
       this._badgeLeft = -9999;

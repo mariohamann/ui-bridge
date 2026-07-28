@@ -369,6 +369,37 @@ const httpServer = createServer(async (req, res) => {
       jsonResponse(res, 200, { ok: true });
       return;
     }
+    if (req.method === 'PATCH') {
+      try {
+        const patch = await readBody(req);
+        const existing = store.get(annId);
+        if (!existing) {
+          jsonResponse(res, 404, { error: 'not found' });
+          return;
+        }
+
+        const updated = {
+          ...existing,
+          ...patch,
+          meta: {
+            ...existing.meta,
+            ...(patch?.meta ?? {}),
+            id: existing.meta.id,
+            timestamp: Date.now(),
+          },
+          comments: patch?.comments ?? existing.comments,
+          elements: patch?.elements ?? existing.elements,
+        };
+
+        await store.upsert(updated);
+        broadcast({ type: 'comments:sync', payload: store.all() });
+        broadcast({ type: 'tweak:schema', payload: tweaks.buildSchema() });
+        jsonResponse(res, 200, { ok: true });
+      } catch (e) {
+        jsonResponse(res, 400, { error: String(e) });
+      }
+      return;
+    }
   }
 
   const acceptAnnMatch = apiPath.match(/^\/comments\/([^/]+)\/accept$/);
