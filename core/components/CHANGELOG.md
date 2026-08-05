@@ -1,5 +1,12 @@
 # @ui-bridge/components
 
+## 1.1.3
+
+### Patch Changes
+
+- Updated dependencies [627da59]
+  - @ui-bridge/protocol@1.1.3
+
 ## 1.1.2
 
 ### Patch Changes
