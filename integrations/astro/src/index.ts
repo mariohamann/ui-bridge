@@ -1,5 +1,7 @@
 import type { AstroIntegration } from 'astro';
-import { uiBridgeVite } from '@ui-bridge/unplugin';
+import { fileURLToPath } from 'node:url';
+import { resolve as resolvePath } from 'node:path';
+import { uiBridgeVite, resolveUiBridgePort } from '@ui-bridge/unplugin';
 import type { CommentThread } from '@ui-bridge/protocol';
 
 /** Options accepted by the uiBridge() Astro integration. */
@@ -41,17 +43,8 @@ export interface UiBridgeOptions {
  * called for .astro pages, so we use Astro's `injectScript` API instead.
  */
 export function uiBridge(options: UiBridgeOptions = {}): AstroIntegration {
-  // The resolved WS port is communicated from the Vite plugin via a shared
-  // module-level variable. We can't easily read it here synchronously, so we
-  // use a lazy placeholder that reads __UIB_WS_URL__ if already set, then falls
-  // back to polling — or simply mirror what the Vite plugin does: inject a
-  // small inline script that sets the URL, followed by the bundle.
-  //
-  // To keep things simple and avoid duplication we let the Vite plugin handle:
-  //   • spawning / reusing the server
-  //   • serving /__ui-bridge/client.js
-  //
-  // And we handle script injection here via injectScript.
+  // We let the Vite plugin handle spawning/reusing the server and serving
+  // /__ui-bridge/client.js, and handle script injection here via injectScript.
 
   const preferredPort =
     options.port ?? parseInt(process.env.UI_BRIDGE_PORT ?? process.env.UIB_PORT ?? '7378', 10);
@@ -59,7 +52,7 @@ export function uiBridge(options: UiBridgeOptions = {}): AstroIntegration {
   return {
     name: 'ui-bridge',
     hooks: {
-      'astro:config:setup': ({ updateConfig, injectScript, command }) => {
+      'astro:config:setup': async ({ config, updateConfig, injectScript, command }) => {
         // Only active during dev (or staticMode for production builds)
         if (command !== 'dev' && !options.staticMode) return;
 
@@ -125,10 +118,21 @@ export function uiBridge(options: UiBridgeOptions = {}): AstroIntegration {
         // We use head-inline (raw HTML injection) so Vite's import-analysis plugin
         // never sees the /__ui-bridge/client.js URL — it's loaded at runtime
         // via document.createElement, which hits the Vite middleware directly.
-        const wsUrl = `ws://localhost:${preferredPort}/ui-bridge`;
+        //
+        // Resolve (and await) the port the server actually bound to — shared
+        // and memoized with the Vite plugin's own resolution by root, so this
+        // never spawns a second server and never injects a stale/wrong port.
+        // `config.root` is a file URL and always keeps a trailing slash — normalize
+        // it so it matches the server's node:path-resolved root exactly.
+        const rootDir = resolvePath(fileURLToPath(config.root));
+        const resolvedPort = await resolveUiBridgePort(rootDir, preferredPort, {
+          allowOutsideRoot: options.allowOutsideRoot,
+        });
+        const wsUrl = `ws://localhost:${resolvedPort}/ui-bridge`;
         injectScript(
           'head-inline',
           `window.__UIB_WS_URL__=${JSON.stringify(wsUrl)};` +
+            `window.__UIB_EXPECTED_ROOT__=${JSON.stringify(rootDir)};` +
             `(function(){var s=document.createElement('script');` +
             `s.src='/__ui-bridge/client.js?t='+Date.now();` +
             `document.head.appendChild(s);})();`,

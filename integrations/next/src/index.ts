@@ -36,15 +36,23 @@ export interface UiBridgeNextOptions {
  * }
  * ```
  */
-export function UiBridgeScript({ port }: { port?: number } = {}): React.JSX.Element {
+export async function UiBridgeScript({ port }: { port?: number; } = {}): Promise<React.JSX.Element> {
   // Use createElement to avoid requiring JSX transform in this package's build.
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { createElement, Fragment } = _require('react') as typeof import('react');
+  // An explicit `port` prop is a deliberate override — honor it as-is.
+  // Otherwise await the same resolution `withUiBridge()` kicked off, so this
+  // never injects a stale/guessed port that the server didn't actually bind to.
   const resolvedPort =
-    port ?? parseInt(process.env.UI_BRIDGE_PORT ?? process.env.UIB_PORT ?? '7378', 10);
+    port ??
+    (resolvedPortPromise
+      ? await resolvedPortPromise
+      : parseInt(process.env.UI_BRIDGE_PORT ?? process.env.UIB_PORT ?? '7378', 10));
   const wsUrl = `ws://localhost:${resolvedPort}/ui-bridge`;
   const clientUrl = `http://localhost:${resolvedPort}/ui-bridge/client.js`;
-  const inlineScript = `window.__UIB_WS_URL__=${JSON.stringify(wsUrl)};`;
+  const inlineScript =
+    `window.__UIB_WS_URL__=${JSON.stringify(wsUrl)};` +
+    `window.__UIB_EXPECTED_ROOT__=${JSON.stringify(process.cwd())};`;
   return createElement(
     Fragment,
     null,
@@ -59,7 +67,7 @@ async function getServerPort(port: number, expectedRoot: string): Promise<number
       signal: AbortSignal.timeout(600),
     });
     if (!resp.ok) return null;
-    const body = (await resp.json()) as { port?: number; root?: string };
+    const body = (await resp.json()) as { port?: number; root?: string; };
     if (body.root && body.root !== expectedRoot) return null;
     return body.port ?? port;
   } catch {
@@ -71,9 +79,9 @@ function spawnServer(
   rootDir: string,
   preferredPort: number,
   allowOutsideRoot?: boolean,
-): { child: ChildProcess; ready: Promise<number> } {
+): { child: ChildProcess; ready: Promise<number>; } {
   const serverEntry = _require.resolve('@ui-bridge/server');
-  const serverArgs = [serverEntry, '--root', rootDir];
+  const serverArgs = [serverEntry, '--root', rootDir, '--parent-pid', String(process.pid)];
   if (allowOutsideRoot) serverArgs.push('--allow-outside-root');
   const child = spawn(process.execPath, serverArgs, {
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -96,6 +104,42 @@ function spawnServer(
     });
   });
   return { child, ready };
+}
+
+// Shared between withUiBridge() (which kicks off the resolution) and
+// UiBridgeScript() (which awaits it) — both run in the same Node process
+// for `next dev`, so this module-level promise is the single source of
+// truth for which port the server actually bound to.
+let resolvedPortPromise: Promise<number> | null = null;
+let spawnedChild: ChildProcess | null = null;
+
+// Fast path for a clean shutdown (Ctrl+C, normal exit) — kills the spawned
+// server immediately instead of waiting on its parent-liveness watchdog poll.
+// The watchdog (--parent-pid, see core/server/index.mjs) remains the fallback
+// for abrupt termination (SIGKILL, crash) where this handler never runs.
+process.once('exit', () => {
+  if (spawnedChild && !spawnedChild.killed) spawnedChild.kill();
+});
+
+function ensureServerStarted(preferredPort: number, allowOutsideRoot?: boolean): Promise<number> {
+  if (resolvedPortPromise) return resolvedPortPromise;
+  resolvedPortPromise = (async () => {
+    const existingPort = await getServerPort(preferredPort, process.cwd());
+    if (existingPort !== null) {
+      console.log(`[ui-bridge] using existing server at http://localhost:${existingPort}`);
+      return existingPort;
+    }
+    const { child, ready } = spawnServer(process.cwd(), preferredPort, allowOutsideRoot);
+    spawnedChild = child;
+    const resolvedPort = await ready;
+    if (resolvedPort !== preferredPort) {
+      // Informational only — the resolved port is used everywhere automatically,
+      // and the root handshake guards against ever syncing to the wrong project.
+      console.log(`[ui-bridge] port ${preferredPort} was in use, using ${resolvedPort} instead.`);
+    }
+    return resolvedPort;
+  })();
+  return resolvedPortPromise;
 }
 
 /**
@@ -121,14 +165,9 @@ export function withUiBridge(
   const isDev = process.env.NODE_ENV !== 'production';
 
   if (isDev) {
-    // Spawn server eagerly (fire-and-forget; reuses existing if already running)
-    getServerPort(preferredPort, process.cwd()).then((existing) => {
-      if (existing !== null) {
-        console.log(`[ui-bridge] using existing server at http://localhost:${existing}`);
-        return;
-      }
-      spawnServer(process.cwd(), preferredPort, options.allowOutsideRoot);
-    });
+    // Kicks off resolution eagerly (fire-and-forget; reuses existing server if
+    // already running). UiBridgeScript() awaits the same promise later.
+    ensureServerStarted(preferredPort, options.allowOutsideRoot);
   }
 
   return nextConfig;

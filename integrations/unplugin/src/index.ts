@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { spawn, type ChildProcess } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { createInterface } from 'node:readline';
+import { resolve as resolvePath } from 'node:path';
 import { createUnplugin } from 'unplugin';
 import { codeInspectorPlugin } from 'code-inspector-plugin';
 import type { CommentThread, SourceAnnotationConfig, UserPreferences } from '@ui-bridge/protocol';
@@ -63,7 +64,7 @@ async function getServerPort(port: number, expectedRoot: string): Promise<number
       signal: AbortSignal.timeout(600),
     });
     if (!resp.ok) return null;
-    const body = (await resp.json()) as { port?: number; root?: string };
+    const body = (await resp.json()) as { port?: number; root?: string; };
     if (body.root && body.root !== expectedRoot) return null;
     return body.port ?? port;
   } catch {
@@ -79,9 +80,9 @@ function spawnServer(
   preferredPort: number,
   preferences?: UserPreferences,
   allowOutsideRoot?: boolean,
-): { child: ChildProcess; ready: Promise<number> } {
+): { child: ChildProcess; ready: Promise<number>; } {
   const serverEntry = _require.resolve('@ui-bridge/server');
-  const serverArgs = [serverEntry, '--root', rootDir];
+  const serverArgs = [serverEntry, '--root', rootDir, '--parent-pid', String(process.pid)];
   if (allowOutsideRoot) serverArgs.push('--allow-outside-root');
   const child = spawn(process.execPath, serverArgs, {
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -115,12 +116,83 @@ function spawnServer(
   return { child, ready };
 }
 
+interface PortResolution {
+  port: Promise<number>;
+  child: ChildProcess | null;
+}
+
+const resolutionsByRoot = new Map<string, PortResolution>();
+
+// Fast path for a clean shutdown (Ctrl+C, normal exit) — kills every spawned
+// server immediately instead of waiting on its parent-liveness watchdog poll.
+// The watchdog (--parent-pid, see core/server/index.mjs) remains the fallback
+// for abrupt termination (SIGKILL, crash) where this handler never runs.
+process.once('exit', () => {
+  for (const { child } of resolutionsByRoot.values()) {
+    if (child && !child.killed) child.kill();
+  }
+});
+
+/**
+ * Resolve the actual port a UI Bridge server for `rootDir` is (or will be)
+ * listening on — reusing an already-running server for the same root, or
+ * spawning a new one otherwise. Memoized per root so concurrent callers (the
+ * Vite plugin itself, plus framework wrappers like Astro/Nuxt that also need
+ * the port to inject the WS URL) never spawn more than one server for the
+ * same project.
+ */
+export function resolveUiBridgePort(
+  rootDir: string,
+  preferredPort: number,
+  options: { preferences?: UserPreferences; allowOutsideRoot?: boolean; } = {},
+): Promise<number> {
+  const existing = resolutionsByRoot.get(rootDir);
+  if (existing) return existing.port;
+
+  const entry: PortResolution = { port: Promise.resolve(preferredPort), child: null };
+  entry.port = (async () => {
+    const existingPort = await getServerPort(preferredPort, rootDir);
+    if (existingPort !== null) {
+      console.log(`[ui-bridge] using existing server at http://localhost:${existingPort}`);
+      return existingPort;
+    }
+    const { child, ready } = spawnServer(
+      rootDir,
+      preferredPort,
+      options.preferences,
+      options.allowOutsideRoot,
+    );
+    entry.child = child;
+    const resolvedPort = await ready;
+    if (resolvedPort !== preferredPort) {
+      // Informational only — the resolved port is used everywhere automatically,
+      // and the root handshake below guards against ever syncing to the wrong project.
+      console.log(`[ui-bridge] port ${preferredPort} was in use, using ${resolvedPort} instead.`);
+    }
+    return resolvedPort;
+  })();
+
+  resolutionsByRoot.set(rootDir, entry);
+  return entry.port;
+}
+
+/** The child process spawned for `rootDir` by `resolveUiBridgePort`, if any (vs. reusing an existing server). */
+export function getUiBridgeChild(rootDir: string): ChildProcess | null {
+  return resolutionsByRoot.get(rootDir)?.child ?? null;
+}
+
+/** Forget the memoized resolution for `rootDir` so the next call resolves fresh (e.g. after the server is killed). */
+export function clearUiBridgeResolution(rootDir: string): void {
+  resolutionsByRoot.delete(rootDir);
+}
+
 /**
  * Build the injection HTML for a given WS port.
  * For webpack/rspack the client bundle is served by the ui-bridge server itself.
  */
 function buildInjectionHtml(
   resolvedPort: number,
+  rootDir: string,
   sourceAnnotation?: SourceAnnotationConfig,
 ): string {
   const wsUrl = `ws://localhost:${resolvedPort}/ui-bridge`;
@@ -129,7 +201,8 @@ function buildInjectionHtml(
     ? `<script>window.__UIB_SOURCE_CONFIG__=${JSON.stringify(sourceAnnotation)};</script>`
     : '';
   return (
-    `<script>window.__UIB_WS_URL__=${JSON.stringify(wsUrl)};</script>` +
+    `<script>window.__UIB_WS_URL__=${JSON.stringify(wsUrl)};` +
+    `window.__UIB_EXPECTED_ROOT__=${JSON.stringify(rootDir)};</script>` +
     sourceConfigScript +
     `<script src="${clientUrl}"></script>`
   );
@@ -145,44 +218,24 @@ const unpluginFactory = createUnplugin((options: UiBridgeOptions = {}) => {
   let resolvedPort = preferredPort;
   let rootDir = '';
   let isDevServer = false;
-  let child: ChildProcess | null = null;
-  let serverReady = false;
-
-  async function ensureServer() {
-    if (serverReady) return;
-    const existingPort = await getServerPort(preferredPort, rootDir);
-    if (existingPort !== null) {
-      resolvedPort = existingPort;
-      console.log(`[ui-bridge] using existing server at http://localhost:${resolvedPort}`);
-    } else {
-      const { child: c, ready } = spawnServer(
-        rootDir,
-        preferredPort,
-        preferences,
-        options.allowOutsideRoot,
-      );
-      child = c;
-      resolvedPort = await ready;
-    }
-    if (resolvedPort !== preferredPort) {
-      // The Vite dev-server proxy below is wired to `preferredPort` (the only
-      // port known at config() time). If the ui-bridge server had to fall
-      // back to a different port (preferredPort was occupied by something
-      // else), the proxy will miss and the WebSocket connection will fail.
-      console.warn(
-        `[ui-bridge] server bound to port ${resolvedPort} instead of the configured ` +
-          `${preferredPort} — free up port ${preferredPort} or set a different \`port\` option.`,
-      );
-    }
-    serverReady = true;
-  }
 
   return {
     name: 'ui-bridge',
 
     // ── vite-specific hooks ─────────────────────────────────────────────────
     vite: {
-      config() {
+      // Resolved (awaited) before Vite finalizes its config, so the proxy
+      // target below and every later use of `resolvedPort` always reflect
+      // the port the server actually bound to — never a stale guess.
+      async config(config: { root?: string; }, env: { command: string; }) {
+        rootDir = resolvePath(config.root ?? process.cwd());
+        isDevServer = env.command === 'serve';
+        if (isDevServer) {
+          resolvedPort = await resolveUiBridgePort(rootDir, preferredPort, {
+            preferences,
+            allowOutsideRoot: options.allowOutsideRoot,
+          });
+        }
         return {
           server: {
             // Ignore all UI Bridge internal files — comments, scripts, file
@@ -198,7 +251,7 @@ const unpluginFactory = createUnplugin((options: UiBridgeOptions = {}) => {
               // browser blocks a direct ws://localhost:<port> connection as
               // mixed content on an https page.
               '/ui-bridge': {
-                target: `http://localhost:${preferredPort}`,
+                target: `http://localhost:${resolvedPort}`,
                 ws: true,
                 changeOrigin: true,
               },
@@ -207,13 +260,8 @@ const unpluginFactory = createUnplugin((options: UiBridgeOptions = {}) => {
         };
       },
 
-      async configResolved(config: { root: string; command: string }) {
-        rootDir = config.root;
-        isDevServer = config.command === 'serve';
-      },
-
       configureServer(server: {
-        httpServer: { once: (event: string, cb: () => void) => void } | null;
+        httpServer: { once: (event: string, cb: () => void) => void; } | null;
         middlewares: {
           use: (
             path: string,
@@ -230,18 +278,15 @@ const unpluginFactory = createUnplugin((options: UiBridgeOptions = {}) => {
           add: (path: string) => void;
           on: (event: string, cb: (file: string) => void) => void;
         };
-        ws: { send: (payload: { type: string }) => void };
+        ws: { send: (payload: { type: string; }) => void; };
       }) {
         const CLIENT_URL = '/__ui-bridge/client.js';
         const clientBundlePath: string = _require.resolve('@ui-bridge/client');
 
-        ensureServer();
-
         server.httpServer?.once('close', () => {
-          if (child && !child.killed) {
-            child.kill();
-            child = null;
-          }
+          const c = getUiBridgeChild(rootDir);
+          if (c && !c.killed) c.kill();
+          clearUiBridgeResolution(rootDir);
         });
 
         // Watch the client bundle for changes (triggered by esbuild rebuilds)
@@ -313,6 +358,7 @@ const unpluginFactory = createUnplugin((options: UiBridgeOptions = {}) => {
             `window.__UIB_WS_URL__=o.startsWith('https:')` +
             `?('wss://'+new URL(o).host+'/ui-bridge')` +
             `:${JSON.stringify(`ws://localhost:${resolvedPort}/ui-bridge`)};` +
+            `window.__UIB_EXPECTED_ROOT__=${JSON.stringify(rootDir)};` +
             sourceConfigInit +
             `var s=document.createElement('script');` +
             `s.src=o+'/__ui-bridge/client.js';` +
@@ -330,7 +376,7 @@ const unpluginFactory = createUnplugin((options: UiBridgeOptions = {}) => {
       },
 
       transformIndexHtml: {
-        handler(_html: string, ctx: { server?: unknown }) {
+        handler(_html: string, ctx: { server?: unknown; }) {
           if (!ctx.server && !options.staticMode) return;
           type InjectTo = 'head' | 'body' | 'head-prepend' | 'body-prepend';
           type Tag = {
@@ -378,7 +424,9 @@ const unpluginFactory = createUnplugin((options: UiBridgeOptions = {}) => {
               `window.__UIB_WS_URL__='wss://'+location.host+'/ui-bridge';` +
               `}else{` +
               `window.__UIB_WS_URL__=${JSON.stringify(`ws://localhost:${resolvedPort}/ui-bridge`)};` +
-              `}})();`;
+              `}` +
+              `window.__UIB_EXPECTED_ROOT__=${JSON.stringify(rootDir)};` +
+              `})();`;
             tags.push({
               tag: 'script',
               attrs: { type: 'text/javascript' },
@@ -427,15 +475,19 @@ const unpluginFactory = createUnplugin((options: UiBridgeOptions = {}) => {
     if (compiler.options?.mode === 'production') return;
 
     compiler.hooks.done.tap('ui-bridge', () => {
-      ensureServer();
+      resolveUiBridgePort(rootDir, preferredPort, {
+        preferences,
+        allowOutsideRoot: options.allowOutsideRoot,
+      }).then((port) => {
+        resolvedPort = port;
+      });
     });
 
     // Kill the child process when the compiler shuts down (webpack 5 / rspack).
     compiler.hooks.shutdown?.tapAsync('ui-bridge', (callback: () => void) => {
-      if (child && !child.killed) {
-        child.kill();
-        child = null;
-      }
+      const c = getUiBridgeChild(rootDir);
+      if (c && !c.killed) c.kill();
+      clearUiBridgeResolution(rootDir);
       callback();
     });
 
@@ -453,7 +505,7 @@ const unpluginFactory = createUnplugin((options: UiBridgeOptions = {}) => {
           for (const filename of Object.keys(assets)) {
             if (!filename.endsWith('.html')) continue;
             const html: string = assets[filename].source();
-            const injection = buildInjectionHtml(resolvedPort, options.sourceAnnotation);
+            const injection = buildInjectionHtml(resolvedPort, rootDir, options.sourceAnnotation);
             const patched = html.replace('</head>', `${injection}</head>`);
             compilation.updateAsset(filename, {
               source: () => patched,
@@ -533,7 +585,7 @@ export function uiBridgeTurbopack(options: UiBridgeOptions = {}): Record<string,
   // Merge our inject loader into every rule entry that code-inspector produces
   const merged: Record<string, unknown> = {};
   for (const [glob, rule] of Object.entries(codeInspectorRules)) {
-    const existing = (rule as { loaders: unknown[] }).loaders ?? [];
+    const existing = (rule as { loaders: unknown[]; }).loaders ?? [];
     merged[glob] = {
       loaders: [...existing, { loader: loaderPath, options: { port } }],
     };

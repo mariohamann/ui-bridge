@@ -9,6 +9,10 @@
  *   node packages/server/index.mjs --root /path/to/project
  *   npx ui-bridge-server --root .
  *
+ * Flags:
+ *   --parent-pid <pid>   — self-terminate once this process is no longer alive
+ *   --allow-outside-root — permit tweaks to write outside --root
+ *
  * Environment:
  *   UI_BRIDGE_PORT  — port to listen on (default: 7378)
  */
@@ -21,6 +25,7 @@ import { mkdir, rm } from 'node:fs/promises';
 import { WebSocketServer, WebSocket } from 'ws';
 import { resolve } from 'node:path';
 import { createRequire } from 'node:module';
+import { execFileSync } from 'node:child_process';
 import { createTweakEngine } from './tweak-engine.mjs';
 import { createCommentStore, commentsDir } from '@ui-bridge/store';
 import { createPreferencesStore } from './preferences-store.mjs';
@@ -35,6 +40,8 @@ const rootIdx = args.indexOf('--root');
 const ROOT = rootIdx >= 0 ? resolve(args[rootIdx + 1]) : process.cwd();
 const ALLOW_OUTSIDE_ROOT = args.includes('--allow-outside-root');
 const PREFERRED_PORT = parseInt(process.env.UI_BRIDGE_PORT ?? process.env.UIB_PORT ?? '7378', 10);
+const parentPidIdx = args.indexOf('--parent-pid');
+const PARENT_PID = parentPidIdx >= 0 ? parseInt(args[parentPidIdx + 1], 10) : null;
 let actualPort = PREFERRED_PORT;
 
 // ── Free-port finder ──────────────────────────────────────────────────────────
@@ -148,6 +155,7 @@ function broadcast(msg) {
 }
 
 wss.on('connection', (ws) => {
+  ws.send(JSON.stringify({ type: 'server:info', payload: { root: ROOT, port: actualPort } }));
   const schema = tweaks.buildSchema();
   if (schema.length > 0) ws.send(JSON.stringify({ type: 'tweak:schema', payload: schema }));
   const comments = store.all();
@@ -556,6 +564,40 @@ function shutdown() {
 }
 process.on('SIGTERM', shutdown);
 process.on('SIGINT', shutdown);
+
+// A clean SIGTERM/SIGINT from the parent dev process covers most shutdowns,
+// but not an abrupt kill (SIGKILL, crash, force-closed terminal) — the child
+// would otherwise keep running forever and squat on its port. Poll for the
+// parent's liveness and self-terminate once it's gone.
+function isParentAlive(pid) {
+  try {
+    process.kill(pid, 0);
+  } catch {
+    return false; // ESRCH (no such process) or EPERM
+  }
+  // The PID can still be signalable while the process is a zombie — already
+  // exited (and its port released) but not yet reaped by its own parent.
+  // Treat that the same as "gone". `ps` is unavailable on Windows; fall back
+  // to the kill(0) check above there.
+  try {
+    return !execFileSync('ps', ['-o', 'stat=', '-p', String(pid)], { encoding: 'utf8' })
+      .trim()
+      .startsWith('Z');
+  } catch {
+    return true;
+  }
+}
+
+if (PARENT_PID) {
+  const watchdog = setInterval(() => {
+    if (!isParentAlive(PARENT_PID)) {
+      clearInterval(watchdog);
+      console.log(`[ui-bridge] parent process ${PARENT_PID} is gone — shutting down`);
+      shutdown();
+    }
+  }, 2_000);
+  watchdog.unref();
+}
 
 actualPort = await findFreePort(PREFERRED_PORT);
 if (actualPort !== PREFERRED_PORT) {

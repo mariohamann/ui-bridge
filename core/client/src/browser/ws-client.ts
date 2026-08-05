@@ -9,9 +9,15 @@ type ConnectionHandler = (connected: boolean) => void;
 
 let ws: WebSocket | null = null;
 let reconnectDelay = RECONNECT_BASE_MS;
+let disabled = false;
 const handlers = new Set<MessageHandler>();
 const connectionHandlers = new Set<ConnectionHandler>();
 const buffered: ServerMessage[] = [];
+
+/** Strip a trailing path separator so root comparisons ignore that difference. */
+function normalizeRoot(root: string): string {
+  return root.replace(/[/\\]+$/, '');
+}
 
 function connect(): void {
   // __UIB_WS_URL__ is injected by the Vite plugin (or set manually for non-Vite stacks).
@@ -34,6 +40,28 @@ function connect(): void {
     } catch {
       return;
     }
+    if (msg.type === 'server:info') {
+      // A build-time injected expected root (set alongside __UIB_WS_URL__)
+      // lets us detect a port collision with an unrelated project's server
+      // — e.g. a stale/occupied preferred port that a fallback resolution
+      // missed. Fail closed instead of silently syncing comments/tweaks
+      // into the wrong project.
+      const expectedRoot = (window as unknown as Record<string, unknown>).__UIB_EXPECTED_ROOT__ as
+        | string
+        | undefined;
+      if (expectedRoot && normalizeRoot(msg.payload.root) !== normalizeRoot(expectedRoot)) {
+        console.error(
+          `[ui-bridge] connected to the wrong server — expected project root ` +
+            `"${expectedRoot}", got "${msg.payload.root}" (port ${msg.payload.port}). ` +
+            `Refusing to sync to avoid writing into the wrong project. This usually ` +
+            `means another UI Bridge server is already using the configured port — ` +
+            `free it up or set a different \`port\` option.`,
+        );
+        disabled = true;
+        ws?.close();
+      }
+      return;
+    }
     if (handlers.size === 0) {
       buffered.push(msg);
     } else {
@@ -43,6 +71,7 @@ function connect(): void {
 
   ws.addEventListener('close', () => {
     for (const h of connectionHandlers) h(false);
+    if (disabled) return;
     console.debug(`[ui-bridge] WS closed – reconnecting in ${reconnectDelay}ms`);
     setTimeout(() => {
       reconnectDelay = Math.min(reconnectDelay * 2, RECONNECT_MAX_MS);

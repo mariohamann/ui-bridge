@@ -421,4 +421,15 @@ export interface PreferencesSyncMsg {
   payload: UserPreferences;
 }
 
-export type ServerMessage = TweakSchemaMsg | CommentsSyncMsg | InspectPickMsg | PreferencesSyncMsg;
+/** Sent once right after connect so the client can verify it reached the right project's server. */
+export interface ServerInfoMsg {
+  type: 'server:info';
+  payload: { root: string; port: number };
+}
+
+export type ServerMessage =
+  | TweakSchemaMsg
+  | CommentsSyncMsg
+  | InspectPickMsg
+  | PreferencesSyncMsg
+  | ServerInfoMsg;
