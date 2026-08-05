@@ -36,7 +36,7 @@ export interface UiBridgeNextOptions {
  * }
  * ```
  */
-export async function UiBridgeScript({ port }: { port?: number; } = {}): Promise<React.JSX.Element> {
+export async function UiBridgeScript({ port }: { port?: number } = {}): Promise<React.JSX.Element> {
   // Use createElement to avoid requiring JSX transform in this package's build.
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { createElement, Fragment } = _require('react') as typeof import('react');
@@ -67,7 +67,7 @@ async function getServerPort(port: number, expectedRoot: string): Promise<number
       signal: AbortSignal.timeout(600),
     });
     if (!resp.ok) return null;
-    const body = (await resp.json()) as { port?: number; root?: string; };
+    const body = (await resp.json()) as { port?: number; root?: string };
     if (body.root && body.root !== expectedRoot) return null;
     return body.port ?? port;
   } catch {
@@ -79,7 +79,7 @@ function spawnServer(
   rootDir: string,
   preferredPort: number,
   allowOutsideRoot?: boolean,
-): { child: ChildProcess; ready: Promise<number>; } {
+): { child: ChildProcess; ready: Promise<number> } {
   const serverEntry = _require.resolve('@ui-bridge/server');
   const serverArgs = [serverEntry, '--root', rootDir, '--parent-pid', String(process.pid)];
   if (allowOutsideRoot) serverArgs.push('--allow-outside-root');
