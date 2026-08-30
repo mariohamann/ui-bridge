@@ -398,7 +398,6 @@ server.tool(
     await store.reload();
     const now = Date.now();
     const id = `agent-${now}-${Math.random().toString(36).slice(2, 8)}`;
-    const displayNumber = store.nextDisplayNumber();
     const rootEntry = {
       id: `${id}-root`,
       type: 'comment',
@@ -408,26 +407,27 @@ server.tool(
     };
     const comments = knob
       ? [
-          rootEntry,
-          {
-            id: `${id}-tweak`,
-            type: 'tweak',
-            text: comment,
-            createdAt: now,
-            author: 'agent',
-            knob,
-            actions: normalizeActions(root, actions) ?? [],
-            tweakStatus: 'pending',
-          },
-        ]
+        rootEntry,
+        {
+          id: `${id}-tweak`,
+          type: 'tweak',
+          text: comment,
+          createdAt: now,
+          author: 'agent',
+          knob,
+          actions: normalizeActions(root, actions) ?? [],
+          tweakStatus: 'pending',
+        },
+      ]
       : [rootEntry];
     const payload = {
-      meta: { id, displayNumber, pageUrl, timestamp: now, createdAt: now },
+      meta: { id, pageUrl, timestamp: now, createdAt: now },
       elements,
       comments,
     };
-    await store.upsert(payload);
-    return { content: [{ type: 'text', text: JSON.stringify(payload, null, 2) }] };
+    // store.upsert() assigns the next available displayNumber.
+    const saved = await store.upsert(payload);
+    return { content: [{ type: 'text', text: JSON.stringify(saved, null, 2) }] };
   },
 );
 
@@ -478,19 +478,19 @@ server.tool(
     const textEntry = { id: replyId, type: 'comment', text, createdAt: now, author: 'agent' };
     const newComments = knob
       ? [
-          ...(existing.comments ?? []),
-          textEntry,
-          {
-            id: `${replyId}-tweak`,
-            type: 'tweak',
-            text,
-            createdAt: now,
-            author: 'agent',
-            knob,
-            actions: normalizeActions(root, actions) ?? [],
-            tweakStatus: 'pending',
-          },
-        ]
+        ...(existing.comments ?? []),
+        textEntry,
+        {
+          id: `${replyId}-tweak`,
+          type: 'tweak',
+          text,
+          createdAt: now,
+          author: 'agent',
+          knob,
+          actions: normalizeActions(root, actions) ?? [],
+          tweakStatus: 'pending',
+        },
+      ]
       : [...(existing.comments ?? []), textEntry];
     const updated = {
       ...existing,

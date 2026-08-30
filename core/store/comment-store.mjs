@@ -77,16 +77,38 @@ export function createCommentStore(rootDir) {
         }
       }
       if (comments.size > 0) console.log(`[ui-bridge] loaded ${comments.size} comment(s)`);
+      await backfillDisplayNumbers();
     } catch {
       /* dir doesn't exist yet — that's fine */
     }
   }
 
-  function upsert(ann) {
+  /**
+   * Assigns displayNumber to any loaded comment that doesn't have one yet
+   * (e.g. created before this feature existed), oldest-first by createdAt.
+   */
+  async function backfillDisplayNumbers() {
+    const missing = [...comments.values()]
+      .filter((c) => typeof c.meta?.displayNumber !== 'number')
+      .sort((a, b) => (a.meta?.createdAt ?? 0) - (b.meta?.createdAt ?? 0));
+    for (const ann of missing) await upsert(ann);
+  }
+
+  /**
+   * Persists `ann`, assigning the next available `meta.displayNumber` if it
+   * doesn't already have one. This is the only place displayNumber is
+   * assigned, so every comment gets one regardless of origin (browser or MCP).
+   * Resolves to the (possibly augmented) comment.
+   */
+  async function upsert(ann) {
     const id = ann?.meta?.id;
-    if (!id) return Promise.resolve();
+    if (!id) return ann;
+    if (typeof ann.meta.displayNumber !== 'number') {
+      ann = { ...ann, meta: { ...ann.meta, displayNumber: nextDisplayNumber() } };
+    }
     comments.set(id, ann);
-    return persist(ann);
+    await persist(ann);
+    return ann;
   }
 
   async function del(id) {

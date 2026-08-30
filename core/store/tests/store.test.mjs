@@ -144,6 +144,71 @@ describe('createCommentStore — in-memory state', () => {
   });
 });
 
+describe('createCommentStore — displayNumber', () => {
+  beforeEach(async () => {
+    testRoot = resolve(tmpdir(), `uib-store-${Date.now()}`);
+    await mkdir(resolve(testRoot, '.ui-bridge', 'comments'), { recursive: true });
+  });
+
+  after(async () => {
+    await rm(testRoot, { recursive: true, force: true });
+  });
+
+  it('upsert() assigns a displayNumber when the comment has none', async () => {
+    const store = createCommentStore(testRoot);
+    const saved = await store.upsert(makeAnn('no-number'));
+    assert.equal(typeof saved.meta.displayNumber, 'number');
+    assert.equal(store.get('no-number')?.meta.displayNumber, saved.meta.displayNumber);
+  });
+
+  it('upsert() increments from the highest existing displayNumber', async () => {
+    const store = createCommentStore(testRoot);
+    const first = await store.upsert(makeAnn('first'));
+    const second = await store.upsert(makeAnn('second'));
+    assert.equal(second.meta.displayNumber, first.meta.displayNumber + 1);
+  });
+
+  it('upsert() preserves an explicit displayNumber instead of reassigning', async () => {
+    const store = createCommentStore(testRoot);
+    const ann = makeAnn('explicit');
+    ann.meta.displayNumber = 42;
+    const saved = await store.upsert(ann);
+    assert.equal(saved.meta.displayNumber, 42);
+  });
+
+  it('upsert() on an update preserves the originally assigned displayNumber', async () => {
+    const store = createCommentStore(testRoot);
+    const saved = await store.upsert(makeAnn('stable-number'));
+    const updated = { ...saved, meta: { ...saved.meta, timestamp: Date.now() } };
+    const resaved = await store.upsert(updated);
+    assert.equal(resaved.meta.displayNumber, saved.meta.displayNumber);
+  });
+
+  it('load() backfills displayNumber for comments written to disk without one, oldest-first', async () => {
+    const older = makeAnn('backfill-older');
+    older.meta.createdAt = 1000;
+    const newer = makeAnn('backfill-newer');
+    newer.meta.createdAt = 2000;
+    await writeFile(
+      resolve(testRoot, '.ui-bridge', 'comments', 'backfill-older.json'),
+      JSON.stringify(older, null, 2),
+      'utf-8',
+    );
+    await writeFile(
+      resolve(testRoot, '.ui-bridge', 'comments', 'backfill-newer.json'),
+      JSON.stringify(newer, null, 2),
+      'utf-8',
+    );
+    const store = createCommentStore(testRoot);
+    await store.load();
+    const olderNumber = store.get('backfill-older')?.meta.displayNumber;
+    const newerNumber = store.get('backfill-newer')?.meta.displayNumber;
+    assert.equal(typeof olderNumber, 'number');
+    assert.equal(typeof newerNumber, 'number');
+    assert.ok(olderNumber < newerNumber, 'older comment should get the lower displayNumber');
+  });
+});
+
 describe('createCommentStore — persistence', () => {
   beforeEach(async () => {
     testRoot = resolve(tmpdir(), `uib-store-${Date.now()}`);
