@@ -1,5 +1,12 @@
 # @ui-bridge/server
 
+## 1.1.5
+
+### Patch Changes
+
+- @ui-bridge/client@1.1.5
+- @ui-bridge/store@1.1.5
+
 ## 1.1.4
 
 ### Patch Changes
