@@ -581,6 +581,7 @@ export class UibComment extends LitElement {
       : elements;
     return {
       meta: {
+        ...base?.meta,
         id: base?.meta?.id ?? this._pendingId,
         pageUrl: location.href,
         timestamp: Date.now(),

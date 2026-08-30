@@ -108,6 +108,37 @@ test.describe('Comments', () => {
     );
   });
 
+  test('displayNumber does not change when replying to an existing thread', async ({ page }) => {
+    await createComment(page, 'h1', 'Original comment');
+
+    const before = await page.request.get(`${API_BASE}/comments`);
+    const beforeBody = (await before.json()) as {
+      comments: { meta: { displayNumber?: number } }[];
+    };
+    const displayNumber = beforeBody.comments[0].meta.displayNumber;
+    expect(typeof displayNumber).toBe('number');
+
+    const badge = page.locator('#uib-items uib-comment uib-button.badge').first();
+    await badge.click();
+    const panel = commentPanel(page);
+    const replyInput = innerTA(panel.locator('uib-textarea[data-role="reply"]'));
+    await replyInput.fill('A follow-up reply');
+    await replyInput.press('Enter');
+
+    await expect
+      .poll(async () => {
+        const res = await page.request.get(`${API_BASE}/comments`);
+        const body = (await res.json()) as { comments: { comments?: unknown[] }[] };
+        return body.comments[0]?.comments?.length;
+      })
+      .toBe(2);
+
+    const after = await page.request.get(`${API_BASE}/comments`);
+    const afterBody = (await after.json()) as { comments: { meta: { displayNumber?: number } }[] };
+    expect(afterBody.comments[0].meta.displayNumber).toBe(displayNumber);
+    await expect(badge).toHaveText(String(displayNumber));
+  });
+
   test('comment is persisted to the server API', async ({ page }) => {
     await createComment(page, 'h1', 'Persisted comment');
 
