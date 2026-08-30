@@ -65,18 +65,28 @@ function syncComments(list: CommentThread[]): void {
   for (const ann of [...list, ...demos]) comments.set(ann.meta.id, ann);
   reconcileItems();
   notifyChange();
-  // Restore the previously open panel after a page reload / WS reconnect.
   const savedId = getPersistedOpenPanel();
-  if (savedId) {
-    const item = itemEls.get(savedId);
-    if (item && !item.isOpen) {
-      // Wait one rAF so the element has had a chance to position itself.
-      requestAnimationFrame(() => openItemPanel(item));
-    } else if (!item) {
-      // Comment was deleted/resolved — clear stale key.
-      persistOpenPanel(null);
-    }
+  const saved = savedId ? comments.get(savedId) : undefined;
+  if (savedId && (!saved || saved.meta.resolvedAt)) {
+    // Comment was deleted or resolved — drop the stale key.
+    persistOpenPanel(null);
+    return;
   }
+  restoreOpenPanel();
+}
+
+/**
+ * Re-open the panel that was open before a page reload / WS reconnect.
+ * Called on every sync and once after boot, because a sync can arrive before
+ * initInspector() has created the item container.
+ */
+function restoreOpenPanel(): void {
+  const savedId = getPersistedOpenPanel();
+  if (!savedId) return;
+  const item = itemEls.get(savedId);
+  if (!item || item.isOpen) return;
+  // Wait one rAF so the element has had a chance to position itself.
+  requestAnimationFrame(() => openItemPanel(item));
 }
 
 export function upsertComment(ann: CommentThread): void {
@@ -402,7 +412,7 @@ function onPointerDownForInspect(e: PointerEvent): void {
 }
 
 function onTrackCode(e: Event): void {
-  const detail = (e as CustomEvent<{ path?: string; line?: number; column?: number }>).detail;
+  const detail = (e as CustomEvent<{ path?: string; line?: number; column?: number; }>).detail;
   hideHighlight();
   if (!itemContainer) return;
 
@@ -440,7 +450,7 @@ function onTrackCode(e: Event): void {
 // ─── Cross-tab BroadcastChannel ──────────────────────────────────────────────
 
 channel.addEventListener('message', (e) => {
-  const { type, payload } = e.data as { type: string; payload: CommentThread[] };
+  const { type, payload } = e.data as { type: string; payload: CommentThread[]; };
   if (type === 'comments:sync') syncComments(payload);
 });
 
@@ -501,6 +511,8 @@ export function initInspector(config?: SourceAnnotationConfig): void {
     } else if (intent.type === 'comment:cancel') {
       draftItem?.remove();
       draftItem = null;
+    } else if (intent.type === 'comment:close') {
+      persistOpenPanel(null);
     } else if (intent.type === 'comment:delete') {
       deleteComment(intent.id);
     } else if (intent.type === 'comment:badge-click') {
@@ -519,6 +531,7 @@ export function initInspector(config?: SourceAnnotationConfig): void {
   });
 
   reconcileItems();
+  restoreOpenPanel();
 
   // Also listen for the click event (Alt+Shift) to trigger draft creation.
   // The click is processed at capture phase so it fires before any page handlers.

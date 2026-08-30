@@ -11,7 +11,14 @@ import { resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { createCommentStore } from '../comment-store.mjs';
 import { resolveRoot } from '../resolve-root.mjs';
-import { uiBridgeDir, commentsDir, scriptsDir, filesDir, cacheDir } from '../paths.mjs';
+import {
+  uiBridgeDir,
+  commentsDir,
+  scriptsDir,
+  filesDir,
+  cacheDir,
+  readStateFile,
+} from '../paths.mjs';
 
 const TEST_TIMEOUT_MS = 5_000;
 const it = (name, fn) => nodeIt(name, { timeout: TEST_TIMEOUT_MS }, fn);
@@ -52,6 +59,10 @@ describe('paths', () => {
 
   it('cacheDir returns .cache subdir', () => {
     assert.equal(cacheDir(root), '/project/.ui-bridge/.cache');
+  });
+
+  it('readStateFile returns read-state.json in .ui-bridge', () => {
+    assert.equal(readStateFile(root), '/project/.ui-bridge/read-state.json');
   });
 });
 
@@ -134,13 +145,17 @@ describe('createCommentStore — in-memory state', () => {
     assert.deepEqual(store.all(), []);
   });
 
-  it('updateInMemory() updates without triggering disk write', async () => {
+  it('markRead() updates lastReadAt without writing it to the comment file', async () => {
     const store = createCommentStore(testRoot);
     const ann = makeAnn('test-inmem');
     await store.upsert(ann);
-    const updated = { ...ann, meta: { ...ann.meta, lastReadAt: 12345 } };
-    store.updateInMemory(updated);
+    await store.markRead('test-inmem', 12345);
     assert.equal(store.get('test-inmem')?.meta.lastReadAt, 12345);
+    const raw = await readFile(
+      resolve(testRoot, '.ui-bridge', 'comments', 'test-inmem.json'),
+      'utf-8',
+    );
+    assert.equal(JSON.parse(raw).meta.lastReadAt, undefined);
   });
 });
 
@@ -328,6 +343,100 @@ describe('createCommentStore — reloadOne', () => {
     await rm(resolve(testRoot, '.ui-bridge', 'comments', 'reload-del.json'), { force: true });
     await store.reloadOne('reload-del');
     assert.ok(!store.has('reload-del'));
+  });
+});
+
+describe('createCommentStore — read state', () => {
+  const readStatePath = () => resolve(testRoot, '.ui-bridge', 'read-state.json');
+
+  beforeEach(async () => {
+    testRoot = resolve(tmpdir(), `uib-store-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+    await mkdir(resolve(testRoot, '.ui-bridge', 'comments'), { recursive: true });
+  });
+
+  after(async () => {
+    await rm(testRoot, { recursive: true, force: true });
+  });
+
+  it('markRead() persists to read-state.json', async () => {
+    const store = createCommentStore(testRoot);
+    await store.upsert(makeAnn('rs-persist'));
+    await store.markRead('rs-persist', 4242);
+    const parsed = JSON.parse(await readFile(readStatePath(), 'utf-8'));
+    assert.equal(parsed['rs-persist'], 4242);
+  });
+
+  it('read state survives a server restart (load() re-applies lastReadAt)', async () => {
+    const first = createCommentStore(testRoot);
+    await first.upsert(makeAnn('rs-restart'));
+    await first.markRead('rs-restart', 777);
+
+    const second = createCommentStore(testRoot);
+    await second.load();
+    assert.equal(second.get('rs-restart')?.meta.lastReadAt, 777);
+  });
+
+  it('reloadOne() keeps lastReadAt when the comment file is rewritten externally', async () => {
+    const store = createCommentStore(testRoot);
+    const ann = makeAnn('rs-external');
+    await store.upsert(ann);
+    await store.markRead('rs-external', 555);
+
+    // Simulate an external write (e.g. MCP) — the file on disk has no lastReadAt.
+    await writeFile(
+      resolve(testRoot, '.ui-bridge', 'comments', 'rs-external.json'),
+      JSON.stringify({ ...ann, meta: { ...ann.meta, timestamp: 99999 } }, null, 2),
+      'utf-8',
+    );
+    await store.reloadOne('rs-external');
+
+    assert.equal(store.get('rs-external')?.meta.timestamp, 99999);
+    assert.equal(store.get('rs-external')?.meta.lastReadAt, 555);
+  });
+
+  it('upsert() keeps a previously recorded lastReadAt on the in-memory thread', async () => {
+    const store = createCommentStore(testRoot);
+    const ann = makeAnn('rs-upsert');
+    await store.upsert(ann);
+    await store.markRead('rs-upsert', 111);
+    await store.upsert({ ...ann, meta: { ...ann.meta, timestamp: 222 } });
+    assert.equal(store.get('rs-upsert')?.meta.lastReadAt, 111);
+  });
+
+  it('upsert() records an incoming lastReadAt into the read state', async () => {
+    const store = createCommentStore(testRoot);
+    const ann = makeAnn('rs-incoming');
+    await store.upsert({ ...ann, meta: { ...ann.meta, lastReadAt: 999 } });
+    assert.equal(store.get('rs-incoming')?.meta.lastReadAt, 999);
+    const parsed = JSON.parse(await readFile(readStatePath(), 'utf-8'));
+    assert.equal(parsed['rs-incoming'], 999);
+  });
+
+  it('del() drops the read state entry', async () => {
+    const store = createCommentStore(testRoot);
+    await store.upsert(makeAnn('rs-del'));
+    await store.markRead('rs-del', 123);
+    await store.del('rs-del');
+    const parsed = JSON.parse(await readFile(readStatePath(), 'utf-8'));
+    assert.equal(parsed['rs-del'], undefined);
+  });
+
+  it('clear() drops all read state entries', async () => {
+    const store = createCommentStore(testRoot);
+    await store.upsert(makeAnn('rs-clear-a'));
+    await store.upsert(makeAnn('rs-clear-b'));
+    await store.markRead('rs-clear-a', 1);
+    await store.markRead('rs-clear-b', 2);
+    await store.clear();
+    const parsed = JSON.parse(await readFile(readStatePath(), 'utf-8'));
+    assert.deepEqual(parsed, {});
+  });
+
+  it('load() tolerates a missing or invalid read-state.json', async () => {
+    await writeFile(readStatePath(), '{not json', 'utf-8');
+    const store = createCommentStore(testRoot);
+    await store.load();
+    assert.deepEqual(store.all(), []);
   });
 });
 

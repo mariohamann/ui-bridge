@@ -35,6 +35,7 @@ export type TweakDismissOneIntent = {
 export type CommentDeleteIntent = { type: 'comment:delete'; id: string };
 export type CommentClearIntent = { type: 'comment:clear' };
 export type CommentOpenIntent = { type: 'comment:open'; id: string };
+export type CommentCloseIntent = { type: 'comment:close'; id: string };
 export type CommentSaveIntent = { type: 'comment:save'; comment: CommentThread };
 export type CommentCancelIntent = { type: 'comment:cancel'; id: string };
 export type CommentResolveIntent = { type: 'comment:resolve'; id: string };
@@ -62,6 +63,7 @@ export type ComponentIntent =
   | CommentDeleteIntent
   | CommentClearIntent
   | CommentOpenIntent
+  | CommentCloseIntent
   | CommentSaveIntent
   | CommentCancelIntent
   | CommentResolveIntent

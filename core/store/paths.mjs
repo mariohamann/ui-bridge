@@ -19,3 +19,7 @@ export const filesDir = (root) => resolve(root, '.ui-bridge', 'files');
 
 /** @param {string} root */
 export const cacheDir = (root) => resolve(root, '.ui-bridge', '.cache');
+
+/** Per-user read state (comment id → lastReadAt) — deliberately kept out of the comment files. */
+/** @param {string} root */
+export const readStateFile = (root) => resolve(root, '.ui-bridge', 'read-state.json');
