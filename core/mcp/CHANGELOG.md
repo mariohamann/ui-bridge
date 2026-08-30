@@ -1,5 +1,11 @@
 # @ui-bridge/mcp
 
+## 1.1.5
+
+### Patch Changes
+
+- @ui-bridge/store@1.1.5
+
 ## 1.1.4
 
 ### Patch Changes

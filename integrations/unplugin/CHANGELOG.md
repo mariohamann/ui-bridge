@@ -1,5 +1,14 @@
 # @ui-bridge/unplugin
 
+## 1.1.5
+
+### Patch Changes
+
+- @ui-bridge/client@1.1.5
+- @ui-bridge/protocol@1.1.5
+- @ui-bridge/server@1.1.5
+- @ui-bridge/mcp@1.1.5
+
 ## 1.1.4
 
 ### Patch Changes

@@ -1,5 +1,12 @@
 # @ui-bridge/nuxt
 
+## 1.1.5
+
+### Patch Changes
+
+- @ui-bridge/mcp@1.1.5
+- @ui-bridge/unplugin@1.1.5
+
 ## 1.1.4
 
 ### Patch Changes
