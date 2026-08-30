@@ -135,7 +135,7 @@ test.describe('Health & static routes', () => {
   test('GET /health returns ok:true with port and root', async ({ request }) => {
     const res = await request.get(`${BASE}/health`);
     expect(res.status()).toBe(200);
-    const body = (await res.json()) as { ok: boolean; port: number; root: string; };
+    const body = (await res.json()) as { ok: boolean; port: number; root: string };
     expect(body.ok).toBe(true);
     expect(body.port).toBe(7379);
     expect(typeof body.root).toBe('string');
@@ -168,7 +168,7 @@ test.describe('GET /api/comments', () => {
   test('returns empty list when no comments exist', async ({ request }) => {
     const res = await request.get(`${API}/comments`);
     expect(res.status()).toBe(200);
-    const body = (await res.json()) as { comments: unknown[]; };
+    const body = (await res.json()) as { comments: unknown[] };
     expect(body.comments).toEqual([]);
   });
 
@@ -179,7 +179,7 @@ test.describe('GET /api/comments', () => {
     await request.post(`${API}/comments`, { data: a2 });
 
     const res = await request.get(`${API}/comments`);
-    const body = (await res.json()) as { comments: { meta: { id: string; }; }[]; };
+    const body = (await res.json()) as { comments: { meta: { id: string } }[] };
     const ids = body.comments.map((a) => a.meta.id);
     expect(ids).toContain('list-1');
     expect(ids).toContain('list-2');
@@ -191,7 +191,7 @@ test.describe('POST /api/comments', () => {
     const ann = makeComment({ id: 'create-ok', text: 'Created' });
     const res = await request.post(`${API}/comments`, { data: ann });
     expect(res.status()).toBe(200);
-    const body = (await res.json()) as { ok: boolean; };
+    const body = (await res.json()) as { ok: boolean };
     expect(body.ok).toBe(true);
 
     // File must exist at exactly <TEST_ROOT>/.ui-bridge/comments/<id>.json
@@ -205,11 +205,11 @@ test.describe('POST /api/comments', () => {
 
   test('assigns a displayNumber even though the browser never sends one', async ({ request }) => {
     const ann = makeComment({ id: 'display-number-browser' });
-    expect((ann.meta as { displayNumber?: number; }).displayNumber).toBeUndefined();
+    expect((ann.meta as { displayNumber?: number }).displayNumber).toBeUndefined();
     await request.post(`${API}/comments`, { data: ann });
 
     const res = await request.get(`${API}/comments/display-number-browser`);
-    const body = (await res.json()) as { meta: { displayNumber?: number; }; };
+    const body = (await res.json()) as { meta: { displayNumber?: number } };
     expect(typeof body.meta.displayNumber).toBe('number');
   });
 
@@ -231,7 +231,7 @@ test.describe('POST /api/comments', () => {
     await request.post(`${API}/comments`, { data: updated });
 
     const res = await request.get(`${API}/comments/upsert-id`);
-    const body = (await res.json()) as { comments: { text: string; }[]; };
+    const body = (await res.json()) as { comments: { text: string }[] };
     expect(body.comments[0].text).toBe('Updated');
   });
 
@@ -259,7 +259,7 @@ test.describe('DELETE /api/comments (clear all)', () => {
     expect(del.status()).toBe(200);
 
     const list = await request.get(`${API}/comments`);
-    const body = (await list.json()) as { comments: unknown[]; };
+    const body = (await list.json()) as { comments: unknown[] };
     expect(body.comments).toHaveLength(0);
 
     // Comment files must be gone from the filesystem too
@@ -282,7 +282,7 @@ test.describe('GET /api/comments/:id', () => {
 
     const res = await request.get(`${API}/comments/get-by-id`);
     expect(res.status()).toBe(200);
-    const body = (await res.json()) as { meta: { id: string; }; comments: { text: string; }[]; };
+    const body = (await res.json()) as { meta: { id: string }; comments: { text: string }[] };
     expect(body.meta.id).toBe('get-by-id');
     expect(body.comments[0].text).toBe('Fetch me');
   });
@@ -350,9 +350,9 @@ test.describe('PATCH /api/comments/:id', () => {
     const getRes = await request.get(`${API}/comments/patch-selectors`);
     expect(getRes.status()).toBe(200);
     const body = (await getRes.json()) as {
-      meta: { timestamp: number; };
-      elements: { minimalSelector: string; }[];
-      comments: { text: string; }[];
+      meta: { timestamp: number };
+      elements: { minimalSelector: string }[];
+      comments: { text: string }[];
     };
     expect(body.elements.map((el) => el.minimalSelector)).toEqual([
       '.old-selector',
@@ -383,7 +383,7 @@ test.describe('PATCH /api/comments/:id', () => {
         ],
       },
     });
-    const replies = (await repliesPromise) as { type: string; payload: unknown; }[];
+    const replies = (await repliesPromise) as { type: string; payload: unknown }[];
 
     const sync = replies.find((m) => m.type === 'comments:sync');
     expect(sync).toBeDefined();
@@ -402,7 +402,7 @@ test.describe('POST /api/comments/:id/accept', () => {
     const check = await request.get(`${API}/comments/accept-ann`);
     expect(check.status()).toBe(200);
     // No pending tweaks — the accept call succeeds even without a live tweak
-    const body = (await check.json()) as { comments: { type: string; tweakStatus?: string; }[]; };
+    const body = (await check.json()) as { comments: { type: string; tweakStatus?: string }[] };
     expect(body.comments.every((c) => c.tweakStatus !== 'pending')).toBe(true);
   });
 });
@@ -413,7 +413,7 @@ test.describe('GET /api/tweaks', () => {
   test('returns an empty knobs array when no scripts are loaded', async ({ request }) => {
     const res = await request.get(`${API}/tweaks`);
     expect(res.status()).toBe(200);
-    const body = (await res.json()) as { knobs: unknown[]; };
+    const body = (await res.json()) as { knobs: unknown[] };
     expect(Array.isArray(body.knobs)).toBe(true);
     expect(body.knobs).toHaveLength(0);
   });
@@ -427,7 +427,7 @@ test.describe('POST /inspect-pick', () => {
       data: { file: 'src/HeroSection.vue', line: 12, column: 4 },
     });
     expect(res.status()).toBe(200);
-    const body = (await res.json()) as { ok: boolean; };
+    const body = (await res.json()) as { ok: boolean };
     expect(body.ok).toBe(true);
   });
 
@@ -455,8 +455,8 @@ test.describe('POST /inspect-pick', () => {
     await new Promise<void>((resolve) => setTimeout(resolve, 150));
     ws.close();
 
-    const pick = received.find((m: unknown) => (m as { type: string; }).type === 'inspect:pick') as
-      | { type: string; payload: unknown; }
+    const pick = received.find((m: unknown) => (m as { type: string }).type === 'inspect:pick') as
+      | { type: string; payload: unknown }
       | undefined;
     // The broadcast may or may not arrive depending on timing — just verify the POST succeeded.
     // The WS broadcast test is best-effort here; the REST response is the authoritative signal.
@@ -473,10 +473,10 @@ test.describe('Comment persistence', () => {
 
     // Retrieve twice — confirms it stays in the in-memory store
     const r1 = (await (await request.get(`${API}/comments/persist-1`)).json()) as {
-      comments: { text: string; }[];
+      comments: { text: string }[];
     };
     const r2 = (await (await request.get(`${API}/comments/persist-1`)).json()) as {
-      comments: { text: string; }[];
+      comments: { text: string }[];
     };
     expect(r1.comments[0].text).toBe('Persisted');
     expect(r2.comments[0].text).toBe('Persisted');
@@ -489,7 +489,7 @@ test.describe('Comment persistence', () => {
     await request.delete(`${API}/comments/gone`);
 
     const list = (await (await request.get(`${API}/comments`)).json()) as {
-      comments: { meta: { id: string; }; }[];
+      comments: { meta: { id: string } }[];
     };
     expect(list.comments.find((a) => a.meta.id === 'gone')).toBeUndefined();
   });
@@ -508,7 +508,7 @@ test.describe('WebSocket — initial state broadcast', () => {
     const ann = makeComment({ id: 'ws-init', comment: 'WS init' });
     await request.post(`${API}/comments`, { data: ann });
 
-    const msgs = (await wsMessages(WS_URL, 500)) as { type: string; payload: unknown; }[];
+    const msgs = (await wsMessages(WS_URL, 500)) as { type: string; payload: unknown }[];
     const sync = msgs.find((m) => m.type === 'comments:sync');
     expect(sync).toBeDefined();
     expect(Array.isArray(sync!.payload)).toBe(true);
@@ -522,7 +522,7 @@ test.describe('WebSocket — comment messages', () => {
 
     const res = await request.get(`${API}/comments/ws-upsert`);
     expect(res.status()).toBe(200);
-    const body = (await res.json()) as { comments: { text: string; }[]; };
+    const body = (await res.json()) as { comments: { text: string }[] };
     expect(body.comments[0].text).toBe('Via WS');
   });
 
@@ -546,11 +546,11 @@ test.describe('WebSocket — comment messages', () => {
 
     const res = await request.get(`${API}/comments/ws-resolve`);
     expect(res.status()).toBe(200);
-    const body = (await res.json()) as { meta: { resolvedAt?: number; }; };
+    const body = (await res.json()) as { meta: { resolvedAt?: number } };
     expect(body.meta.resolvedAt).toBeDefined();
 
     const list = (await (await request.get(`${API}/comments`)).json()) as {
-      comments: { meta: { id: string; }; }[];
+      comments: { meta: { id: string } }[];
     };
     expect(list.comments.map((c) => c.meta.id)).toContain('ws-resolve');
   });
@@ -586,10 +586,10 @@ test.describe('WebSocket — comment messages', () => {
     const replies = (await wsSend(WS_URL, {
       type: 'comment:read',
       payload: { id: 'read-test' },
-    })) as { type: string; payload: unknown; }[];
+    })) as { type: string; payload: unknown }[];
 
     const sync = replies.filter((m) => m.type === 'comments:sync').at(-1) as
-      | { type: string; payload: { meta: { id: string; lastReadAt?: number; }; }[]; }
+      | { type: string; payload: { meta: { id: string; lastReadAt?: number } }[] }
       | undefined;
     expect(sync).toBeDefined();
     const thread = sync!.payload.find((t) => t.meta.id === 'read-test');
@@ -601,14 +601,14 @@ test.describe('WebSocket — comment messages', () => {
     const replies = (await wsSend(WS_URL, {
       type: 'comment:read',
       payload: { id: 'does-not-exist' },
-    })) as { type: string; }[];
+    })) as { type: string }[];
 
     // No comments:sync should be broadcast (only the initial sync on connect)
     const syncs = replies.filter((m) => m.type === 'comments:sync');
     // Initial connect may send one sync; but no extra one from comment:read
     // The store is empty (cleared in beforeEach), so initial sync has 0 items
     // and no extra sync is emitted for an unknown id
-    expect(syncs.every((s) => (s as unknown as { payload: unknown[]; }).payload?.length === 0)).toBe(
+    expect(syncs.every((s) => (s as unknown as { payload: unknown[] }).payload?.length === 0)).toBe(
       true,
     );
   });
@@ -638,7 +638,7 @@ test.describe('POST /api/scripts', () => {
       },
     });
     expect(res.status()).toBe(201);
-    const body = (await res.json()) as { id: string; };
+    const body = (await res.json()) as { id: string };
     expect(body.id).toBe('icon-swap');
   });
 
@@ -695,7 +695,7 @@ test.describe('POST /api/files', () => {
       data: { id: 'my-asset', content: '<p>hello</p>' },
     });
     expect(res.status()).toBe(201);
-    const body = (await res.json()) as { id: string; };
+    const body = (await res.json()) as { id: string };
     expect(body.id).toBe('my-asset');
   });
 
@@ -764,7 +764,7 @@ test.describe('Comment-driven tweak — full lifecycle', () => {
     await request.post(`${API}/comments`, { data: ann });
 
     const res = await request.get(`${API}/tweaks`);
-    const body = (await res.json()) as { knobs: { marker: string; label: string; }[]; };
+    const body = (await res.json()) as { knobs: { marker: string; label: string }[] };
     const knob = body.knobs.find((k) => k.marker === ANN_ID);
     expect(knob).toBeDefined();
     expect(knob!.label).toBe('Feature icon');
@@ -781,7 +781,7 @@ test.describe('Comment-driven tweak — full lifecycle', () => {
         payload: { marker: ANN_ID, value: '🔥' },
       },
       600,
-    )) as { type: string; }[];
+    )) as { type: string }[];
 
     const schema = replies.find((m) => m.type === 'tweak:schema');
     expect(schema).toBeDefined();
@@ -842,7 +842,7 @@ test.describe('Comment-driven tweak — full lifecycle', () => {
     const check = await request.get(`${API}/comments/${ANN_ID}`);
     expect(check.status()).toBe(200);
     const body = (await check.json()) as {
-      comments: { type: string; tweakStatus?: string; }[];
+      comments: { type: string; tweakStatus?: string }[];
     };
     const tweakEntry = body.comments.find((c) => c.type === 'tweak');
     expect(tweakEntry?.tweakStatus).toBe('discarded');
@@ -870,7 +870,7 @@ test.describe('Comment-driven tweak — full lifecycle', () => {
     const check = await request.get(`${API}/comments/${ANN_ID}`);
     expect(check.status()).toBe(200);
     const body = (await check.json()) as {
-      comments: { type: string; tweakStatus?: string; }[];
+      comments: { type: string; tweakStatus?: string }[];
     };
     const tweakEntry = body.comments.find((c) => c.type === 'tweak');
     expect(tweakEntry?.tweakStatus).toBe('accepted');
@@ -881,7 +881,7 @@ test.describe('Comment-driven tweak — full lifecycle', () => {
 
     // Knob should no longer appear in schema
     const knobs = (await (await request.get(`${API}/tweaks`)).json()) as {
-      knobs: { marker: string; }[];
+      knobs: { marker: string }[];
     };
     expect(knobs.knobs.find((k) => k.marker === ANN_ID)).toBeUndefined();
   });
@@ -903,7 +903,7 @@ test.describe('Comment-driven tweak — WS schema broadcast', () => {
     const replies = (await wsSend(WS_URL, {
       type: 'comment:upsert',
       payload: ann,
-    })) as { type: string; payload: { marker: string; }[]; }[];
+    })) as { type: string; payload: { marker: string }[] }[];
 
     const schema = replies.find((m) => m.type === 'tweak:schema');
     expect(schema).toBeDefined();
@@ -957,7 +957,7 @@ test.describe('File watcher — external comment file changes', () => {
       });
       ws.on('message', (raw) => {
         try {
-          const msg = JSON.parse(raw.toString()) as { type: string; };
+          const msg = JSON.parse(raw.toString()) as { type: string };
           if (msg.type === 'comments:sync') syncs.push(msg);
         } catch {
           /* ignore */
@@ -969,7 +969,7 @@ test.describe('File watcher — external comment file changes', () => {
       });
     });
 
-    const syncs = (await syncPromise) as { type: string; payload: { meta: { id: string; }; }[]; }[];
+    const syncs = (await syncPromise) as { type: string; payload: { meta: { id: string } }[] }[];
 
     // There should be at least one sync after our write that includes the new comment
     const syncWithComment = syncs.find((s) => s.payload?.some((c) => c.meta?.id === id));
@@ -1001,7 +1001,7 @@ test.describe('File watcher — external comment file changes', () => {
       });
       ws.on('message', (raw) => {
         try {
-          const msg = JSON.parse(raw.toString()) as { type: string; };
+          const msg = JSON.parse(raw.toString()) as { type: string };
           if (msg.type === 'comments:sync') syncs.push(msg);
         } catch {
           /* ignore */
@@ -1013,7 +1013,7 @@ test.describe('File watcher — external comment file changes', () => {
       });
     });
 
-    const syncs = (await syncPromise) as { type: string; payload: { meta: { id: string; }; }[]; }[];
+    const syncs = (await syncPromise) as { type: string; payload: { meta: { id: string } }[] }[];
 
     // After deletion, there should be a sync where the comment is absent
     const syncAfterDelete = syncs.find(
@@ -1035,8 +1035,8 @@ test.describe('Preferences', () => {
 
   test('WS connection receives preferences:sync on connect', async () => {
     const msgs = await wsMessages(WS_URL, 400);
-    const prefsMsg = msgs.find((m) => (m as { type: string; }).type === 'preferences:sync') as
-      | { type: string; payload: Record<string, unknown>; }
+    const prefsMsg = msgs.find((m) => (m as { type: string }).type === 'preferences:sync') as
+      | { type: string; payload: Record<string, unknown> }
       | undefined;
     expect(prefsMsg).toBeDefined();
     // With no plugin prefs and no persisted file, the server returns an empty
@@ -1056,15 +1056,15 @@ test.describe('Preferences', () => {
     );
 
     // At least one preferences:sync broadcast should come back
-    const syncMsg = replies.find((m) => (m as { type: string; }).type === 'preferences:sync') as
-      | { type: string; payload: { commentBar?: { position?: string; }; }; }
+    const syncMsg = replies.find((m) => (m as { type: string }).type === 'preferences:sync') as
+      | { type: string; payload: { commentBar?: { position?: string } } }
       | undefined;
     expect(syncMsg).toBeDefined();
     expect(syncMsg?.payload.commentBar?.position).toBe('bottom-right');
 
     // Verify persisted to disk
     const raw = await readFile(PREFS_FILE, 'utf-8');
-    const persisted = JSON.parse(raw) as { commentBar?: { position?: string; }; };
+    const persisted = JSON.parse(raw) as { commentBar?: { position?: string } };
     expect(persisted.commentBar?.position).toBe('bottom-right');
   });
 
@@ -1082,8 +1082,8 @@ test.describe('Preferences', () => {
       400,
     );
 
-    const syncMsg = replies.find((m) => (m as { type: string; }).type === 'preferences:sync') as
-      | { type: string; payload: { visibility?: { route?: Record<string, boolean>; }; }; }
+    const syncMsg = replies.find((m) => (m as { type: string }).type === 'preferences:sync') as
+      | { type: string; payload: { visibility?: { route?: Record<string, boolean> } } }
       | undefined;
     expect(syncMsg).toBeDefined();
     expect(syncMsg?.payload.visibility?.route?.domain).toBe(true);
@@ -1100,8 +1100,8 @@ test.describe('Preferences', () => {
 
     // Reconnect and check the initial sync carries the saved value
     const msgs = await wsMessages(WS_URL, 400);
-    const prefsMsg = msgs.find((m) => (m as { type: string; }).type === 'preferences:sync') as
-      | { type: string; payload: { visibility?: { status?: string; }; }; }
+    const prefsMsg = msgs.find((m) => (m as { type: string }).type === 'preferences:sync') as
+      | { type: string; payload: { visibility?: { status?: string } } }
       | undefined;
     expect(prefsMsg?.payload.visibility?.status).toBe('always');
   });
@@ -1214,7 +1214,7 @@ test.describe('Tweak engine — guardPath resolves action.file paths', () => {
       payload: { marker: 'guard-outside', value: 'x' },
     });
     // Server must still be alive — a subsequent request must succeed
-    const health = (await (await fetch(`${BASE}/health`)).json()) as { ok: boolean; };
+    const health = (await (await fetch(`${BASE}/health`)).json()) as { ok: boolean };
     expect(health.ok).toBe(true);
   });
 });
