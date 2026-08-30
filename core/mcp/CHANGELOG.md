@@ -1,5 +1,12 @@
 # @ui-bridge/mcp
 
+## 1.1.6
+
+### Patch Changes
+
+- Updated dependencies [9e79d0b]
+  - @ui-bridge/store@1.1.6
+
 ## 1.1.5
 
 ### Patch Changes
